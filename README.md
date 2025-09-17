@@ -1,1 +1,1 @@
-# particle_tracking_gui
+# TrackPy GUI
