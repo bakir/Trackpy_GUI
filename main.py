@@ -1,4 +1,6 @@
 import sys
+import os
+import cv2
 from PySide6.QtCore import QUrl, Qt
 from PySide6.QtWidgets import (
     QApplication,
@@ -10,11 +12,31 @@ from PySide6.QtWidgets import (
     QSlider,
     QLabel,
     QSplitter,
-    QHBoxLayout,
 )
-from PySide6.QtGui import QAction
+from PySide6.QtGui import QAction, QPixmap
 from PySide6.QtMultimedia import QMediaPlayer
 from PySide6.QtMultimediaWidgets import QVideoWidget
+
+
+def save_video_frames(video_path: str, output_folder: str, max_frames: int = 5):
+    """Extracts frames from a video and saves them as .jpg in the output folder."""
+    os.makedirs(output_folder, exist_ok=True)
+
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        raise ValueError(f"Could not open video: {video_path}")
+
+    frame_idx = 0
+    while True:
+        ret, frame = cap.read()
+        if not ret or frame_idx >= max_frames:
+            break
+
+        frame_path = os.path.join(output_folder, f"frame_{frame_idx:05d}.jpg")
+        cv2.imwrite(frame_path, frame)
+        frame_idx += 1
+
+    cap.release()
 
 
 class MainWindow(QMainWindow):
@@ -24,66 +46,63 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("TrackPy GUI")
         self.setGeometry(100, 100, 1000, 600)
 
-        # Main splitter
+        # Main splitter (left: video/photo, right: controls)
         self.splitter = QSplitter(Qt.Horizontal)
         self.setCentralWidget(self.splitter)
 
-        # --- Left Panel (Video Player) ---
+        # Left panel
         self.left_panel = QWidget()
         self.left_layout = QVBoxLayout(self.left_panel)
-
-        self.video_widget = QVideoWidget()
-        self.left_layout.addWidget(self.video_widget)
-
-        self.play_pause_button = QPushButton("Play")
-        self.play_pause_button.clicked.connect(self.toggle_play_pause)
-        self.left_layout.addWidget(self.play_pause_button)
-
+        self.init_video()
         self.splitter.addWidget(self.left_panel)
 
-        # --- Right Panel (Sliders) ---
+        # Right panel
         self.right_panel = QWidget()
         self.right_layout = QVBoxLayout(self.right_panel)
-
-        # Mass Slider
-        self.mass_label = QLabel("Mass")
-        self.mass_slider = QSlider(Qt.Horizontal)
-        self.right_layout.addWidget(self.mass_label)
-        self.right_layout.addWidget(self.mass_slider)
-
-        # Eccentricity Slider
-        self.ecc_label = QLabel("Eccentricity")
-        self.ecc_slider = QSlider(Qt.Horizontal)
-        self.right_layout.addWidget(self.ecc_label)
-        self.right_layout.addWidget(self.ecc_slider)
-
-        # Size Slider
-        self.size_label = QLabel("Size")
-        self.size_slider = QSlider(Qt.Horizontal)
-        self.right_layout.addWidget(self.size_label)
-        self.right_layout.addWidget(self.size_slider)
-
-        self.right_layout.addStretch() # Pushes sliders to the top
+        self.init_param_controls()
         self.splitter.addWidget(self.right_panel)
 
-        # Set initial sizes for the splitter
+        # Splitter proportions
         self.splitter.setSizes([700, 300])
 
-
-        # --- Media Player Setup ---
+        # Media Player
         self.player = QMediaPlayer()
         self.player.setVideoOutput(self.video_widget)
-        self.player.playbackStateChanged.connect(self.update_button_text)
 
-        # --- Menu Bar ---
+        # Menu Bar
         menu_bar = self.menuBar()
         file_menu = menu_bar.addMenu("File")
         import_action = QAction("Import...", self)
         import_action.triggered.connect(self.open_file_dialog)
         file_menu.addAction(import_action)
 
-        # --- Status Bar ---
+        # Status Bar
         self.statusBar().showMessage("Ready")
+
+    def init_video(self):
+        self.video_widget = QVideoWidget()
+        self.left_layout.addWidget(self.video_widget)
+
+        self.photo_label = QLabel("Photo display")
+        self.photo_label.setAlignment(Qt.AlignCenter)
+        self.photo_label.setStyleSheet(
+            "background-color: #222; color: #ccc; border: 1px solid #555;"
+        )
+        self.photo_label.setMinimumHeight(200)
+        self.left_layout.addWidget(self.photo_label)
+
+        self.play_pause_button = QPushButton("Play")
+        self.play_pause_button.clicked.connect(self.toggle_play_pause)
+        self.left_layout.addWidget(self.play_pause_button)
+
+    def init_param_controls(self):
+        for label_text in ["Mass", "Eccentricity", "Size"]:
+            label = QLabel(label_text)
+            slider = QSlider(Qt.Horizontal)
+            self.right_layout.addWidget(label)
+            self.right_layout.addWidget(slider)
+
+        self.right_layout.addStretch()
 
     def open_file_dialog(self):
         file_name, _ = QFileDialog.getOpenFileName(
@@ -92,19 +111,33 @@ class MainWindow(QMainWindow):
         if file_name:
             self.player.setSource(QUrl.fromLocalFile(file_name))
             self.player.play()
+            self.play_pause_button.setText("Pause")
             self.statusBar().showMessage(f"Playing {file_name}")
+
+            frames_dir = os.path.join(
+                os.path.dirname(os.path.abspath(__file__)), "frames"
+            )
+            save_video_frames(file_name, frames_dir)
+
+            first_frame = os.path.join(frames_dir, sorted(os.listdir(frames_dir))[0])
+            pixmap = QPixmap(first_frame)
+            if not pixmap.isNull():
+                scaled = pixmap.scaled(
+                    self.photo_label.width(),
+                    self.photo_label.height(),
+                    Qt.KeepAspectRatio,
+                    Qt.SmoothTransformation,
+                )
+                self.photo_label.setPixmap(scaled)
+                self.photo_label.setText("")
 
     def toggle_play_pause(self):
         if self.player.playbackState() == QMediaPlayer.PlaybackState.PlayingState:
             self.player.pause()
+            self.play_pause_button.setText("Play")
         else:
             self.player.play()
-
-    def update_button_text(self, state):
-        if state == QMediaPlayer.PlaybackState.PlayingState:
             self.play_pause_button.setText("Pause")
-        else:
-            self.play_pause_button.setText("Play")
 
 
 if __name__ == "__main__":
