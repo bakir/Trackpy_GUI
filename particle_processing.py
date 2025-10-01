@@ -1,0 +1,88 @@
+import cv2
+import os
+import numpy as np
+import particle_tracking
+from config_parser import get_config
+
+config = get_config()
+PARTICLES_FOLDER = config.get('particles_folder', 'particles/')
+
+def delete_all_files_in_folder(folder_path):
+    """
+    Deletes all files within a specified folder.
+
+    Args:
+        folder_path (str): The path to the folder.
+    """
+    if not os.path.isdir(folder_path):
+        print(f"Error: '{folder_path}' is not a valid directory.")
+        return
+
+    for filename in os.listdir(folder_path):
+        file_path = os.path.join(folder_path, filename)
+        if os.path.isfile(file_path):  # Ensure it's a file, not a subdirectory
+            try:
+                os.remove(file_path)
+                print(f"Deleted: {file_path}")
+            except OSError as e:
+                print(f"Error deleting {file_path}: {e}")
+
+def find_and_save_particles(image_path):
+    """
+    Finds particles in an image and saves cropped images of them.
+
+    Parameters
+    ----------
+    image_path : str
+        The path to the image file.
+    """
+    delete_all_files_in_folder(PARTICLES_FOLDER)
+
+    # Create particles directory if it doesn't exist
+    if not os.path.exists(PARTICLES_FOLDER):
+        os.makedirs(PARTICLES_FOLDER)
+
+    # Read the image
+    image = cv2.imread(image_path)
+    if image is None:
+        print(f"Error: Could not read image from {image_path}")
+        return
+
+    # Convert to grayscale
+    gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    # Locate particles
+    # Using random parameters for now
+    features = particle_tracking.locate_particles(
+        gray_image,
+        feature_size=51,
+        min_mass=100,
+        invert=False,
+        threshold=0
+    )
+
+    # Crop and save images of each particle
+    for i, particle in features.iterrows():
+        x, y, size = particle['x'], particle['y'], particle['size']
+        # Define a bounding box around the particle
+        # The size of the box is based on the particle's size, with some padding
+        padding = 5
+        half_size = int(size) + padding
+        x_min = max(0, int(x) - half_size)
+        y_min = max(0, int(y) - half_size)
+        x_max = min(image.shape[1], int(x) + half_size)
+        y_max = min(image.shape[0], int(y) + half_size)
+
+        # Crop the particle from the original image
+        particle_image = image[y_min:y_max, x_min:x_max]
+
+        # Draw a white cross at the center of the particle
+        center_x = int(x) - x_min
+        center_y = int(y) - y_min
+        cross_size = 5
+        cv2.line(particle_image, (center_x - cross_size, center_y), (center_x + cross_size, center_y), (255, 255, 255), 1)
+        cv2.line(particle_image, (center_x, center_y - cross_size), (center_x, center_y + cross_size), (255, 255, 255), 1)
+
+        # Save the particle image
+        particle_filename = os.path.join(PARTICLES_FOLDER, f"particle_{i}.png")
+        cv2.imwrite(particle_filename, particle_image)
