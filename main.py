@@ -107,6 +107,7 @@ class MainWindow(QMainWindow):
         self.play_pause_button.clicked.connect(self.toggle_play_pause)
         self.left_layout.addWidget(self.play_pause_button)
 
+
         
         # Dummy photo display area
         self.photo_label = QLabel("Photo display")
@@ -147,7 +148,6 @@ class MainWindow(QMainWindow):
             self.photo_label.setPixmap(scaled)
             self.photo_label.setText("")
             self.photo_label.repaint()
-
 
     def init_param_controls(self):
         # Mass Slider
