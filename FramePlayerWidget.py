@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QSlider,
     QLabel,
+    QVBoxLayout,
     QSplitter,
     QHBoxLayout,
     QGroupBox,
@@ -63,6 +64,52 @@ class FrameExtractionThread(QThread):
                 self.cap.release()
 
 
+class FrameExtractionThread(QThread):
+    """Thread for extracting frames from video"""
+    frame_extracted = Signal(int, QPixmap)  # frame_number, pixmap
+    extraction_complete = Signal(int)  # total_frames
+
+    def __init__(self, video_path):
+        super().__init__()
+        self.video_path = video_path
+        self.cap = None
+
+    def run(self):
+        """Extract frames from video"""
+        try:
+            self.cap = cv2.VideoCapture(self.video_path)
+            if not self.cap.isOpened():
+                return
+
+            total_frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            self.extraction_complete.emit(total_frames)
+
+            frame_count = 0
+            while True:
+                ret, frame = self.cap.read()
+                if not ret:
+                    break
+
+                # Convert BGR to RGB
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                h, w, ch = frame_rgb.shape
+                bytes_per_line = ch * w
+
+                # Convert to QImage then QPixmap
+                qt_image = QImage(frame_rgb.data, w, h, bytes_per_line, QImage.Format_RGB888)
+                pixmap = QPixmap.fromImage(qt_image)
+
+                self.frame_extracted.emit(frame_count, pixmap)
+                frame_count += 1
+
+        except Exception as e:
+            print(f"Error extracting frames: {e}")
+        finally:
+            if self.cap:
+                self.cap.release()
+
+
+    
 class FramePlayerWidget(QWidget):
     """Widget for displaying video frames as a slideshow"""
 
@@ -192,6 +239,92 @@ class FramePlayerWidget(QWidget):
         super().resizeEvent(event)
         if hasattr(self, 'current_frame') and self.current_frame in self.frames:
             self.display_frame(self.current_frame)
+            
+class ParameterWidget(QWidget):
+    """Widget containing TrackPy parameters"""
+
+    def __init__(self):
+        super().__init__()
+        self.setup_ui()
+
+    def setup_ui(self):
+        """Setup the parameter UI components"""
+        layout = QVBoxLayout(self)
+
+        # TrackPy Parameters Group
+        params_group = QGroupBox("TrackPy Parameters")
+        params_layout = QVBoxLayout()
+
+        # Mass Slider
+        self.mass_label = QLabel("Mass")
+        self.mass_slider = QSlider(Qt.Horizontal)
+        params_layout.addWidget(self.mass_label)
+        params_layout.addWidget(self.mass_slider)
+
+        # Eccentricity Slider
+        self.ecc_label = QLabel("Eccentricity")
+        self.ecc_slider = QSlider(Qt.Horizontal)
+        params_layout.addWidget(self.ecc_label)
+        params_layout.addWidget(self.ecc_slider)
+
+        # Size Slider
+        self.size_label = QLabel("Size")
+        self.size_slider = QSlider(Qt.Horizontal)
+        params_layout.addWidget(self.size_label)
+        params_layout.addWidget(self.size_slider)
+
+        params_group.setLayout(params_layout)
+        layout.addWidget(params_group)
+
+        layout.addStretch()  # Pushes controls to the top
+
+
+class MainWindow(QMainWindow):
+    """Main application window that coordinates video and parameter widgets"""
+
+    def __init__(self):
+        super().__init__()
+        self.setup_ui()
+        self.setup_menu()
+
+    def setup_ui(self):
+        """Setup the main UI layout"""
+        self.setWindowTitle("TrackPy GUI")
+        self.setGeometry(100, 100, 1000, 600)
+
+        # Main splitter
+        self.splitter = QSplitter(Qt.Horizontal)
+        self.setCentralWidget(self.splitter)
+
+        # Create widget instances
+        self.video_widget = FrameViewerWidget()
+        self.parameter_widget = ParameterWidget()
+
+        # Add widgets to splitter
+        self.splitter.addWidget(self.video_widget)
+        self.splitter.addWidget(self.parameter_widget)
+
+        # Set initial sizes for the splitter (video takes more space)
+        self.splitter.setSizes([700, 300])
+
+        # Status bar
+        self.statusBar().showMessage("Ready")
+
+    def setup_menu(self):
+        """Setup the menu bar"""
+        menu_bar = self.menuBar()
+        file_menu = menu_bar.addMenu("File")
+        import_action = QAction("Import...", self)
+        import_action.triggered.connect(self.open_file_dialog)
+        file_menu.addAction(import_action)
+
+    def open_file_dialog(self):
+        """Open file dialog and load video"""
+        file_name, _ = QFileDialog.getOpenFileName(self, "Open Video", "", "Video Files (*.mp4 *.avi *.mov)")
+        if file_name:
+            self.video_widget.load_video(file_name)
+            self.statusBar().showMessage(f"Loaded {file_name}")
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
