@@ -22,8 +22,6 @@ from PySide6.QtWidgets import (
     QLineEdit,
 
 )
-from PySide6.QtMultimedia import QMediaPlayer
-from PySide6.QtMultimediaWidgets import QVideoWidget
 from PySide6 import QtWidgets
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qtagg import FigureCanvas
