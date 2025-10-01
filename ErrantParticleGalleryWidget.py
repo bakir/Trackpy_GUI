@@ -50,13 +50,15 @@ class ErrantParticleGalleryWidget(QWidget):
         # --- Frame Navigation ---
         self.frame_nav_layout = QHBoxLayout()
         self.prev_frame_button = QPushButton("<")
-        self.frame_number_display = QLineEdit("0")
+        self.frame_number_display = QLineEdit("0 / 0")
         self.curr_particle_idx = 0
-        self.frame_number_display.setReadOnly(True)
+        self.frame_number_display.setReadOnly(False)
         self.frame_number_display.setAlignment(Qt.AlignCenter)
         self.next_frame_button = QPushButton("->")
-        # self.prev_frame_button.clicked.connect(self.prev_frame)
+        self.prev_frame_button.clicked.connect(self.prev_particle)
         self.next_frame_button.clicked.connect(self.next_particle)
+        self.frame_number_display.returnPressed.connect(self._jump_to_input_particle)
+        self.frame_number_display.editingFinished.connect(self._jump_to_input_particle)
         self.frame_nav_layout.addWidget(self.prev_frame_button)
         self.frame_nav_layout.addWidget(self.frame_number_display)
         self.frame_nav_layout.addWidget(self.next_frame_button)
@@ -98,12 +100,12 @@ class ErrantParticleGalleryWidget(QWidget):
                 self.photo_label.setPixmap(scaled)
             else:
                 self.photo_label.setText("Failed to load image")
-            self.frame_number_display.setText(str(index))
+            self._update_display_text()
         else:
             # out of bounds or no files
             if not self.particle_files:
                 self.photo_label.setText("No particle images found")
-            self.frame_number_display.setText(str(self.curr_particle_idx))
+            self._update_display_text()
 
     def resizeEvent(self, event):
         """Ensure the currently shown image keeps aspect ratio on resize."""
@@ -126,3 +128,49 @@ class ErrantParticleGalleryWidget(QWidget):
         else:
             # already at last image; do nothing
             pass
+
+    def prev_particle(self):
+        """Go to the previous particle and update display."""
+        if not self.particle_files:
+            return
+        if self.curr_particle_idx > 0:
+            self.curr_particle_idx -= 1
+            self._display_particle(self.curr_particle_idx)
+        else:
+            # already at first image; do nothing
+            pass
+
+    def _update_display_text(self):
+        total = len(self.particle_files)
+        text = f"{self.curr_particle_idx} / {total}"
+        # avoid recursive signals while editing
+        old_block = self.frame_number_display.blockSignals(True)
+        self.frame_number_display.setText(text)
+        self.frame_number_display.blockSignals(old_block)
+
+    def _jump_to_input_particle(self):
+        """Parse the input and jump to the requested particle index if valid."""
+        text = self.frame_number_display.text().strip()
+        # Accept formats like "12" or "12 / 200"
+        if "/" in text:
+            first = text.split("/", 1)[0].strip()
+        else:
+            first = text
+        try:
+            requested = int(first)
+        except ValueError:
+            # restore correct text
+            self._update_display_text()
+            return
+        total = len(self.particle_files)
+        if total == 0:
+            self._update_display_text()
+            return
+        # clamp to valid range
+        requested = max(0, min(requested, total - 1))
+        if requested != self.curr_particle_idx:
+            self.curr_particle_idx = requested
+            self._display_particle(self.curr_particle_idx)
+        else:
+            # even if unchanged, ensure text format is correct
+            self._update_display_text()
