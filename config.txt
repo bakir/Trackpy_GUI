@@ -1,0 +1,4 @@
+[Paths]
+particles_folder = particles/
+frames_folder = frames/
+videos_folder = videos/
