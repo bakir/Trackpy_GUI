@@ -2,3 +2,10 @@
 particles_folder = particles/
 frames_folder = frames/
 videos_folder = videos/
+
+[Detection]
+feature_size = 181
+min_mass = 150.0
+invert = false
+threshold = 0.0
+
