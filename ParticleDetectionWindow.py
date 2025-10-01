@@ -122,6 +122,8 @@ class ParticleDetectionWindow(QMainWindow):
         except Exception:
             pass
         save_video_frames(file_path, FRAMES_FOLDER)
+        # Load the selected video into the frame player
+        self.frame_player.load_video(file_path)
 
 
 # clean up temp folders on exit for now

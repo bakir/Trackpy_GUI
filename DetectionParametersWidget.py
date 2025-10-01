@@ -10,8 +10,6 @@ class DetectionParametersWidget(QWidget):
         super().__init__(parent)
 
         self.layout = QVBoxLayout(self)
-        self.label = QLabel("Detection Parameters")
-        self.layout.addWidget(self.label)
 
         self.form = QFormLayout()
 

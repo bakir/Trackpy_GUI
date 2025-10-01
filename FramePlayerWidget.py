@@ -18,6 +18,52 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import QAction, QPixmap, QImage
 
+
+class FrameExtractionThread(QThread):
+    """Thread for extracting frames from video"""
+    frame_extracted = Signal(int, QPixmap)  # frame_number, pixmap
+    extraction_complete = Signal(int)  # total_frames
+
+    def __init__(self, video_path):
+        super().__init__()
+        self.video_path = video_path
+        self.cap = None
+
+    def run(self):
+        """Extract frames from video"""
+        try:
+            self.cap = cv2.VideoCapture(self.video_path)
+            if not self.cap.isOpened():
+                return
+
+            total_frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            self.extraction_complete.emit(total_frames)
+
+            frame_count = 0
+            while True:
+                ret, frame = self.cap.read()
+                if not ret:
+                    break
+
+                # Convert BGR to RGB
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                h, w, ch = frame_rgb.shape
+                bytes_per_line = ch * w
+
+                # Convert to QImage then QPixmap
+                qt_image = QImage(frame_rgb.data, w, h, bytes_per_line, QImage.Format_RGB888)
+                pixmap = QPixmap.fromImage(qt_image)
+
+                self.frame_extracted.emit(frame_count, pixmap)
+                frame_count += 1
+
+        except Exception as e:
+            print(f"Error extracting frames: {e}")
+        finally:
+            if self.cap:
+                self.cap.release()
+
+
 class FrameExtractionThread(QThread):
     """Thread for extracting frames from video"""
     frame_extracted = Signal(int, QPixmap)  # frame_number, pixmap
@@ -193,8 +239,7 @@ class FramePlayerWidget(QWidget):
         super().resizeEvent(event)
         if hasattr(self, 'current_frame') and self.current_frame in self.frames:
             self.display_frame(self.current_frame)
-
-
+            
 class ParameterWidget(QWidget):
     """Widget containing TrackPy parameters"""
 
