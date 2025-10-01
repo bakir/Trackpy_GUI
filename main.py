@@ -1,23 +1,9 @@
-import sys
-from PySide6.QtCore import QUrl, Qt
-from PySide6.QtWidgets import (
-    QApplication,
-    QMainWindow,
-    QFileDialog,
-    QWidget,
-    QVBoxLayout,
-    QPushButton,
-    QSlider,
-    QLabel,
-    QSplitter,
-    QHBoxLayout,
-)
-from PySide6.QtGui import QAction
-from PySide6.QtMultimedia import QMediaPlayer
-from PySide6.QtMultimediaWidgets import QVideoWidget
-import sys
 import os
+import sys
+import cv2
+
 from PySide6.QtCore import QUrl, Qt
+from PySide6.QtGui import QAction, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -30,35 +16,14 @@ from PySide6.QtWidgets import (
     QSplitter,
     QHBoxLayout,
     QFrame,
-)
-from PySide6.QtGui import QAction, QPixmap
-from PySide6.QtMultimedia import QMediaPlayer
-from PySide6.QtMultimediaWidgets import QVideoWidget
-import cv2
-import sys
-import os
-import cv2
-from PySide6.QtCore import QUrl, Qt
-from PySide6.QtWidgets import (
-    QApplication,
-    QMainWindow,
-    QFileDialog,
-    QWidget,
-    QVBoxLayout,
-    QPushButton,
-    QSlider,
-    QLabel,
-    QSplitter,
-    QHBoxLayout,
     QSizePolicy,
     QLineEdit,
 )
-from PySide6.QtGui import QAction, QPixmap
 from PySide6.QtMultimedia import QMediaPlayer
 from PySide6.QtMultimediaWidgets import QVideoWidget
+
 import particle_processing
 from config_parser import get_config
-
 config = get_config()
 PARTICLES_FOLDER = config.get('particles_folder', 'particles/')
 FRAMES_FOLDER = config.get('frames_folder', 'frames/')
