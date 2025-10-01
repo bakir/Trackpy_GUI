@@ -9,3 +9,5 @@ min_mass = 150.0
 invert = false
 threshold = 0.0
 
+frame_idx = 0
+
