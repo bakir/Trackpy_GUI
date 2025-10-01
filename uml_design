@@ -1,0 +1,22 @@
+// UML Design Diagram for Particle Tracking GUI
+digraph UML_Design_Diagram {
+	node [fillcolor=lightblue shape=record style=filled]
+	edge [arrowhead=vee]
+	MainWindow [label="{MainWindow|+ switch_window()\l}"]
+	ParticleDetectionWindow [label="{ParticleDetectionWindow|+ show()\l}"]
+	TrajectoryLinkingWindow [label="{TrajectoryLinkingWindow|+ show()\l}"]
+	GraphingWidget [label="{GraphingWidget|+ plot_subpixel_bias()\l+ plot_mass_vs_ecc()\l}"]
+	VideoPlayerWidget [label="{VideoPlayerWidget|+ play()\l+ pause()\l+ next_frame()\l+ prev_frame()\l}"]
+	ErrantParticleGalleryWidget [label="{ErrantParticleGalleryWidget|+ show_next_particle()\l+ show_prev_particle()\l}"]
+	ParticleInfoWidget [label="{ParticleInfoWidget|+ display_info()\l}"]
+	ParticleDetectionParametersWidget [label="{ParticleDetectionParametersWidget|+ get_parameters()\l}"]
+	FindParticlesButton [label="{FindParticlesButton|+ find_particles()\l}"]
+	MainWindow -> ParticleDetectionWindow [label=manages]
+	MainWindow -> TrajectoryLinkingWindow [label=manages]
+	ParticleDetectionWindow -> GraphingWidget [label="has a"]
+	ParticleDetectionWindow -> VideoPlayerWidget [label="has a"]
+	ParticleDetectionWindow -> ErrantParticleGalleryWidget [label="has a"]
+	ParticleDetectionWindow -> ParticleInfoWidget [label="has a"]
+	ParticleDetectionWindow -> ParticleDetectionParametersWidget [label="has a"]
+	ParticleDetectionWindow -> FindParticlesButton [label="has a"]
+}
