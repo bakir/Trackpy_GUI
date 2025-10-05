@@ -109,6 +109,10 @@ class ParticleDetectionWindow(QMainWindow):
         export_trajectory_data_csv_action.triggered.connect(self.export_trajectories_csv)
         export_trajectory_data_pkl_action.triggered.connect(self.export_trajectories_pkl)
 
+        options_menu = menubar.addMenu("Options")
+        stream_action = QAction("Stream", self)
+        stream_action.triggered.connect(self.stream)
+        options_menu.addAction(stream_action)
 
 
 
@@ -218,6 +222,9 @@ class ParticleDetectionWindow(QMainWindow):
     def export_trajectories_pkl(self):
         self._export_data(source_filename='trajectories.csv', target_format='pkl')
 
+    def stream(self):
+        return
+    
     def open_trajectory_linking_window(self):
         """Close particle detection window and open trajectory linking window."""
         # Close current window
