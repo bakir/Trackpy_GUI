@@ -9,6 +9,8 @@ class LinkingParametersWidget(QWidget):
     particlesDetected = Signal()
     trajectoriesLinked = Signal()
     trajectoryVisualizationCreated = Signal(str)  # Emits image path
+    rbGalleryCreated = Signal()  # Signal that RB gallery was created
+    goBackToDetection = Signal()  # Signal to go back to detection window
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -70,6 +72,10 @@ class LinkingParametersWidget(QWidget):
         self.find_trajectories_button = QPushButton("Find Trajectories")
         self.find_trajectories_button.clicked.connect(self.find_trajectories)
         self.buttons_layout.addWidget(self.find_trajectories_button, alignment=Qt.AlignRight)
+        
+        self.back_button = QPushButton("Back")
+        self.back_button.clicked.connect(self.go_back)
+        self.buttons_layout.addWidget(self.back_button, alignment=Qt.AlignRight)
         
         self.layout.addLayout(self.buttons_layout)
 
@@ -170,8 +176,12 @@ class LinkingParametersWidget(QWidget):
             # Create trajectory visualization
             self.create_trajectory_visualization(trajectories_filtered, particles_folder)
             
-            # Emit signal that trajectories were linked
+            # Create RB gallery for trajectory validation
+            self.create_rb_gallery(trajectories_file, particles_folder)
+            
+            # Emit signals
             self.trajectoriesLinked.emit()
+            self.rbGalleryCreated.emit()
             
         except Exception as e:
             print(f"Error linking trajectories: {e}")
@@ -250,3 +260,24 @@ class LinkingParametersWidget(QWidget):
             
         except Exception as e:
             print(f"Error creating trajectory visualization: {e}")
+
+    def create_rb_gallery(self, trajectories_file, particles_folder):
+        """Create RB gallery using particle_processing function."""
+        try:
+            import particle_processing
+            config = get_config()
+            frames_folder = config.get('frames_folder', 'frames/')
+            
+            # Call the RB gallery creation function
+            particle_processing.create_rb_gallery(
+                trajectories_file=trajectories_file,
+                frames_folder=frames_folder,
+                output_folder=os.path.join(particles_folder, 'rb_gallery')
+            )
+            
+        except Exception as e:
+            print(f"Error creating RB gallery: {e}")
+
+    def go_back(self):
+        """Emit signal to go back to particle detection window."""
+        self.goBackToDetection.emit()
