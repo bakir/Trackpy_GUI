@@ -33,6 +33,7 @@ from ErrantParticleGalleryWidget import *
 from FramePlayerWidget import *
 from GraphingPanelWidget import *
 from DetectionParametersWidget import *
+from TrajectoryLinkingWindow import *
 
 
 import particle_processing
@@ -60,7 +61,7 @@ def save_video_frames(video_path: str, output_folder: str):
     frame_idx = 0
     while True:
         ret, frame = cap.read()
-        if not ret or frame_idx >= 5:
+        if not ret or frame_idx >= 50:
             break  # End of video
 
         frame_path = os.path.join(output_folder, f"frame_{frame_idx:05d}.jpg")
@@ -110,6 +111,8 @@ class ParticleDetectionWindow(QMainWindow):
         self.main_layout.addWidget(self.main_layout.right_panel)
         # When particles are found, refresh gallery
         self.main_layout.right_panel.particlesUpdated.connect(self.errant_particle_gallery.refresh_particles)
+        # When link trajectories is clicked, switch to trajectory linking window
+        self.main_layout.right_panel.openTrajectoryLinking.connect(self.open_trajectory_linking_window)
 
     def import_video(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "Select Video", VIDEOS_FOLDER, "Video Files (*.avi *.mp4 *.mov *.mkv);;All Files (*)")
@@ -124,6 +127,14 @@ class ParticleDetectionWindow(QMainWindow):
         save_video_frames(file_path, FRAMES_FOLDER)
         # Load the selected video into the frame player
         self.frame_player.load_video(file_path)
+
+    def open_trajectory_linking_window(self):
+        """Close particle detection window and open trajectory linking window."""
+        # Close current window
+        self.close()
+        # Open trajectory linking window
+        self.trajectory_window = TrajectoryLinkingWindow()
+        self.trajectory_window.show()
 
 
 # clean up temp folders on exit for now

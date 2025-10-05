@@ -101,6 +101,11 @@ class TrajectoryLinkingWindow(QMainWindow):
         self.main_layout.right_panel = LinkingParametersWidget()
         self.right_layout = QVBoxLayout(self.main_layout.right_panel)
         self.main_layout.addWidget(self.main_layout.right_panel)
+        
+        # Connect trajectory visualization signal to display in trajectory player
+        self.main_layout.right_panel.trajectoryVisualizationCreated.connect(
+            self.frame_player.display_trajectory_image
+        )
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

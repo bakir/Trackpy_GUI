@@ -82,3 +82,76 @@ def save_detection_params(params):
 
     with open(config_path, 'w') as f:
         config.write(f)
+
+
+def get_linking_params():
+    """Read linking parameters from config.txt under [Linking]."""
+    config = configparser.ConfigParser()
+    config_path = os.path.join(os.path.dirname(__file__), 'config.txt')
+    config.read(config_path)
+
+    params = {
+        'search_range': 10,
+        'memory': 10,
+        'min_trajectory_length': 10,
+        'fps': 30.0,
+        'scaling': 1.0,
+        'max_speed': 100.0,
+    }
+
+    if config.has_section('Linking'):
+        section = config['Linking']
+        if 'search_range' in section:
+            try:
+                params['search_range'] = int(section.get('search_range'))
+            except Exception:
+                pass
+        if 'memory' in section:
+            try:
+                params['memory'] = int(section.get('memory'))
+            except Exception:
+                pass
+        if 'min_trajectory_length' in section:
+            try:
+                params['min_trajectory_length'] = int(section.get('min_trajectory_length'))
+            except Exception:
+                pass
+        if 'fps' in section:
+            try:
+                params['fps'] = float(section.get('fps'))
+            except Exception:
+                pass
+        if 'scaling' in section:
+            try:
+                params['scaling'] = float(section.get('scaling'))
+            except Exception:
+                pass
+        if 'max_speed' in section:
+            try:
+                params['max_speed'] = float(section.get('max_speed'))
+            except Exception:
+                pass
+
+    return params
+
+
+def save_linking_params(params):
+    """Write linking parameters to config.txt under [Linking]."""
+    config = configparser.ConfigParser()
+    config_path = os.path.join(os.path.dirname(__file__), 'config.txt')
+    # Read existing config if present
+    if os.path.exists(config_path):
+        config.read(config_path)
+
+    if not config.has_section('Linking'):
+        config.add_section('Linking')
+
+    config['Linking']['search_range'] = str(int(params.get('search_range', 10)))
+    config['Linking']['memory'] = str(int(params.get('memory', 10)))
+    config['Linking']['min_trajectory_length'] = str(int(params.get('min_trajectory_length', 10)))
+    config['Linking']['fps'] = str(float(params.get('fps', 30.0)))
+    config['Linking']['scaling'] = str(float(params.get('scaling', 1.0)))
+    config['Linking']['max_speed'] = str(float(params.get('max_speed', 100.0)))
+
+    with open(config_path, 'w') as f:
+        config.write(f)

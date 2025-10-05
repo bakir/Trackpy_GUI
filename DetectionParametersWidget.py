@@ -6,6 +6,7 @@ import particle_processing
 
 class DetectionParametersWidget(QWidget):
     particlesUpdated = Signal()
+    openTrajectoryLinking = Signal()
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -45,6 +46,11 @@ class DetectionParametersWidget(QWidget):
         self.save_button = QPushButton("Find Particles")
         self.save_button.clicked.connect(self.find_particles)
         self.buttons_layout.addWidget(self.save_button, alignment=Qt.AlignRight)
+        
+        self.next_button = QPushButton("Next")
+        self.next_button.clicked.connect(self.next_step)
+        self.buttons_layout.addWidget(self.next_button, alignment=Qt.AlignRight)
+        
         self.layout.addLayout(self.buttons_layout)
 
         # Load existing values
@@ -102,3 +108,103 @@ class DetectionParametersWidget(QWidget):
         particle_processing.find_and_save_particles(frame_path, params=params)
         # emit update so gallery can refresh
         self.particlesUpdated.emit()
+
+    def next_step(self):
+        """Detect particles in all frames and switch to trajectory linking window."""
+        # First, detect particles in all frames
+        self.detect_all_frames()
+        
+        # Then switch to trajectory linking window
+        self.openTrajectoryLinking.emit()
+
+    def detect_all_frames(self):
+        """Detect particles in all frames using tp.locate and save results."""
+        # Ensure latest values are saved
+        self.save_params()
+        params = get_detection_params()
+        config = get_config()
+        frames_folder = config.get('frames_folder', 'frames/')
+        
+        # Check if frames exist
+        if not os.path.exists(frames_folder):
+            print(f"Frames folder not found: {frames_folder}")
+            return
+        
+        # Get all frame files
+        frame_files = []
+        for filename in sorted(os.listdir(frames_folder)):
+            if filename.lower().endswith(('.jpg', '.jpeg', '.png', '.tif', '.tiff')):
+                frame_files.append(os.path.join(frames_folder, filename))
+        
+        if not frame_files:
+            print("No frame files found in frames folder")
+            return
+        
+        print(f"Detecting particles in {len(frame_files)} frames...")
+        
+        try:
+            import trackpy as tp
+            import cv2
+            import pandas as pd
+            
+            # Get detection parameters
+            feature_size = int(params.get('feature_size', 15))
+            min_mass = float(params.get('min_mass', 100.0))
+            invert = bool(params.get('invert', False))
+            threshold = float(params.get('threshold', 0.0))
+            
+            # Ensure odd feature size as required by trackpy
+            if feature_size % 2 == 0:
+                feature_size += 1
+            
+            all_particles = []
+            
+            # Process each frame
+            for frame_idx, frame_file in enumerate(frame_files):
+                # Read and convert to grayscale
+                frame = cv2.imread(frame_file)
+                if frame is None:
+                    continue
+                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                
+                # Detect particles in this frame
+                particles = tp.locate(
+                    gray,
+                    diameter=feature_size,
+                    minmass=min_mass,
+                    invert=invert,
+                    threshold=threshold
+                )
+                
+                # Add frame number to particles
+                particles['frame'] = frame_idx
+                all_particles.append(particles)
+                
+                if frame_idx % 10 == 0:  # Progress indicator
+                    print(f"Processed frame {frame_idx + 1}/{len(frame_files)}")
+            
+            # Combine all particles
+            if all_particles:
+                combined_particles = pd.concat(all_particles, ignore_index=True)
+                
+                # Save to particles folder
+                particles_folder = config.get('particles_folder', 'particles/')
+                os.makedirs(particles_folder, exist_ok=True)
+                
+                particles_file = os.path.join(particles_folder, 'all_particles.csv')
+                combined_particles.to_csv(particles_file, index=False)
+                
+                print(f"Detected {len(combined_particles)} particles across {len(frame_files)} frames")
+                print(f"Saved to: {particles_file}")
+                
+                # Emit signal that all frames were processed
+                self.particlesUpdated.emit()
+            else:
+                print("No particles detected in any frame")
+                
+        except Exception as e:
+            print(f"Error detecting particles in all frames: {e}")
+
+    def open_trajectory_linking(self):
+        """Emit signal to open trajectory linking window."""
+        self.openTrajectoryLinking.emit()
