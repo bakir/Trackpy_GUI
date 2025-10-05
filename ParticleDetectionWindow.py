@@ -84,9 +84,34 @@ class ParticleDetectionWindow(QMainWindow):
         # Menu Bar
         menubar = self.menuBar()
         file_menu = menubar.addMenu("File")
-        import_action = QAction("Import Video...", self)
+        import_action = QAction("Import Video", self)
         import_action.triggered.connect(self.import_video)
         file_menu.addAction(import_action)
+
+        # Create an "Export" QMenu instead of a QAction
+        export_menu = file_menu.addMenu("Export Data")
+        export_particle_data_menu = export_menu.addMenu("Particle Data")
+        export_trajectory_data_menu = export_menu.addMenu("Trajectory Data")
+
+        # Create the QActions for your sub-options
+        export_particle_data_csv_action = QAction("as CSV", self)
+        export_particle_data_pkl_action = QAction("as PKL", self)
+        export_trajectory_data_csv_action = QAction("as CSV", self)
+        export_trajectory_data_pkl_action = QAction("as PKL", self)
+        # Add the sub-option actions to the "Export" menu
+        export_particle_data_menu.addAction(export_particle_data_csv_action)
+        export_particle_data_menu.addAction(export_particle_data_pkl_action)
+        export_trajectory_data_menu.addAction(export_trajectory_data_csv_action)
+        export_trajectory_data_menu.addAction(export_trajectory_data_pkl_action)
+        # You can then connect your sub-actions to functions
+        export_particle_data_csv_action.triggered.connect(self.export_particles_csv)
+        export_particle_data_pkl_action.triggered.connect(self.export_particles_pkl)
+        export_trajectory_data_csv_action.triggered.connect(self.export_trajectories_csv)
+        export_trajectory_data_pkl_action.triggered.connect(self.export_trajectories_pkl)
+
+
+
+
 
         # Left Panel
         self.main_layout.left_panel = GraphingPanelWidget()
@@ -126,6 +151,73 @@ class ParticleDetectionWindow(QMainWindow):
         # Load the selected video into the frame player
         self.frame_player.load_video(file_path)
 
+    def _export_data(self, source_filename: str, target_format: str):
+        config = get_config()
+        particles_folder = config.get('particles_folder', 'particles/')
+        
+        source_file_path = os.path.join(particles_folder, source_filename)
+    
+        
+        # 1. Check if the source file exists
+        if not os.path.exists(source_file_path):
+            print("Could not find selected data")
+            return
+
+        # 2. Prepare file dialog options based on target format
+        if target_format == 'csv':
+            file_filter = "CSV Files (*.csv);;All Files (*)"
+        elif target_format == 'pkl':
+            file_filter = "Pickle Files (*.pkl);;All Files (*)"
+        else:
+            print(f"Error: Unsupported export format '{target_format}'")
+            return
+
+        # 3. Open the 'Save File' dialog
+        default_name = f"{os.path.splitext(source_filename)[0]}_export.{target_format}"
+        save_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "desc",
+            default_name,
+            file_filter
+        )
+
+        # 4. If the user cancelled, exit the method
+        if not save_path:
+            return
+
+        # 5. Perform the export operation
+        try:
+            # For both formats, read the source CSV with pandas
+            df = pd.read_csv(source_file_path)
+
+            if target_format == 'csv':
+                # Save the DataFrame to a new CSV file, without the index column
+                df.to_csv(save_path, index=False)
+            elif target_format == 'pkl':
+                # Save the DataFrame to a pickle file
+                df.to_pickle(save_path)
+            
+            print(f"Data successfully exported to: {save_path}")
+
+        except Exception as e:
+            print(f"An error occurred during export: {e}")
+            # Consider showing a QMessageBox to inform the user of the error.
+
+    def export_particles_csv(self):
+        """Exports the 'all_particles.csv' file to a user-selected CSV file."""
+        self._export_data(source_filename='all_particles.csv', target_format='csv')
+
+    def export_particles_pkl(self):
+        """Exports the 'all_particles.csv' data as a user-selected pickle file."""
+        self._export_data(source_filename='all_particles.csv', target_format='pkl')
+
+    def export_trajectories_csv(self):
+        """Exports the 'trajectories.csv' file to a user-selected CSV file."""
+        self._export_data(source_filename='trajectories.csv', target_format='csv')
+
+    def export_trajectories_pkl(self):
+        self._export_data(source_filename='trajectories.csv', target_format='pkl')
+
     def open_trajectory_linking_window(self):
         """Close particle detection window and open trajectory linking window."""
         # Close current window
@@ -133,7 +225,6 @@ class ParticleDetectionWindow(QMainWindow):
         # Open trajectory linking window
         self.trajectory_window = TrajectoryLinkingWindow()
         self.trajectory_window.show()
-
 
 # clean up temp folders on exit for now
 def cleanup_temp_folders():

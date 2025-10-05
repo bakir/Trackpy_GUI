@@ -125,7 +125,7 @@ class LinkingParametersWidget(QWidget):
         # Get linking parameters
         linking_params = get_linking_params()
         config = get_config()
-        particles_folder = config.get('particles_folder', 'particles/')
+        particles_folder = config.get('particles_folder', 'particles/') 
         
         # Check if particles file exists
         particles_file = os.path.join(particles_folder, 'all_particles.csv')
