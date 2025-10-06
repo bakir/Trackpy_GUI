@@ -1,111 +1,167 @@
 import sys
-from PySide6.QtCore import QUrl, Qt
-from PySide6.QtWidgets import (
-    QApplication,
-    QMainWindow,
-    QFileDialog,
-    QWidget,
-    QVBoxLayout,
-    QPushButton,
-    QSlider,
-    QLabel,
-    QSplitter,
-    QHBoxLayout,
-)
-from PySide6.QtGui import QAction
-from PySide6.QtMultimedia import QMediaPlayer
-from PySide6.QtMultimediaWidgets import QVideoWidget
+import os
+from PySide6.QtWidgets import QApplication, QMainWindow
+from PySide6 import QtWidgets
+from ParticleDetectionWindow import ParticleDetectionWindow
+from TrajectoryLinkingWindow import TrajectoryLinkingWindow
+import particle_processing
+from config_parser import get_config
+
+config = get_config()
+PARTICLES_FOLDER = config.get('particles_folder', 'particles/')
+FRAMES_FOLDER = config.get('frames_folder', 'frames/')
+RB_GALLERY_FOLDER = config.get('rb_gallery_folder', 'rb_gallery')
 
 
-class MainWindow(QMainWindow):
+class ParticleTrackingAppController(QMainWindow):
+    """Main application controller that manages window switching and navigation."""
+    
     def __init__(self):
         super().__init__()
-
-        self.setWindowTitle("TrackPy GUI")
-        self.setGeometry(100, 100, 1000, 600)
-
-        # Main splitter
-        self.splitter = QSplitter(Qt.Horizontal)
-        self.setCentralWidget(self.splitter)
-
-        # --- Left Panel (Video Player) ---
-        self.left_panel = QWidget()
-        self.left_layout = QVBoxLayout(self.left_panel)
-        self.init_video()
-        self.splitter.addWidget(self.left_panel)
+        self.setWindowTitle("Particle Tracking GUI")
         
-
-        # --- Right Panel (Sliders) ---
-        self.right_panel = QWidget()
-        self.right_layout = QVBoxLayout(self.right_panel)
-        self.init_param_controls()
-        self.splitter.addWidget(self.right_panel)
-
-        # Set initial sizes for the splitter
-        self.splitter.setSizes([700, 300])
-
-        # --- Media Player Setup ---
-        self.player = QMediaPlayer()
-        self.player.setVideoOutput(self.video_widget)
-
-        # --- Menu Bar ---
-        menu_bar = self.menuBar()
-        file_menu = menu_bar.addMenu("File")
-        import_action = QAction("Import...", self)
-        import_action.triggered.connect(self.open_file_dialog)
-        file_menu.addAction(import_action)
-
-        # --- Status Bar ---
-        self.statusBar().showMessage("Ready")
-
-    def init_video(self):
-        self.video_widget = QVideoWidget()
-        self.left_layout.addWidget(self.video_widget)
-
-        self.play_pause_button = QPushButton("Play")
-        self.play_pause_button.clicked.connect(self.toggle_play_pause)
-        self.left_layout.addWidget(self.play_pause_button)
-
-    def init_param_controls(self):
-        # Mass Slider
-        self.mass_label = QLabel("Mass")
-        self.mass_slider = QSlider(Qt.Horizontal)
-        self.right_layout.addWidget(self.mass_label)
-        self.right_layout.addWidget(self.mass_slider)
-
-        # Eccentricity Slider
-        self.ecc_label = QLabel("Eccentricity")
-        self.ecc_slider = QSlider(Qt.Horizontal)
-        self.right_layout.addWidget(self.ecc_label)
-        self.right_layout.addWidget(self.ecc_slider)
-
-        # Size Slider
-        self.size_label = QLabel("Size")
-        self.size_slider = QSlider(Qt.Horizontal)
-        self.right_layout.addWidget(self.size_label)
-        self.right_layout.addWidget(self.size_slider)
-
-        self.right_layout.addStretch() # Pushes sliders to the top
-
+        # Initialize windows (but don't show them yet)
+        self.particle_detection_window = None
+        self.trajectory_linking_window = None
+        
+        # Start with particle detection window
+        self.show_particle_detection_window()
     
-    def open_file_dialog(self):
-        file_name, _ = QFileDialog.getOpenFileName(self, "Open Video", "", "Video Files (*.mp4 *.avi *.mov)")
-        if file_name:
-            self.player.setSource(QUrl.fromLocalFile(file_name))
-            self.player.play()
-            self.statusBar().showMessage(f"Playing {file_name}")
+    def show_particle_detection_window(self):
+        """Show the particle detection window and hide others."""
+        # Clean up any existing windows
+        self.cleanup_windows()
+        
+        # Create and show particle detection window
+        self.particle_detection_window = ParticleDetectionWindow()
+        
+        # Connect signals from particle detection window
+        self.particle_detection_window.main_layout.right_panel.openTrajectoryLinking.connect(
+            self.on_next_to_trajectory_linking
+        )
+        
+        # Show the window
+        self.particle_detection_window.show()
+    
+    def show_trajectory_linking_window(self):
+        """Show the trajectory linking window and hide others."""
+        # Clean up any existing windows
+        self.cleanup_windows()
+        
+        # Create and show trajectory linking window
+        self.trajectory_linking_window = TrajectoryLinkingWindow()
+        
+        # Connect signals from trajectory linking window
+        self.trajectory_linking_window.main_layout.right_panel.goBackToDetection.connect(
+            self.on_back_to_particle_detection
+        )
+        
+        # Show the window
+        self.trajectory_linking_window.show()
+    
+    def on_next_to_trajectory_linking(self):
+        """Handle signal to switch from particle detection to trajectory linking."""
+        # The particle detection window will handle the "Next" button logic
+        # (detecting particles in all frames), then we switch windows
+        self.show_trajectory_linking_window()
+    
+    def on_back_to_particle_detection(self):
+        """Handle signal to switch from trajectory linking back to particle detection."""
+        self.show_particle_detection_window()
+    
+    def cleanup_windows(self):
+        """Clean up existing windows and RB gallery."""
+        # Clean up RB gallery
+        self.cleanup_rb_gallery()
+        
+        # Close existing windows
+        if self.particle_detection_window:
+            self.particle_detection_window.close()
+            self.particle_detection_window = None
+        
+        if self.trajectory_linking_window:
+            self.trajectory_linking_window.close()
+            self.trajectory_linking_window = None
+    
+    def cleanup_rb_gallery(self):
+        """Delete all files in the rb_gallery folder."""
+        try:
+            if os.path.exists(RB_GALLERY_FOLDER):
+                particle_processing.delete_all_files_in_folder(RB_GALLERY_FOLDER)
+                print("Cleaned up RB gallery folder")
+        except Exception as e:
+            print(f"Error cleaning up RB gallery: {e}")
+    
+    def closeEvent(self, event):
+        """Handle application close event."""
+        # Clean up all windows and folders
+        self.cleanup_windows()
+        
+        # Clean up all temp folders
+        self.cleanup_all_temp_folders()
+        
+        super().closeEvent(event)
+    
+    def cleanup_all_temp_folders(self):
+        """Delete all files in temporary folders."""
+        temp_folders = [PARTICLES_FOLDER, FRAMES_FOLDER, RB_GALLERY_FOLDER]
+        
+        print("Starting cleanup of temporary folders...")
+        
+        for folder in temp_folders:
+            try:
+                if os.path.exists(folder):
+                    # Count files before cleanup
+                    all_items = os.listdir(folder)
+                    file_count = len([f for f in all_items if os.path.isfile(os.path.join(folder, f))])
+                    dir_count = len([d for d in all_items if os.path.isdir(os.path.join(folder, d))])
+                    print(f"Found {file_count} files and {dir_count} directories in {folder}")
+                    
+                    # Clean up the folder using our function
+                    particle_processing.delete_all_files_in_folder(folder)
+                    
+                    # Also clean up any subdirectories
+                    for item in os.listdir(folder):
+                        item_path = os.path.join(folder, item)
+                        if os.path.isdir(item_path):
+                            try:
+                                import shutil
+                                shutil.rmtree(item_path)
+                                print(f"Removed directory: {item_path}")
+                            except Exception as e:
+                                print(f"Error removing directory {item_path}: {e}")
+                    
+                    print(f"Successfully cleaned up {folder}")
+                else:
+                    print(f"Folder {folder} does not exist, skipping")
+            except Exception as e:
+                print(f"Error cleaning up {folder}: {e}")
+                import traceback
+                traceback.print_exc()
+        
+        print("Cleanup completed.")
 
-    def toggle_play_pause(self):
-        if self.player.playbackState() == QMediaPlayer.PlaybackState.PlayingState:
-            self.player.pause()
-            self.play_pause_button.setText("Pause")
-        else:
-            self.player.play()
-            self.play_pause_button.setText("Play")
+
+def main():
+    """Main application entry point."""
+    app = QApplication(sys.argv)
+    
+    # Set the application style
+    app.setStyle(QtWidgets.QStyleFactory.create("Fusion"))
+    
+    # Create and show the main controller
+    controller = ParticleTrackingAppController()
+    
+    # Connect app cleanup to ensure cleanup happens
+    def cleanup_on_quit():
+        print("Application quitting - cleaning up temp folders...")
+        controller.cleanup_all_temp_folders()
+    
+    app.aboutToQuit.connect(cleanup_on_quit)
+    
+    # Run the application
+    sys.exit(app.exec())
 
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    main_win = MainWindow()
-    main_win.show()
-    sys.exit(app.exec())
+    main()

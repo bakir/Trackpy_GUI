@@ -1,0 +1,20 @@
+[Paths]
+particles_folder = particles/
+frames_folder = frames/
+videos_folder = videos/
+
+[Detection]
+feature_size = 41
+min_mass = 150.0
+invert = false
+threshold = 0.0
+frame_idx = 0
+
+[Linking]
+search_range = 10
+memory = 10
+min_trajectory_length = 10
+fps = 30.0
+scaling = 1.0
+max_speed = 100.0
+

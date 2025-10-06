@@ -1,0 +1,252 @@
+import trackpy as tp
+import pims
+import numpy as np
+import pandas as pd
+import cv2
+import os
+from config_parser import get_detection_params, get_config
+
+@pims.pipeline
+def grayscale(frame):
+    """Converts a frame to grayscale."""
+    # This function is for use with pims pipelines, which expect RGB.
+    # For single frames with OpenCV, use cv2.cvtColor.
+    red = frame[:, :, 0]
+    green = frame[:, :, 1]
+    blue = frame[:, :, 2]
+    return (1/3.0) * red + (1/3.0) * green + (1/3.0) * blue
+
+def locate_particles(frame, feature_size=15, min_mass=100, invert=False, threshold=0):
+    """
+    Locates bright spots (particles) in a single grayscale frame.
+
+    Parameters
+    ----------
+    frame : array
+        A single grayscale frame from a video.
+    feature_size : int, optional
+        The approximate diameter of features to detect. Must be an odd integer.
+    min_mass : float, optional
+        The minimum integrated brightness of a feature.
+    invert : bool, optional
+        Set to True if looking for dark spots on a bright background.
+    threshold : float, optional
+        Clip band-passed data below this value.
+
+    Returns
+    -------
+    pandas.DataFrame
+        A DataFrame with the coordinates and other properties of the located particles.
+    """
+    located_features = tp.locate(
+        frame,
+        diameter=feature_size,
+        minmass=min_mass,
+        invert=invert,
+        threshold=threshold
+    )
+    return located_features
+
+
+def link_particles_to_trajectories(video_path, output_folder=None, params=None):
+    """
+    Main function to detect particles in all frames and link them into trajectories.
+    
+    Parameters
+    ----------
+    video_path : str
+        Path to the video file to analyze
+    output_folder : str, optional
+        Folder to save trajectory data. If None, uses particles folder from config.
+    params : dict, optional
+        Detection parameters. If None, reads from config.txt
+        
+    Returns
+    -------
+    pandas.DataFrame
+        DataFrame with linked trajectories containing columns:
+        - x, y: particle coordinates
+        - frame: frame number
+        - particle: trajectory ID
+        - mass, size, ecc: particle properties
+    """
+    if params is None:
+        params = get_detection_params()
+    
+    if output_folder is None:
+        config = get_config()
+        output_folder = config.get('particles_folder', 'particles/')
+    
+    # Ensure output folder exists
+    os.makedirs(output_folder, exist_ok=True)
+    
+    # Load video
+    try:
+        video = pims.Video(video_path)
+    except Exception as e:
+        print(f"Error loading video: {e}")
+        return None
+    
+    print(f"Processing video with {len(video)} frames...")
+    
+    # Get detection parameters
+    feature_size = int(params.get('feature_size', 15))
+    min_mass = float(params.get('min_mass', 100.0))
+    invert = bool(params.get('invert', False))
+    threshold = float(params.get('threshold', 0.0))
+    
+    # Ensure odd feature size as required by trackpy
+    if feature_size % 2 == 0:
+        feature_size += 1
+    
+    # Step 1: Detect particles in all frames
+    print("Detecting particles in all frames...")
+    try:
+        # Use trackpy's batch function for efficient processing
+        particles = tp.batch(
+            video, 
+            diameter=feature_size, 
+            minmass=min_mass, 
+            invert=invert, 
+            threshold=threshold,
+            processes=1  # Use single process to avoid multiprocessing issues
+        )
+    except Exception as e:
+        print(f"Error in particle detection: {e}")
+        return None
+    
+    print(f"Found {len(particles)} particle detections across {particles['frame'].nunique()} frames")
+    
+    if len(particles) == 0:
+        print("No particles detected!")
+        return None
+    
+    # Step 2: Link particles into trajectories
+    print("Linking particles into trajectories...")
+    
+    # Calculate search range based on expected particle speed
+    # Assuming max speed of ~100 microns/second and typical fps
+    fps = 30  # Default fps, could be extracted from video
+    scaling = 1.0  # microns per pixel, could be from config
+    max_speed_um_per_sec = 100
+    search_range = int(np.ceil(max_speed_um_per_sec / (fps * scaling)))
+    
+    # Memory parameter: how many frames a particle can disappear and still be linked
+    memory = 10
+    
+    try:
+        trajectories = tp.link_df(
+            particles, 
+            search_range=search_range, 
+            memory=memory
+        )
+    except Exception as e:
+        print(f"Error in trajectory linking: {e}")
+        return None
+    
+    print(f"Created {trajectories['particle'].nunique()} trajectories")
+    
+    # Step 3: Filter short trajectories
+    min_trajectory_length = 10
+    print(f"Filtering trajectories shorter than {min_trajectory_length} frames...")
+    
+    trajectories_filtered = tp.filter_stubs(trajectories, min_trajectory_length)
+    
+    print(f"After filtering: {trajectories_filtered['particle'].nunique()} trajectories")
+    
+    # Step 4: Drift subtraction (optional but recommended)
+    print("Computing and subtracting drift...")
+    try:
+        # Compute drift
+        drift = tp.compute_drift(trajectories_filtered, smoothing=15)
+        
+        # Subtract drift
+        trajectories_final = tp.subtract_drift(trajectories_filtered, drift)
+        trajectories_final = trajectories_final.reset_index(drop=True)
+        
+        print("Drift subtraction completed")
+    except Exception as e:
+        print(f"Warning: Drift subtraction failed: {e}")
+        print("Using trajectories without drift subtraction")
+        trajectories_final = trajectories_filtered
+    
+    # Step 5: Save results
+    output_file = os.path.join(output_folder, 'trajectories.csv')
+    trajectories_final.to_csv(output_file, index=False)
+    print(f"Trajectories saved to: {output_file}")
+    
+    # Also save as pickle for faster loading
+    pickle_file = os.path.join(output_folder, 'trajectories.pkl')
+    trajectories_final.to_pickle(pickle_file)
+    print(f"Trajectories saved as pickle to: {pickle_file}")
+    
+    return trajectories_final
+
+
+def analyze_trajectories(trajectories_df, scaling=1.0, fps=30):
+    """
+    Analyze linked trajectories to compute MSD and other metrics.
+    
+    Parameters
+    ----------
+    trajectories_df : pandas.DataFrame
+        DataFrame with trajectory data from link_particles_to_trajectories
+    scaling : float
+        Microns per pixel
+    fps : float
+        Frames per second
+        
+    Returns
+    -------
+    dict
+        Dictionary containing analysis results
+    """
+    if trajectories_df is None or len(trajectories_df) == 0:
+        return None
+    
+    results = {}
+    
+    # Compute ensemble mean square displacement (eMSD)
+    try:
+        emsd = tp.emsd(trajectories_df, mpp=scaling, fps=fps, max_lagtime=100)
+        results['emsd'] = emsd
+        print("Computed ensemble MSD")
+    except Exception as e:
+        print(f"Error computing eMSD: {e}")
+    
+    # Compute individual MSD (iMSD) 
+    try:
+        imsd = tp.imsd(trajectories_df, mpp=scaling, fps=fps, max_lagtime=100)
+        results['imsd'] = imsd
+        print("Computed individual MSD")
+    except Exception as e:
+        print(f"Error computing iMSD: {e}")
+    
+    # Basic statistics
+    results['num_trajectories'] = trajectories_df['particle'].nunique()
+    results['num_frames'] = trajectories_df['frame'].nunique()
+    results['total_detections'] = len(trajectories_df)
+    
+    # Trajectory lengths
+    traj_lengths = trajectories_df.groupby('particle').size()
+    results['mean_trajectory_length'] = traj_lengths.mean()
+    results['std_trajectory_length'] = traj_lengths.std()
+    
+    print(f"Analysis complete:")
+    print(f"  - {results['num_trajectories']} trajectories")
+    print(f"  - {results['num_frames']} frames")
+    print(f"  - Mean trajectory length: {results['mean_trajectory_length']:.1f} frames")
+    
+    return results
+
+
+if __name__ == '__main__':
+    # Example usage
+    video_path = "path/to/your/video.avi"
+    trajectories = link_particles_to_trajectories(video_path)
+    
+    if trajectories is not None:
+        analysis = analyze_trajectories(trajectories)
+        print("Trajectory linking and analysis complete!")
+    else:
+        print("Trajectory linking failed!")
