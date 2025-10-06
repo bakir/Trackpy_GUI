@@ -1,3 +1,9 @@
+"""
+Detection Parameters Widget
+
+Description: GUI widget for configuring particle detection parameters and triggering detection workflows.
+"""
+
 from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QFormLayout, QSpinBox, QDoubleSpinBox, QCheckBox, QPushButton
 from PySide6.QtCore import Qt, Signal
 from config_parser import *

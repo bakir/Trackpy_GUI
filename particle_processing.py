@@ -1,3 +1,13 @@
+"""
+Particle Processing Module
+
+Description: Core particle processing functions for detection, cropping, and RB gallery creation.
+             Initial functions writtenusing Cursor AI
+
+This module handles particle detection, image cropping, and red-blue overlay
+visualization for trajectory validation.
+"""
+
 import cv2
 import os
 import numpy as np
