@@ -106,13 +106,40 @@ class ParticleTrackingAppController(QMainWindow):
         """Delete all files in temporary folders."""
         temp_folders = [PARTICLES_FOLDER, FRAMES_FOLDER, RB_GALLERY_FOLDER]
         
+        print("Starting cleanup of temporary folders...")
+        
         for folder in temp_folders:
             try:
                 if os.path.exists(folder):
+                    # Count files before cleanup
+                    all_items = os.listdir(folder)
+                    file_count = len([f for f in all_items if os.path.isfile(os.path.join(folder, f))])
+                    dir_count = len([d for d in all_items if os.path.isdir(os.path.join(folder, d))])
+                    print(f"Found {file_count} files and {dir_count} directories in {folder}")
+                    
+                    # Clean up the folder using our function
                     particle_processing.delete_all_files_in_folder(folder)
-                    print(f"Cleaned up {folder}")
+                    
+                    # Also clean up any subdirectories
+                    for item in os.listdir(folder):
+                        item_path = os.path.join(folder, item)
+                        if os.path.isdir(item_path):
+                            try:
+                                import shutil
+                                shutil.rmtree(item_path)
+                                print(f"Removed directory: {item_path}")
+                            except Exception as e:
+                                print(f"Error removing directory {item_path}: {e}")
+                    
+                    print(f"Successfully cleaned up {folder}")
+                else:
+                    print(f"Folder {folder} does not exist, skipping")
             except Exception as e:
                 print(f"Error cleaning up {folder}: {e}")
+                import traceback
+                traceback.print_exc()
+        
+        print("Cleanup completed.")
 
 
 def main():
@@ -124,6 +151,13 @@ def main():
     
     # Create and show the main controller
     controller = ParticleTrackingAppController()
+    
+    # Connect app cleanup to ensure cleanup happens
+    def cleanup_on_quit():
+        print("Application quitting - cleaning up temp folders...")
+        controller.cleanup_all_temp_folders()
+    
+    app.aboutToQuit.connect(cleanup_on_quit)
     
     # Run the application
     sys.exit(app.exec())
