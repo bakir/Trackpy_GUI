@@ -4,8 +4,8 @@ frames_folder = frames/
 videos_folder = videos/
 
 [Detection]
-feature_size = 41
-min_mass = 150.0
+feature_size = 27
+min_mass = 110.0
 invert = false
 threshold = 0.0
 frame_idx = 0
