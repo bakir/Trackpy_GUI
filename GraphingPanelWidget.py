@@ -11,9 +11,9 @@ from copy import copy
 class GraphingPanelWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-
-        self.layout = QVBoxLayout(self)
+        
         # Graph area
+        self.layout = QVBoxLayout(self)
         self.blank_plot()
         self.canvas = FigureCanvas(self.fig)
         self.canvas.setFixedSize(500, 400)
