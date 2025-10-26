@@ -52,6 +52,11 @@ class ErrantParticleGalleryWidget(QWidget):
         self.photo_label.setScaledContents(False)
         self.layout.addWidget(self.photo_label)
 
+        # mass info
+        self.mass_info_label = QLabel("Mass info")
+        self.mass_info_label.setAlignment(Qt.AlignCenter)
+        self.layout.addWidget(self.mass_info_label)
+
         # --- Frame Navigation ---
         self.frame_nav_layout = QHBoxLayout()
         self.prev_frame_button = QPushButton("<")
@@ -115,11 +120,21 @@ class ErrantParticleGalleryWidget(QWidget):
                 self.photo_label.setPixmap(scaled)
             else:
                 self.photo_label.setText("Failed to load image")
+            
+            # Load and display mass info
+            mass_info_path = os.path.splitext(file_path)[0] + ".txt"
+            if os.path.exists(mass_info_path):
+                with open(mass_info_path, 'r') as f:
+                    self.mass_info_label.setText(f.read())
+            else:
+                self.mass_info_label.setText("")
+
             self._update_display_text()
         else:
             # out of bounds or no files
             if not self.particle_files:
                 self.photo_label.setText("No particle images found")
+            self.mass_info_label.setText("")
             self._update_display_text()
 
     def resizeEvent(self, event):

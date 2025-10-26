@@ -79,31 +79,45 @@ def find_and_save_particles(image_path, params=None):
         threshold=threshold
     )
 
-    # Crop and save images of each particle
-    for i, particle in features.iterrows():
-        x, y, size = particle['x'], particle['y'], particle['size']
-        # Define a bounding box around the particle
-        # The size of the box is based on the particle's size, with some padding
-        padding = 5
-        half_size = int(size) + padding
-        x_min = max(0, int(x) - half_size)
-        y_min = max(0, int(y) - half_size)
-        x_max = min(image.shape[1], int(x) + half_size)
-        y_max = min(image.shape[0], int(y) + half_size)
+    # Identify the 5 particles with mass closest to min_mass
+    if not features.empty:
+        features['mass_diff'] = features['mass'] - min_mass
+        top_5_particles = features.nsmallest(5, 'mass_diff')
 
-        # Crop the particle from the original image
-        particle_image = image[y_min:y_max, x_min:x_max]
+        # Crop and save images of each of the top 5 particles
+        for i, particle in top_5_particles.iterrows():
+            x, y, size = particle['x'], particle['y'], particle['size']
+            # Define a bounding box around the particle
+            # The size of the box is based on the particle's size, with some padding
+            padding = 5
+            half_size = int(size) + padding
+            x_min = max(0, int(x) - half_size)
+            y_min = max(0, int(y) - half_size)
+            x_max = min(image.shape[1], int(x) + half_size)
+            y_max = min(image.shape[0], int(y) + half_size)
 
-        # Draw a white cross at the center of the particle
-        center_x = int(x) - x_min
-        center_y = int(y) - y_min
-        cross_size = 5
-        cv2.line(particle_image, (center_x - cross_size, center_y), (center_x + cross_size, center_y), (255, 255, 255), 1)
-        cv2.line(particle_image, (center_x, center_y - cross_size), (center_x, center_y + cross_size), (255, 255, 255), 1)
+            # Crop the particle from the original image
+            particle_image = image[y_min:y_max, x_min:x_max]
 
-        # Save the particle image
-        particle_filename = os.path.join(PARTICLES_FOLDER, f"particle_{i}.png")
-        cv2.imwrite(particle_filename, particle_image)
+            # Draw a white cross at the center of the particle
+            center_x = int(x) - x_min
+            center_y = int(y) - y_min
+            cross_size = 5
+            cv2.line(particle_image, (center_x - cross_size, center_y), (center_x + cross_size, center_y), (255, 255, 255), 1)
+            cv2.line(particle_image, (center_x, center_y - cross_size), (center_x, center_y + cross_size), (255, 255, 255), 1)
+
+            # Save the particle image
+            base_filename = f"particle_{i}"
+            particle_filename = os.path.join(PARTICLES_FOLDER, f"{base_filename}.png")
+            cv2.imwrite(particle_filename, particle_image)
+
+            # Save the mass info to a text file
+            mass_info_filename = os.path.join(PARTICLES_FOLDER, f"{base_filename}.txt")
+            with open(mass_info_filename, 'w') as f:
+                f.write(f"mass: {particle['mass']}\n")
+                f.write(f"min_mass: {min_mass}\n")
+
+    return features
 
 
 def create_rb_gallery(trajectories_file, frames_folder, output_folder=None):

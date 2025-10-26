@@ -6,7 +6,10 @@ Description: GUI widget for configuring particle detection parameters and trigge
 
 from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QFormLayout, QSpinBox, QDoubleSpinBox, QCheckBox, QPushButton
 from PySide6.QtCore import Qt, Signal
+import trackpy as tp
+import matplotlib.pyplot as plt
 from config_parser import *
+import cv2
 import os
 import particle_processing
 
@@ -111,9 +114,15 @@ class DetectionParametersWidget(QWidget):
         if not os.path.isfile(frame_path):
             return
         # run detection and save particles
-        particle_processing.find_and_save_particles(frame_path, params=params)
+        features = particle_processing.find_and_save_particles(frame_path, params=params)
         # emit update so gallery can refresh
         self.particlesUpdated.emit()
+
+        # create an annotated frame. Nothing done with it right now.
+        plt.figure(figsize=(10, 10))
+        tp.annotate(features, cv2.imread(frame_path))
+        plt.savefig('annotated_frame.jpg', dpi=150)
+        plt.close()
 
     def next_step(self):
         """Detect particles in all frames and switch to trajectory linking window."""

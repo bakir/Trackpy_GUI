@@ -98,31 +98,24 @@ class ParticleDetectionWindow(QMainWindow):
         # Create an "Export" QMenu instead of a QAction
         export_menu = file_menu.addMenu("Export Data")
         export_particle_data_menu = export_menu.addMenu("Particle Data")
-        export_trajectory_data_menu = export_menu.addMenu("Trajectory Data")
 
         # Create the QActions for your sub-options
         export_particle_data_csv_action = QAction("as CSV", self)
         export_particle_data_pkl_action = QAction("as PKL", self)
-        export_trajectory_data_csv_action = QAction("as CSV", self)
-        export_trajectory_data_pkl_action = QAction("as PKL", self)
+
         # Add the sub-option actions to the "Export" menu
         export_particle_data_menu.addAction(export_particle_data_csv_action)
         export_particle_data_menu.addAction(export_particle_data_pkl_action)
-        export_trajectory_data_menu.addAction(export_trajectory_data_csv_action)
-        export_trajectory_data_menu.addAction(export_trajectory_data_pkl_action)
+
         # You can then connect your sub-actions to functions
         export_particle_data_csv_action.triggered.connect(self.export_particles_csv)
         export_particle_data_pkl_action.triggered.connect(self.export_particles_pkl)
-        export_trajectory_data_csv_action.triggered.connect(self.export_trajectories_csv)
-        export_trajectory_data_pkl_action.triggered.connect(self.export_trajectories_pkl)
+
 
         options_menu = menubar.addMenu("Options")
         stream_action = QAction("Stream", self)
         stream_action.triggered.connect(self.stream)
         options_menu.addAction(stream_action)
-
-
-
 
         # Left Panel
         self.main_layout.left_panel = GraphingPanelWidget()
@@ -221,13 +214,6 @@ class ParticleDetectionWindow(QMainWindow):
     def export_particles_pkl(self):
         """Exports the 'all_particles.csv' data as a user-selected pickle file."""
         self._export_data(source_filename='all_particles.csv', target_format='pkl')
-
-    def export_trajectories_csv(self):
-        """Exports the 'trajectories.csv' file to a user-selected CSV file."""
-        self._export_data(source_filename='trajectories.csv', target_format='csv')
-
-    def export_trajectories_pkl(self):
-        self._export_data(source_filename='trajectories.csv', target_format='pkl')
 
     def stream(self):
         return
