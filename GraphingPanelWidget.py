@@ -218,26 +218,26 @@ class GraphingPanelWidget(QWidget):
         # Get parameters
         params = get_detection_params() 
         config = get_config()
-        frames_folder = config.get('frames_folder', 'frames/')
+        original_frames_folder = config.get('original_frames_folder', 'original_frames/')
         
         # Check if frames exist
-        if not os.path.exists(frames_folder):
-            print(f"Frames folder not found: {frames_folder}")
-            return None
-        
+        if not os.path.exists(original_frames_folder):
+            print(f"Frames folder not found: {original_frames_folder}")
+            return
+
         # Get all frame files
         frame_files = []
-        for filename in sorted(os.listdir(frames_folder)):
+        for filename in sorted(os.listdir(original_frames_folder)):
             if filename.lower().endswith(('.jpg', '.jpeg', '.png', '.tif', '.tiff')):
-                frame_files.append(os.path.join(frames_folder, filename))
+                frame_files.append(os.path.join(original_frames_folder, filename))
         
         if not frame_files:
             print("No frame files found in frames folder")
             return None
         
         # Check if frames exist (and similar file handling)
-        if not os.path.exists(frames_folder) or not frame_files:
-            print(f"Frames issue. Folder: {os.path.exists(frames_folder)}, Files: {len(frame_files) if frame_files else 0}")
+        if not os.path.exists(original_frames_folder) or not frame_files:
+            print(f"Frames issue. Folder: {os.path.exists(original_frames_folder)}, Files: {len(frame_files) if frame_files else 0}")
             return None
             
         try:

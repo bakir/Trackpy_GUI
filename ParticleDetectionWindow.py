@@ -45,7 +45,8 @@ import particle_processing
 from config_parser import get_config
 config = get_config()
 PARTICLES_FOLDER = config.get('particles_folder', 'particles/')
-FRAMES_FOLDER = config.get('frames_folder', 'frames/')
+ORIGINAL_FRAMES_FOLDER = config.get('original_frames_folder', 'original_frames/')
+ANNOTATED_FRAMES_FOLDER = config.get('annotated_frames_folder', 'annotated_frames/')
 VIDEOS_FOLDER = config.get('videos_folder', 'videos/')
 
 class ParticleDetectionWindow(QMainWindow):
@@ -118,10 +119,12 @@ class ParticleDetectionWindow(QMainWindow):
         file_path, _ = QFileDialog.getOpenFileName(self, "Select Video", VIDEOS_FOLDER, "Video Files (*.avi *.mp4 *.mov *.mkv);;All Files (*)")
         if not file_path:
             return
-        # Ensure frames folder exists and is clean
-        os.makedirs(FRAMES_FOLDER, exist_ok=True)
+        # Ensure frames folders exist and are clean
+        os.makedirs(ORIGINAL_FRAMES_FOLDER, exist_ok=True)
+        os.makedirs(ANNOTATED_FRAMES_FOLDER, exist_ok=True)
         try:
-            particle_processing.delete_all_files_in_folder(FRAMES_FOLDER)
+            particle_processing.delete_all_files_in_folder(ORIGINAL_FRAMES_FOLDER)
+            particle_processing.delete_all_files_in_folder(ANNOTATED_FRAMES_FOLDER)
             self.main_layout.right_panel.clear_processed_frames()
         except Exception:
             pass
@@ -205,17 +208,10 @@ def cleanup_temp_folders():
     except Exception:
         pass
     try:
-        particle_processing.delete_all_files_in_folder(FRAMES_FOLDER)
+        particle_processing.delete_all_files_in_folder(ORIGINAL_FRAMES_FOLDER)
     except Exception:
         pass
-
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-
-    # Sets the style of the gui
-    app.setStyle(QtWidgets.QStyleFactory.create("Fusion"))
-    detection_win = ParticleDetectionWindow()
-    detection_win.show()
-    # Clean up temp folders on exit
-    app.aboutToQuit.connect(cleanup_temp_folders)
-    sys.exit(app.exec())
+    try:
+        particle_processing.delete_all_files_in_folder(ANNOTATED_FRAMES_FOLDER)
+    except Exception:
+        pass

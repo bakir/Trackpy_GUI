@@ -208,11 +208,11 @@ class LinkingParametersWidget(QWidget):
             
             # Get image dimensions from first frame
             config = get_config()
-            frames_folder = config.get('frames_folder', 'frames/')
+            original_frames_folder = config.get('original_frames_folder', 'original_frames/')
             frame_files = []
-            for filename in sorted(os.listdir(frames_folder)):
+            for filename in sorted(os.listdir(original_frames_folder)):
                 if filename.lower().endswith(('.jpg', '.jpeg', '.png', '.tif', '.tiff')):
-                    frame_files.append(os.path.join(frames_folder, filename))
+                    frame_files.append(os.path.join(original_frames_folder, filename))
                     break  # Just need first frame for dimensions
             
             if frame_files:
@@ -279,13 +279,13 @@ class LinkingParametersWidget(QWidget):
         try:
             import particle_processing
             config = get_config()
-            frames_folder = config.get('frames_folder', 'frames/')
+            original_frames_folder = config.get('original_frames_folder', 'original_frames/')
             rb_gallery_folder = config.get('rb_gallery_folder', 'rb_gallery')
             
             # Call the RB gallery creation function
             particle_processing.create_rb_gallery(
                 trajectories_file=trajectories_file,
-                frames_folder=frames_folder,
+                frames_folder=original_frames_folder,
                 output_folder=rb_gallery_folder
             )
             

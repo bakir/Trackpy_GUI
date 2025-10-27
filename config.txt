@@ -1,7 +1,9 @@
 [Paths]
-particles_folder = particles/
-frames_folder = frames/
 videos_folder = videos/
+particles_folder = particles/
+original_frames_folder = original_frames/
+rb_gallery_folder = rb_gallery/
+annotated_frames_folder = annotated_frames/
 
 [Detection]
 feature_size = 27

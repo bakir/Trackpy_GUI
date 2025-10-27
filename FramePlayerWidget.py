@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QHBoxLayout,
     QLineEdit,
+    QCheckBox,
 )
 from PySide6.QtGui import QPixmap, QImage
 
@@ -46,7 +47,7 @@ class SaveFramesThread(QThread):
                 if not ret:
                     break
 
-                frame_path = os.path.join(self.output_folder, f"original_frame_{frame_idx:05d}.jpg")
+                frame_path = os.path.join(self.output_folder, f"frame_{frame_idx:05d}.jpg")
                 cv2.imwrite(frame_path, frame)
                 frame_idx += 1
             
@@ -87,26 +88,26 @@ class FramePlayerWidget(QWidget):
         # Frame navigation controls
         nav_layout = QHBoxLayout()
 
-        # Previous frame button
+        self.annotate_toggle = QCheckBox("Show Annotated")
+        self.annotate_toggle.stateChanged.connect(self.on_toggle_annotate)
+        nav_layout.addWidget(self.annotate_toggle)
+
         self.prev_button = QPushButton("◀")
         self.prev_button.setFixedSize(40, 30)
         self.prev_button.clicked.connect(self.previous_frame)
         nav_layout.addWidget(self.prev_button)
 
-        # select frame widget
         nav_layout.addWidget(QLabel("Select frame"))
         self.frame_input = QLineEdit()
         self.frame_input.setPlaceholderText("Enter frame number")
         self.frame_input.returnPressed.connect(self.go_to_frame)
         nav_layout.addWidget(self.frame_input)
 
-        # Frame slider
         self.frame_slider = QSlider(Qt.Horizontal)
         self.frame_slider.setRange(0, 0)
         self.frame_slider.valueChanged.connect(self.slider_value_changed)
         nav_layout.addWidget(self.frame_slider)
 
-        # Next frame button
         self.next_button = QPushButton("▶")
         self.next_button.setFixedSize(40, 30)
         self.next_button.clicked.connect(self.next_frame)
@@ -119,50 +120,67 @@ class FramePlayerWidget(QWidget):
         self.video_path = None
         self.total_frames = 0
         self.current_frame_idx = 0
-        self.frame_files = []
         self.save_thread = None
-        self.frames_folder = "frames"
+        self.show_annotated = False
+        self.original_frames_folder = "original_frames"
+        self.annotated_frames_folder = "annotated_frames"
 
     def save_video_frames(self, video_path):
         """Save video frames to disk in a background thread"""
         self.video_path = video_path
-        self.frame_files = []
         self.current_frame_idx = 0
+        self.annotate_toggle.setChecked(False)
 
-        # Start frame saving in a separate thread
-        self.save_thread = SaveFramesThread(video_path, self.frames_folder)
+        self.save_thread = SaveFramesThread(video_path, self.original_frames_folder)
         self.save_thread.save_complete.connect(self.on_save_complete)
         self.save_thread.start()
 
     def on_save_complete(self, total_frames):
         """Handle save completion"""
         self.total_frames = total_frames
-        self._load_frames_from_disk()
         if self.total_frames > 0:
             self.frame_slider.setRange(0, self.total_frames - 1)
             self.display_frame(0)
         self.update_frame_display()
         self.frames_saved.emit(self.total_frames)
 
-    def _load_frames_from_disk(self):
-        """Load the list of frame files from the frames directory"""
-        if not os.path.isdir(self.frames_folder):
-            self.frame_files = []
-            return
-        
-        files = [f for f in os.listdir(self.frames_folder) if f.startswith("original_frame_") and f.endswith(".jpg")]
-        files.sort()
-        self.frame_files = [os.path.join(self.frames_folder, f) for f in files]
-        self.total_frames = len(self.frame_files)
+    def on_toggle_annotate(self, state):
+        print("on_toggle_annotate happened.")
+        self.show_annotated = (state == Qt.Checked)
+        self.display_frame(self.current_frame_idx)
 
     def display_frame(self, frame_number):
         """Display a specific frame from a file"""
-        if 0 <= frame_number < self.total_frames:
-            pixmap = QPixmap(self.frame_files[frame_number])
+        if not (0 <= frame_number < self.total_frames):
+            return
+
+        file_name = f"frame_{frame_number:05d}.jpg"
+        frame_path_to_display = ""
+
+        if self.show_annotated:
+            annotated_path = os.path.join(self.annotated_frames_folder, file_name)
+            if os.path.exists(annotated_path):
+                print("annotated path was made and found.")
+                frame_path_to_display = annotated_path
+            else:
+                print("tried to make annotated path but couldn't find frame")
+                # Fallback to original if annotated does not exist
+                frame_path_to_display = os.path.join(self.original_frames_folder, file_name)
+
+        else:
+            print("made original path")
+            frame_path_to_display = os.path.join(self.original_frames_folder, file_name)
+
+        if not os.path.exists(frame_path_to_display):
+            self.frame_label.clear()
+            self.frame_label.setText(f"Frame not found: {file_name}")
+        else:
+            pixmap = QPixmap(frame_path_to_display)
             scaled_pixmap = pixmap.scaled(self.frame_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
             self.frame_label.setPixmap(scaled_pixmap)
-            self.current_frame_idx = frame_number
-            self.update_frame_display()
+
+        self.current_frame_idx = frame_number
+        self.update_frame_display()
 
     def update_frame_display(self):
         """Update the frame display and input"""
@@ -200,5 +218,5 @@ class FramePlayerWidget(QWidget):
     def resizeEvent(self, event):
         """Handle widget resize to update frame display"""
         super().resizeEvent(event)
-        if 0 <= self.current_frame_idx < len(self.frame_files):
+        if 0 <= self.current_frame_idx < self.total_frames:
             self.display_frame(self.current_frame_idx)

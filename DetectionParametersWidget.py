@@ -40,7 +40,6 @@ class DetectAllFramesThread(QThread):
         self.params = params
 
     def run(self):
-        # This is a simplified version of the original detect_all_frames logic
         try:
             import pandas as pd
             config = get_config()
@@ -48,20 +47,30 @@ class DetectAllFramesThread(QThread):
             min_mass = float(self.params.get('min_mass', 100.0))
             invert = bool(self.params.get('invert', False))
             threshold = float(self.params.get('threshold', 0.0))
+            annotated_frames_folder = config.get('annotated_frames_folder', 'annotated_frames/')
 
             if feature_size % 2 == 0:
                 feature_size += 1
 
             all_particles = []
             for frame_idx, frame_file in enumerate(self.frame_paths):
-                self.processing_frame.emit(f"Processing remaining frame {frame_idx + 1}/{len(self.frame_paths)}")
+                frame_num = int(os.path.splitext(os.path.basename(frame_file))[0].split('_')[-1])
+                self.processing_frame.emit(f"Processing remaining frame {frame_num}")
+                
                 frame = cv2.imread(frame_file)
                 if frame is None:
                     continue
                 gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
                 particles = tp.locate(gray, diameter=feature_size, minmass=min_mass, invert=invert, threshold=threshold)
-                particles['frame'] = int(os.path.splitext(os.path.basename(frame_file))[0].split('_')[-1])
+                particles['frame'] = frame_num
                 all_particles.append(particles)
+
+                if not particles.empty:
+                    fig, ax = plt.subplots()
+                    tp.annotate(particles, frame, ax=ax)
+                    annotated_frame_path = os.path.join(annotated_frames_folder, f"frame_{frame_num:05d}.jpg")
+                    fig.savefig(annotated_frame_path)
+                    plt.close(fig)
 
             if all_particles:
                 combined_particles = pd.concat(all_particles, ignore_index=True)
@@ -69,7 +78,6 @@ class DetectAllFramesThread(QThread):
                 os.makedirs(particles_folder, exist_ok=True)
                 particles_file = os.path.join(particles_folder, 'all_particles.csv')
                 
-                # Append to existing file if it exists, otherwise create new
                 if os.path.exists(particles_file):
                     existing_df = pd.read_csv(particles_file)
                     combined_particles = pd.concat([existing_df, combined_particles], ignore_index=True)
@@ -223,7 +231,7 @@ class DetectionParametersWidget(QWidget):
         self.save_params()
         params = get_detection_params()
         config = get_config()
-        frames_folder = config.get('frames_folder', 'frames/')
+        original_frames_folder = config.get('original_frames_folder', 'original_frames/')
 
         start = self.start_frame_input.value()
         end = self.end_frame_input.value()
@@ -232,8 +240,8 @@ class DetectionParametersWidget(QWidget):
 
         frame_paths = []
         for i in range(start - 1, end, step):
-            frame_filename = f"original_frame_{i:05d}.jpg"
-            frame_path = os.path.join(frames_folder, frame_filename)
+            frame_filename = f"frame_{i:05d}.jpg"
+            frame_path = os.path.join(original_frames_folder, frame_filename)
             if os.path.isfile(frame_path):
                 frame_paths.append(frame_path)
         
@@ -268,16 +276,16 @@ class DetectionParametersWidget(QWidget):
         self.save_params()
         params = get_detection_params()
         config = get_config()
-        frames_folder = config.get('frames_folder', 'frames/')
+        original_frames_folder = config.get('original_frames_folder', 'original_frames/')
         
-        if not os.path.exists(frames_folder):
-            print(f"Frames folder not found: {frames_folder}")
+        if not os.path.exists(original_frames_folder):
+            print(f"Frames folder not found: {original_frames_folder}")
             return
         
         all_frame_files = []
-        for filename in sorted(os.listdir(frames_folder)):
-            if filename.startswith("original_frame_") and filename.lower().endswith('.jpg'):
-                all_frame_files.append(os.path.join(frames_folder, filename))
+        for filename in sorted(os.listdir(original_frames_folder)):
+            if filename.startswith("frame_") and filename.lower().endswith('.jpg'):
+                all_frame_files.append(os.path.join(original_frames_folder, filename))
         
         if not all_frame_files:
             print("No frame files found in frames folder")

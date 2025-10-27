@@ -12,9 +12,12 @@ import numpy as np
 import pandas as pd
 import particle_tracking
 from config_parser import get_config, get_detection_params
+import matplotlib.pyplot as plt
+import trackpy as tp
 
 config = get_config()
 PARTICLES_FOLDER = config.get('particles_folder', 'particles/')
+ANNOTATED_FRAMES_FOLDER = config.get('annotated_frames_folder', 'annotated_frames/')
 
 def delete_all_files_in_folder(folder_path):
     """
@@ -51,6 +54,8 @@ def find_and_save_errant_particles(image_paths, params=None, progress_callback=N
 
     if not os.path.exists(PARTICLES_FOLDER):
         os.makedirs(PARTICLES_FOLDER)
+    if not os.path.exists(ANNOTATED_FRAMES_FOLDER):
+        os.makedirs(ANNOTATED_FRAMES_FOLDER)
 
     if params is None:
         params = get_detection_params()
@@ -66,11 +71,12 @@ def find_and_save_errant_particles(image_paths, params=None, progress_callback=N
     original_images = {}
 
     for frame_idx, image_path in enumerate(image_paths):
+        basename = os.path.basename(image_path)
+        name_part = os.path.splitext(basename)[0]
+        frame_number_str = name_part.split('_')[-1]
+        frame_number = int(frame_number_str)
+
         if progress_callback:
-            basename = os.path.basename(image_path)
-            name_part = os.path.splitext(basename)[0]
-            frame_number_str = name_part.split('_')[-1]
-            frame_number = int(frame_number_str)
             progress_callback.emit(f"Processing Frame {frame_number}")
         
         image = cv2.imread(image_path)
@@ -89,6 +95,14 @@ def find_and_save_errant_particles(image_paths, params=None, progress_callback=N
         )
         features['frame'] = frame_idx
         all_features.append(features)
+
+        # Annotate and save frame
+        if not features.empty:
+            fig, ax = plt.subplots()
+            tp.annotate(features, image, ax=ax)
+            annotated_frame_path = os.path.join(ANNOTATED_FRAMES_FOLDER, f"frame_{frame_number:05d}.jpg")
+            fig.savefig(annotated_frame_path)
+            plt.close(fig)
 
     if not all_features:
         if progress_callback:
@@ -137,7 +151,7 @@ def find_and_save_errant_particles(image_paths, params=None, progress_callback=N
 
     return combined_features
 
-def create_rb_gallery(trajectories_file, frames_folder, output_folder=None):
+def create_rb_gallery(trajectories_file, original_frames_folder, output_folder=None):
     """
     Creates red-blue overlay images to visualize particle linking between frames.
     
@@ -145,7 +159,7 @@ def create_rb_gallery(trajectories_file, frames_folder, output_folder=None):
     ----------
     trajectories_file : str
         Path to the CSV file containing trajectory data
-    frames_folder : str
+    original_frames_folder : str
         Path to the folder containing frame images
     output_folder : str, optional
         Path to save the RB gallery images. If None, uses rb_gallery/
@@ -177,9 +191,9 @@ def create_rb_gallery(trajectories_file, frames_folder, output_folder=None):
     
     # Get frame files
     frame_files = []
-    for filename in sorted(os.listdir(frames_folder)):
+    for filename in sorted(os.listdir(original_frames_folder)):
         if filename.lower().endswith(('.jpg', '.jpeg', '.png', '.tif', '.tiff')):
-            frame_files.append(os.path.join(frames_folder, filename))
+            frame_files.append(os.path.join(original_frames_folder, filename))
     
     if len(frame_files) < 2:
         print("Need at least 2 frames for RB overlay")

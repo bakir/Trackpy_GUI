@@ -1,3 +1,4 @@
+
 """
 Trajectory Linking Window
 
@@ -45,7 +46,7 @@ import particle_processing
 from config_parser import get_config
 config = get_config()
 PARTICLES_FOLDER = config.get('particles_folder', 'particles/')
-FRAMES_FOLDER = config.get('frames_folder', 'frames/')
+ORIGINAL_FRAMES_FOLDER = config.get('original_frames_folder', 'original_frames/')
 VIDEOS_FOLDER = config.get('videos_folder', 'videos/')
 
 def save_video_frames(video_path: str, output_folder: str):
@@ -230,3 +231,4 @@ if __name__ == "__main__":
     detection_win = TrajectoryLinkingWindow()
     detection_win.show()
     sys.exit(app.exec())
+
