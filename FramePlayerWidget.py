@@ -145,8 +145,7 @@ class FramePlayerWidget(QWidget):
         self.frames_saved.emit(self.total_frames)
 
     def on_toggle_annotate(self, state):
-        print("on_toggle_annotate happened.")
-        self.show_annotated = (state == Qt.Checked)
+        self.show_annotated = self.annotate_toggle.isChecked()
         self.display_frame(self.current_frame_idx)
 
     def display_frame(self, frame_number):
@@ -160,15 +159,11 @@ class FramePlayerWidget(QWidget):
         if self.show_annotated:
             annotated_path = os.path.join(self.annotated_frames_folder, file_name)
             if os.path.exists(annotated_path):
-                print("annotated path was made and found.")
                 frame_path_to_display = annotated_path
             else:
-                print("tried to make annotated path but couldn't find frame")
                 # Fallback to original if annotated does not exist
                 frame_path_to_display = os.path.join(self.original_frames_folder, file_name)
-
         else:
-            print("made original path")
             frame_path_to_display = os.path.join(self.original_frames_folder, file_name)
 
         if not os.path.exists(frame_path_to_display):
