@@ -29,12 +29,15 @@ class GraphingPanelWidget(QWidget):
         self.blank_plot("beginning")
 
         self.canvas = FigureCanvas(self.fig)
+
         self.canvas.setFixedSize(TARGET_WIDTH_PX, TARGET_HEIGHT_PX) 
         
         # Add stretch above the canvas for vertical centering
         self.layout.addStretch(1) 
         # Center the canvas in the layout
         self.layout.addWidget(self.canvas, alignment = Qt.AlignCenter) 
+     
+
 
         # buttons
         self.graphing_buttons = QWidget()

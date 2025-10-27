@@ -9,6 +9,7 @@ Description: Core particle processing functions for detection, cropping, and RB 
 import cv2
 import os
 import numpy as np
+import pandas as pd
 import particle_tracking
 from config_parser import get_config, get_detection_params
 
@@ -35,31 +36,22 @@ def delete_all_files_in_folder(folder_path):
             except OSError as e:
                 print(f"Error deleting {file_path}: {e}")
 
-def find_and_save_particles(image_path, params=None):
+def find_and_save_errant_particles(image_paths, params=None, progress_callback=None):
     """
-    Finds particles in an image and saves cropped images of them.
+    Finds particles in a series of images and saves cropped images of the 5 most errant ones.
 
     Parameters
     ----------
-    image_path : str
-        The path to the image file.
+    image_paths : list of str
+        The paths to the image files.
+    progress_callback : Signal, optional
+        A signal to emit progress updates.
     """
     delete_all_files_in_folder(PARTICLES_FOLDER)
 
-    # Create particles directory if it doesn't exist
     if not os.path.exists(PARTICLES_FOLDER):
         os.makedirs(PARTICLES_FOLDER)
 
-    # Read the image
-    image = cv2.imread(image_path)
-    if image is None:
-        print(f"Error: Could not read image from {image_path}")
-        return
-
-    # Convert to grayscale
-    gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-    # Locate particles using provided or configured parameters
     if params is None:
         params = get_detection_params()
     feature_size = int(params.get('feature_size', 15))
@@ -67,44 +59,83 @@ def find_and_save_particles(image_path, params=None):
     invert = bool(params.get('invert', False))
     threshold = float(params.get('threshold', 0.0))
 
-    # ensure odd feature size as required by trackpy
     if feature_size % 2 == 0:
         feature_size += 1
 
-    features = particle_tracking.locate_particles(
-        gray_image,
-        feature_size=feature_size,
-        min_mass=min_mass,
-        invert=invert,
-        threshold=threshold
-    )
+    all_features = []
+    original_images = {}
 
-    # Crop and save images of each particle
-    for i, particle in features.iterrows():
-        x, y, size = particle['x'], particle['y'], particle['size']
-        # Define a bounding box around the particle
-        # The size of the box is based on the particle's size, with some padding
-        padding = 5
-        half_size = int(size) + padding
-        x_min = max(0, int(x) - half_size)
-        y_min = max(0, int(y) - half_size)
-        x_max = min(image.shape[1], int(x) + half_size)
-        y_max = min(image.shape[0], int(y) + half_size)
+    for frame_idx, image_path in enumerate(image_paths):
+        if progress_callback:
+            basename = os.path.basename(image_path)
+            name_part = os.path.splitext(basename)[0]
+            frame_number_str = name_part.split('_')[-1]
+            frame_number = int(frame_number_str)
+            progress_callback.emit(f"Processing Frame {frame_number}")
+        
+        image = cv2.imread(image_path)
+        if image is None:
+            continue
+        
+        original_images[frame_idx] = image
+        gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-        # Crop the particle from the original image
-        particle_image = image[y_min:y_max, x_min:x_max]
+        features = particle_tracking.locate_particles(
+            gray_image,
+            feature_size=feature_size,
+            min_mass=min_mass,
+            invert=invert,
+            threshold=threshold
+        )
+        features['frame'] = frame_idx
+        all_features.append(features)
 
-        # Draw a white cross at the center of the particle
-        center_x = int(x) - x_min
-        center_y = int(y) - y_min
-        cross_size = 5
-        cv2.line(particle_image, (center_x - cross_size, center_y), (center_x + cross_size, center_y), (255, 255, 255), 1)
-        cv2.line(particle_image, (center_x, center_y - cross_size), (center_x, center_y + cross_size), (255, 255, 255), 1)
+    if not all_features:
+        if progress_callback:
+            progress_callback.emit("No particles found.")
+        return pd.DataFrame()
 
-        # Save the particle image
-        particle_filename = os.path.join(PARTICLES_FOLDER, f"particle_{i}.png")
-        cv2.imwrite(particle_filename, particle_image)
+    combined_features = pd.concat(all_features, ignore_index=True)
 
+    if not combined_features.empty:
+        combined_features['mass_diff'] = combined_features['mass'] - min_mass
+        top_5_particles = combined_features.nsmallest(5, 'mass_diff')
+
+        for i, particle in top_5_particles.iterrows():
+            frame_idx = int(particle['frame'])
+            image_to_crop = original_images.get(frame_idx)
+            if image_to_crop is None:
+                continue
+
+            x, y, size = particle['x'], particle['y'], particle['size']
+            padding = 5
+            half_size = int(size) + padding
+            x_min = max(0, int(x) - half_size)
+            y_min = max(0, int(y) - half_size)
+            x_max = min(image_to_crop.shape[1], int(x) + half_size)
+            y_max = min(image_to_crop.shape[0], int(y) + half_size)
+
+            particle_image = image_to_crop[y_min:y_max, x_min:x_max]
+
+            center_x = int(x) - x_min
+            center_y = int(y) - y_min
+            cross_size = 5
+            cv2.line(particle_image, (center_x - cross_size, center_y), (center_x + cross_size, center_y), (255, 255, 255), 1)
+            cv2.line(particle_image, (center_x, center_y - cross_size), (center_x, center_y + cross_size), (255, 255, 255), 1)
+
+            base_filename = f"particle_{i}"
+            particle_filename = os.path.join(PARTICLES_FOLDER, f"{base_filename}.png")
+            cv2.imwrite(particle_filename, particle_image)
+
+            mass_info_filename = os.path.join(PARTICLES_FOLDER, f"{base_filename}.txt")
+            with open(mass_info_filename, 'w') as f:
+                f.write(f"mass: {particle['mass']:.2f}\n")
+                f.write(f"min_mass: {min_mass}\n")
+
+    if progress_callback:
+        progress_callback.emit("Done.")
+
+    return combined_features
 
 def create_rb_gallery(trajectories_file, frames_folder, output_folder=None):
     """

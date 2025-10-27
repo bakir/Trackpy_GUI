@@ -7,6 +7,7 @@ Description: Widget displaying frames of the video with frame controls. Shows th
 
 import sys
 import cv2
+import os
 from PySide6.QtCore import Qt, Signal, QThread
 from PySide6.QtWidgets import (
     QApplication,
@@ -17,61 +18,49 @@ from PySide6.QtWidgets import (
     QPushButton,
     QSlider,
     QLabel,
-    QVBoxLayout,
-    QSplitter,
     QHBoxLayout,
-    QGroupBox,
     QLineEdit,
 )
-from PySide6.QtGui import QAction, QPixmap, QImage
+from PySide6.QtGui import QPixmap, QImage
 
+class SaveFramesThread(QThread):
+    """Thread for extracting and saving frames from video"""
+    save_complete = Signal(int)  # total_frames
 
-class FrameExtractionThread(QThread):
-    """Thread for extracting frames from video"""
-    frame_extracted = Signal(int, QPixmap)  # frame_number, pixmap
-    extraction_complete = Signal(int)  # total_frames
-
-    def __init__(self, video_path):
+    def __init__(self, video_path, output_folder):
         super().__init__()
         self.video_path = video_path
+        self.output_folder = output_folder
         self.cap = None
 
     def run(self):
-        """Extract frames from video"""
+        """Extract frames from video and save them to disk"""
         try:
             self.cap = cv2.VideoCapture(self.video_path)
             if not self.cap.isOpened():
                 return
 
-            total_frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
-            self.extraction_complete.emit(total_frames)
-
-            frame_count = 0
+            frame_idx = 0
             while True:
                 ret, frame = self.cap.read()
                 if not ret:
                     break
 
-                # Convert BGR to RGB
-                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                h, w, ch = frame_rgb.shape
-                bytes_per_line = ch * w
-
-                # Convert to QImage then QPixmap
-                qt_image = QImage(frame_rgb.data, w, h, bytes_per_line, QImage.Format_RGB888)
-                pixmap = QPixmap.fromImage(qt_image)
-
-                self.frame_extracted.emit(frame_count, pixmap)
-                frame_count += 1
+                frame_path = os.path.join(self.output_folder, f"original_frame_{frame_idx:05d}.jpg")
+                cv2.imwrite(frame_path, frame)
+                frame_idx += 1
+            
+            self.save_complete.emit(frame_idx)
 
         except Exception as e:
-            print(f"Error extracting frames: {e}")
+            print(f"Error saving frames: {e}")
         finally:
             if self.cap:
                 self.cap.release()
 
 class FramePlayerWidget(QWidget):
-    """Widget for displaying video frames as a slideshow"""
+    """Widget for displaying video frames from a folder of images"""
+    frames_saved = Signal(int)
 
     def __init__(self):
         super().__init__()
@@ -90,6 +79,11 @@ class FramePlayerWidget(QWidget):
         self.frame_label.setText("No video loaded")
         layout.addWidget(self.frame_label)
 
+        # Current frame display
+        self.current_frame_label = QLabel("Frame: 0 / 0")
+        self.current_frame_label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(self.current_frame_label)
+
         # Frame navigation controls
         nav_layout = QHBoxLayout()
 
@@ -99,25 +93,18 @@ class FramePlayerWidget(QWidget):
         self.prev_button.clicked.connect(self.previous_frame)
         nav_layout.addWidget(self.prev_button)
 
-        # Frame number display and input
-        frame_info_layout = QVBoxLayout()
-
-        # Current frame display
-        self.current_frame_label = QLabel("Frame: 0 / 0")
-        self.current_frame_label.setAlignment(Qt.AlignCenter)
-        frame_info_layout.addWidget(self.current_frame_label)
-
-        # Frame input
-        input_layout = QHBoxLayout()
-        input_layout.addWidget(QLabel("Go to frame:"))
+        # select frame widget
+        nav_layout.addWidget(QLabel("Select frame"))
         self.frame_input = QLineEdit()
         self.frame_input.setPlaceholderText("Enter frame number")
         self.frame_input.returnPressed.connect(self.go_to_frame)
-        input_layout.addWidget(self.frame_input)
-        input_layout.addStretch()
+        nav_layout.addWidget(self.frame_input)
 
-        frame_info_layout.addLayout(input_layout)
-        nav_layout.addLayout(frame_info_layout)
+        # Frame slider
+        self.frame_slider = QSlider(Qt.Horizontal)
+        self.frame_slider.setRange(0, 0)
+        self.frame_slider.valueChanged.connect(self.slider_value_changed)
+        nav_layout.addWidget(self.frame_slider)
 
         # Next frame button
         self.next_button = QPushButton("▶")
@@ -131,59 +118,70 @@ class FramePlayerWidget(QWidget):
         """Setup internal variables"""
         self.video_path = None
         self.total_frames = 0
-        self.current_frame = 0
-        self.frames = {}  # Dictionary to store extracted frames
-        self.extraction_thread = None
+        self.current_frame_idx = 0
+        self.frame_files = []
+        self.save_thread = None
+        self.frames_folder = "frames"
 
-    def load_video(self, file_path):
-        """Load a video file and extract frames"""
-        self.video_path = file_path
-        self.frames.clear()
-        self.current_frame = 0
+    def save_video_frames(self, video_path):
+        """Save video frames to disk in a background thread"""
+        self.video_path = video_path
+        self.frame_files = []
+        self.current_frame_idx = 0
 
-        # Start frame extraction in a separate thread
-        self.extraction_thread = FrameExtractionThread(file_path)
-        self.extraction_thread.frame_extracted.connect(self.on_frame_extracted)
-        self.extraction_thread.extraction_complete.connect(self.on_extraction_complete)
-        self.extraction_thread.start()
+        # Start frame saving in a separate thread
+        self.save_thread = SaveFramesThread(video_path, self.frames_folder)
+        self.save_thread.save_complete.connect(self.on_save_complete)
+        self.save_thread.start()
 
-    def on_frame_extracted(self, frame_number, pixmap):
-        """Handle extracted frame"""
-        self.frames[frame_number] = pixmap
-
-        # Display first frame immediately
-        if frame_number == 0:
-            self.display_frame(0)
-
-    def on_extraction_complete(self, total_frames):
-        """Handle extraction completion"""
+    def on_save_complete(self, total_frames):
+        """Handle save completion"""
         self.total_frames = total_frames
+        self._load_frames_from_disk()
+        if self.total_frames > 0:
+            self.frame_slider.setRange(0, self.total_frames - 1)
+            self.display_frame(0)
         self.update_frame_display()
+        self.frames_saved.emit(self.total_frames)
+
+    def _load_frames_from_disk(self):
+        """Load the list of frame files from the frames directory"""
+        if not os.path.isdir(self.frames_folder):
+            self.frame_files = []
+            return
+        
+        files = [f for f in os.listdir(self.frames_folder) if f.startswith("original_frame_") and f.endswith(".jpg")]
+        files.sort()
+        self.frame_files = [os.path.join(self.frames_folder, f) for f in files]
+        self.total_frames = len(self.frame_files)
 
     def display_frame(self, frame_number):
-        """Display a specific frame"""
-        if frame_number in self.frames:
-            # Scale the pixmap to fit the label while maintaining aspect ratio
-            pixmap = self.frames[frame_number]
+        """Display a specific frame from a file"""
+        if 0 <= frame_number < self.total_frames:
+            pixmap = QPixmap(self.frame_files[frame_number])
             scaled_pixmap = pixmap.scaled(self.frame_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
             self.frame_label.setPixmap(scaled_pixmap)
-            self.current_frame = frame_number
+            self.current_frame_idx = frame_number
             self.update_frame_display()
 
     def update_frame_display(self):
         """Update the frame display and input"""
-        self.current_frame_label.setText(f"Frame: {self.current_frame} / {self.total_frames - 1}")
-        self.frame_input.setText(str(self.current_frame))
+        if self.total_frames > 0:
+            self.current_frame_label.setText(f"Frame: {self.current_frame_idx} / {self.total_frames - 1}")
+            self.frame_slider.setValue(self.current_frame_idx)
+        else:
+            self.current_frame_label.setText("Frame: 0 / 0")
+        self.frame_input.setText(str(self.current_frame_idx))
 
     def previous_frame(self):
         """Go to previous frame"""
-        if self.current_frame > 0:
-            self.display_frame(self.current_frame - 1)
+        if self.current_frame_idx > 0:
+            self.display_frame(self.current_frame_idx - 1)
 
     def next_frame(self):
         """Go to next frame"""
-        if self.current_frame < self.total_frames - 1:
-            self.display_frame(self.current_frame + 1)
+        if self.current_frame_idx < self.total_frames - 1:
+            self.display_frame(self.current_frame_idx + 1)
 
     def go_to_frame(self):
         """Go to frame specified in input"""
@@ -194,8 +192,13 @@ class FramePlayerWidget(QWidget):
         except ValueError:
             pass
 
+    def slider_value_changed(self, value):
+        """Go to frame specified by slider"""
+        if 0 <= value < self.total_frames:
+            self.display_frame(value)
+
     def resizeEvent(self, event):
         """Handle widget resize to update frame display"""
         super().resizeEvent(event)
-        if hasattr(self, 'current_frame') and self.current_frame in self.frames:
-            self.display_frame(self.current_frame)
+        if 0 <= self.current_frame_idx < len(self.frame_files):
+            self.display_frame(self.current_frame_idx)

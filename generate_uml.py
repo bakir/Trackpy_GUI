@@ -2,16 +2,15 @@ import graphviz
 
 def generate_uml_diagram():
     """
-    Generates and displays a UML diagram for the application structure.
+    Generates and displays an accurate UML diagram for the application structure.
     """
-    dot = graphviz.Digraph('UML_Design_Diagram', comment='UML Design Diagram for Particle Tracking GUI')
+    dot = graphviz.Digraph('UML_Design_Diagram_Corrected', comment='UML Design Diagram for Particle Tracking GUI')
     dot.attr('node', shape='record', style='filled', fillcolor='lightblue')
-    dot.attr('edge', arrowhead='vee')
-
-    # --- Main application entry point ---
+    
+    # --- Main application entry point (The "Whole" or "Controller") ---
     dot.node('main.py', '{main.py|+ show_particle_detection_window()\l+ show_trajectory_linking_window()\l}')
 
-    # --- Main windows ---
+    # --- Main windows (The "Parts") ---
     dot.node('ParticleDetectionWindow', '{ParticleDetectionWindow|+ setup_ui()\l}')
     dot.node('TrajectoryLinkingWindow', '{TrajectoryLinkingWindow|+ setup_ui()\l}')
 
@@ -29,21 +28,21 @@ def generate_uml_diagram():
 
     # --- Relationships ---
 
-    # main.py imports the main windows
-    dot.edge('main.py', 'ParticleDetectionWindow', style='dashed', arrowhead='open', label=' «import»')
-    dot.edge('main.py', 'TrajectoryLinkingWindow', style='dashed', arrowhead='open', label=' «import»')
+    # main.py is COMPOSED of the main windows it controls
+    dot.edge('main.py', 'ParticleDetectionWindow', dir='back', arrowtail='diamond', arrowhead='none')
+    dot.edge('main.py', 'TrajectoryLinkingWindow', dir='back', arrowtail='diamond', arrowhead='none')
 
-    # ParticleDetectionWindow imports its widgets
-    dot.edge('ParticleDetectionWindow', 'GraphingPanelWidget', style='dashed', arrowhead='open', label=' «import»')
-    dot.edge('ParticleDetectionWindow', 'FramePlayerWidget', style='dashed', arrowhead='open', label=' «import»')
-    dot.edge('ParticleDetectionWindow', 'ErrantParticleGalleryWidget', style='dashed', arrowhead='open', label=' «import»')
-    dot.edge('ParticleDetectionWindow', 'DetectionParametersWidget', style='dashed', arrowhead='open', label=' «import»')
+    # ParticleDetectionWindow is COMPOSED of its widgets
+    dot.edge('ParticleDetectionWindow', 'GraphingPanelWidget', dir='back', arrowtail='diamond', arrowhead='none')
+    dot.edge('ParticleDetectionWindow', 'FramePlayerWidget', dir='back', arrowtail='diamond', arrowhead='none')
+    dot.edge('ParticleDetectionWindow', 'ErrantParticleGalleryWidget', dir='back', arrowtail='diamond', arrowhead='none')
+    dot.edge('ParticleDetectionWindow', 'DetectionParametersWidget', dir='back', arrowtail='diamond', arrowhead='none')
 
-    # TrajectoryLinkingWindow imports its widgets
-    dot.edge('TrajectoryLinkingWindow', 'TrajectoryPlottingWidget', style='dashed', arrowhead='open', label=' «import»')
-    dot.edge('TrajectoryLinkingWindow', 'TrajectoryPlayerWidget', style='dashed', arrowhead='open', label=' «import»')
-    dot.edge('TrajectoryLinkingWindow', 'ErrantTrajectoryGalleryWidget', style='dashed', arrowhead='open', label=' «import»')
-    dot.edge('TrajectoryLinkingWindow', 'LinkingParametersWidget', style='dashed', arrowhead='open', label=' «import»')
+    # TrajectoryLinkingWindow is COMPOSED of its widgets
+    dot.edge('TrajectoryLinkingWindow', 'TrajectoryPlottingWidget', dir='back', arrowtail='diamond', arrowhead='none')
+    dot.edge('TrajectoryLinkingWindow', 'TrajectoryPlayerWidget', dir='back', arrowtail='diamond', arrowhead='none')
+    dot.edge('TrajectoryLinkingWindow', 'ErrantTrajectoryGalleryWidget', dir='back', arrowtail='diamond', arrowhead='none')
+    dot.edge('TrajectoryLinkingWindow', 'LinkingParametersWidget', dir='back', arrowtail='diamond', arrowhead='none')
 
     # Render and display the diagram
     dot.render('uml_design', format='png', view=True)
