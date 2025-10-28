@@ -57,10 +57,10 @@ class ErrantParticleGalleryWidget(QWidget):
         self.photo_label.setScaledContents(False)
         self.layout.addWidget(self.photo_label)
 
-        # mass info
-        self.mass_info_label = QLabel("Mass info")
-        self.mass_info_label.setAlignment(Qt.AlignCenter)
-        self.layout.addWidget(self.mass_info_label)
+        # info
+        self.info_label = QLabel("Info")
+        self.info_label.setAlignment(Qt.AlignCenter)
+        self.layout.addWidget(self.info_label)
 
         # --- Frame Navigation ---
         self.frame_nav_layout = QHBoxLayout()
@@ -115,8 +115,9 @@ class ErrantParticleGalleryWidget(QWidget):
         valid_exts = {".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff"}
         files = []
         try:
-            for name in os.path.splitext(os.path.basename(name))[0] in valid_exts:
-                files.append(os.path.join(directory_path, name))
+            for name in os.listdir(directory_path):
+                if os.path.splitext(name)[1].lower() in valid_exts:
+                    files.append(os.path.join(directory_path, name))
         except Exception:
             return []
         files.sort()
@@ -135,20 +136,20 @@ class ErrantParticleGalleryWidget(QWidget):
             else:
                 self.photo_label.setText("Failed to load image")
             
-            # Load and display mass info
-            mass_info_path = os.path.splitext(file_path)[0] + ".txt"
-            if os.path.exists(mass_info_path):
-                with open(mass_info_path, 'r') as f:
-                    self.mass_info_label.setText(f.read())
+            # Load and display info
+            info_path = os.path.splitext(file_path)[0] + ".txt"
+            if os.path.exists(info_path):
+                with open(info_path, 'r') as f:
+                    self.info_label.setText(f.read())
             else:
-                self.mass_info_label.setText("")
+                self.info_label.setText("")
 
             self._update_display_text()
         else:
             # out of bounds or no files
             if not self.particle_files:
                 self.photo_label.setText("No particle images found")
-            self.mass_info_label.setText("")
+            self.info_label.setText("")
             self._update_display_text()
 
     def resizeEvent(self, event):

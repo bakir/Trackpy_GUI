@@ -6,10 +6,10 @@ rb_gallery_folder = rb_gallery/
 annotated_frames_folder = annotated_frames/
 
 [Detection]
-feature_size = 27
-min_mass = 900.0
+feature_size = 41
+min_mass = 1500.0
 invert = false
-threshold = 0.0
+threshold = 1.1
 frame_idx = 0
 
 [Linking]
