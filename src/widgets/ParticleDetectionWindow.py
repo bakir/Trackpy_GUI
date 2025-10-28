@@ -55,7 +55,17 @@ VIDEOS_FOLDER = config.get('videos_folder', 'videos/')
 class ParticleDetectionWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.project_manager = None
         self.setup_ui()
+    
+    def set_project_manager(self, project_manager):
+        """Set the project manager for this window."""
+        self.project_manager = project_manager
+        # Pass project manager to widgets that need it
+        if hasattr(self, 'main_layout') and hasattr(self.main_layout, 'right_panel'):
+            self.main_layout.right_panel.set_project_manager(project_manager)
+        if hasattr(self, 'frame_player'):
+            self.frame_player.set_project_manager(project_manager)
 
     def setup_ui(self):
         # Main Widget

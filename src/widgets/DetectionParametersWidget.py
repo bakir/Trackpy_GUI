@@ -36,20 +36,37 @@ class DetectAllFramesThread(QThread):
     processing_frame = Signal(str)
     finished = Signal()
 
-    def __init__(self, frame_paths, params):
+    def __init__(self, frame_paths, params, project_manager=None):
         super().__init__()
         self.frame_paths = frame_paths
         self.params = params
+        self.project_manager = project_manager
 
     def run(self):
         try:
             import pandas as pd
-            config = get_config()
+            
+            # Use project-specific config if available, otherwise fall back to global
+            if self.project_manager and self.project_manager.get_project_config():
+                import configparser
+                config = configparser.ConfigParser()
+                config.read(self.project_manager.get_project_config())
+                project_path = self.project_manager.get_project_path()
+                if 'Paths' in config:
+                    annotated_frames_folder = os.path.join(project_path, config['Paths'].get('annotated_frames_folder', 'annotated_frames/'))
+                    data_folder = os.path.join(project_path, config['Paths'].get('data_folder', 'data/'))
+                else:
+                    annotated_frames_folder = os.path.join(project_path, 'annotated_frames')
+                    data_folder = os.path.join(project_path, 'data')
+            else:
+                config = get_config()
+                annotated_frames_folder = config.get('annotated_frames_folder', 'annotated_frames/')
+                data_folder = config.get('data_folder', 'data/')
+
             feature_size = int(self.params.get('feature_size', 15))
             min_mass = float(self.params.get('min_mass', 100.0))
             invert = bool(self.params.get('invert', False))
             threshold = float(self.params.get('threshold', 0.0))
-            annotated_frames_folder = config.get('annotated_frames_folder', 'annotated_frames/')
 
             if feature_size % 2 == 0:
                 feature_size += 1
@@ -76,7 +93,6 @@ class DetectAllFramesThread(QThread):
 
             if all_particles:
                 combined_particles = pd.concat(all_particles, ignore_index=True)
-                data_folder = config.get('data_folder', 'data/')
                 os.makedirs(data_folder, exist_ok=True)
                 particles_file = os.path.join(data_folder, 'all_particles.csv')
                 
@@ -96,6 +112,7 @@ class DetectionParametersWidget(QWidget):
     openTrajectoryLinking = Signal()
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.project_manager = None
 
         self.total_frames = 0
         self.find_particles_thread = None
@@ -190,6 +207,10 @@ class DetectionParametersWidget(QWidget):
         self.threshold_input.lineEdit().returnPressed.connect(self.save_params)
         self.invert_input.stateChanged.connect(lambda _state: self.save_params())
 
+    def set_project_manager(self, project_manager):
+        """Set the project manager for this widget."""
+        self.project_manager = project_manager
+
     def clear_processed_frames(self):
         self.processed_frames.clear()
 
@@ -232,8 +253,20 @@ class DetectionParametersWidget(QWidget):
     def find_particles(self):
         self.save_params()
         params = get_detection_params()
-        config = get_config()
-        original_frames_folder = config.get('original_frames_folder', 'original_frames/')
+        
+        # Use project-specific config if available, otherwise fall back to global
+        if self.project_manager and self.project_manager.get_project_config():
+            import configparser
+            config = configparser.ConfigParser()
+            config.read(self.project_manager.get_project_config())
+            project_path = self.project_manager.get_project_path()
+            if 'Paths' in config:
+                original_frames_folder = os.path.join(project_path, config['Paths'].get('original_frames_folder', 'original_frames/'))
+            else:
+                original_frames_folder = os.path.join(project_path, 'original_frames')
+        else:
+            config = get_config()
+            original_frames_folder = config.get('original_frames_folder', 'original_frames/')
 
         start = self.start_frame_input.value()
         end = self.end_frame_input.value()
@@ -277,8 +310,20 @@ class DetectionParametersWidget(QWidget):
     def detect_all_frames(self):
         self.save_params()
         params = get_detection_params()
-        config = get_config()
-        original_frames_folder = config.get('original_frames_folder', 'original_frames/')
+        
+        # Use project-specific config if available, otherwise fall back to global
+        if self.project_manager and self.project_manager.get_project_config():
+            import configparser
+            config = configparser.ConfigParser()
+            config.read(self.project_manager.get_project_config())
+            project_path = self.project_manager.get_project_path()
+            if 'Paths' in config:
+                original_frames_folder = os.path.join(project_path, config['Paths'].get('original_frames_folder', 'original_frames/'))
+            else:
+                original_frames_folder = os.path.join(project_path, 'original_frames')
+        else:
+            config = get_config()
+            original_frames_folder = config.get('original_frames_folder', 'original_frames/')
         
         if not os.path.exists(original_frames_folder):
             print(f"Frames folder not found: {original_frames_folder}")
@@ -311,7 +356,7 @@ class DetectionParametersWidget(QWidget):
         self.next_button.setEnabled(False)
         self.progress_display.setText("Processing remaining frames...")
 
-        self.detect_all_thread = DetectAllFramesThread(frames_to_process, params)
+        self.detect_all_thread = DetectAllFramesThread(frames_to_process, params, self.project_manager)
         self.detect_all_thread.processing_frame.connect(self.progress_display.setText)
         self.detect_all_thread.finished.connect(self.on_detect_all_finished)
         self.detect_all_thread.start()

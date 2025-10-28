@@ -65,8 +65,30 @@ class FramePlayerWidget(QWidget):
 
     def __init__(self):
         super().__init__()
+        self.project_manager = None
         self.setup_ui()
         self.setup_variables()
+    
+    def set_project_manager(self, project_manager):
+        """Set the project manager and update folder paths."""
+        self.project_manager = project_manager
+        if project_manager and project_manager.get_project_config():
+            import configparser
+            config = configparser.ConfigParser()
+            config.read(project_manager.get_project_config())
+            project_path = project_manager.get_project_path()
+            if 'Paths' in config:
+                self.original_frames_folder = os.path.join(project_path, config['Paths'].get('original_frames_folder', 'original_frames/'))
+                self.annotated_frames_folder = os.path.join(project_path, config['Paths'].get('annotated_frames_folder', 'annotated_frames/'))
+            else:
+                self.original_frames_folder = os.path.join(project_path, 'original_frames')
+                self.annotated_frames_folder = os.path.join(project_path, 'annotated_frames')
+        else:
+            # Fall back to global config
+            from ..config_parser import get_config
+            config = get_config()
+            self.original_frames_folder = config.get('original_frames_folder', 'original_frames/')
+            self.annotated_frames_folder = config.get('annotated_frames_folder', 'annotated_frames/')
 
     def setup_ui(self):
         """Setup the frame viewer UI components"""

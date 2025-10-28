@@ -79,6 +79,7 @@ class ParticleTrackingAppController(QMainWindow):
         
         # Create particle detection window
         self.particle_detection_window = ParticleDetectionWindow()
+        self.particle_detection_window.set_project_manager(self.project_manager)
         
         # Connect signals from particle detection window
         self.particle_detection_window.main_layout.right_panel.openTrajectoryLinking.connect(
@@ -99,6 +100,7 @@ class ParticleTrackingAppController(QMainWindow):
         
         # Create trajectory linking window
         self.trajectory_linking_window = TrajectoryLinkingWindow()
+        self.trajectory_linking_window.set_project_manager(self.project_manager)
         
         # Connect signals from trajectory linking window
         self.trajectory_linking_window.main_layout.right_panel.goBackToDetection.connect(
