@@ -15,8 +15,13 @@ import matplotlib.pyplot as plt
 from .config_parser import get_detection_params, get_config
 from .file_controller import FileController
 
-# Initialize file controller
-file_controller = FileController()
+# Initialize file controller (will be set by main application)
+file_controller = None
+
+def set_file_controller(controller):
+    """Set the file controller instance."""
+    global file_controller
+    file_controller = controller
 
 
 # =============================================================================
