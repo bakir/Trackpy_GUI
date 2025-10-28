@@ -12,7 +12,9 @@ from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QHBoxLayout, QPushBu
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
 import os
-from config_parser import get_config
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from src.config_parser import get_config
 
 class ErrantTrajectoryGalleryWidget(QWidget):
     def __init__(self, parent=None):

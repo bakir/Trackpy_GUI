@@ -10,8 +10,8 @@ import cv2
 import os
 import numpy as np
 import pandas as pd
-import particle_tracking
-from config_parser import get_config, get_detection_params
+from . import particle_tracking
+from .config_parser import get_config, get_detection_params
 import matplotlib.pyplot as plt
 import trackpy as tp
 

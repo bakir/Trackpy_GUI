@@ -10,9 +10,11 @@ parameters and managing the trajectory linking and visualization workflow.
 
 from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QFormLayout, QSpinBox, QDoubleSpinBox, QPushButton
 from PySide6.QtCore import Qt, Signal
-from config_parser import *
+import sys
 import os
-import particle_tracking
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from src.config_parser import *
+from src import particle_tracking
 import pandas as pd
 
 class LinkingParametersWidget(QWidget):

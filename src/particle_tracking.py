@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import cv2
 import os
-from config_parser import get_detection_params, get_config
+from .config_parser import get_detection_params, get_config
 
 @pims.pipeline
 def grayscale(frame):

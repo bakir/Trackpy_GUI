@@ -8,10 +8,12 @@ from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QFormLayout, QSpinBo
 from PySide6.QtCore import Qt, Signal, QThread
 import trackpy as tp
 import matplotlib.pyplot as plt
-from config_parser import *
-import cv2
+import sys
 import os
-import particle_processing
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from src.config_parser import *
+import cv2
+from src import particle_processing
 
 class FindParticlesThread(QThread):
     processing_frame = Signal(str)
