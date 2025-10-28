@@ -36,32 +36,31 @@ class DetectAllFramesThread(QThread):
     processing_frame = Signal(str)
     finished = Signal()
 
-    def __init__(self, frame_paths, params, project_manager=None):
+    def __init__(self, frame_paths, params, config_manager=None, file_controller=None):
         super().__init__()
         self.frame_paths = frame_paths
         self.params = params
-        self.project_manager = project_manager
+        self.config_manager = config_manager
+        self.file_controller = file_controller
 
     def run(self):
         try:
             import pandas as pd
             
-            # Use project-specific config if available, otherwise fall back to global
-            if self.project_manager and self.project_manager.get_project_config():
-                import configparser
-                config = configparser.ConfigParser()
-                config.read(self.project_manager.get_project_config())
-                project_path = self.project_manager.get_project_path()
-                if 'Paths' in config:
-                    annotated_frames_folder = os.path.join(project_path, config['Paths'].get('annotated_frames_folder', 'annotated_frames/'))
-                    data_folder = os.path.join(project_path, config['Paths'].get('data_folder', 'data/'))
-                else:
-                    annotated_frames_folder = os.path.join(project_path, 'annotated_frames')
-                    data_folder = os.path.join(project_path, 'data')
+            # Use injected file controller if available
+            if self.file_controller:
+                annotated_frames_folder = self.file_controller.annotated_frames_folder
+                data_folder = self.file_controller.data_folder
             else:
-                config = get_config()
-                annotated_frames_folder = config.get('annotated_frames_folder', 'annotated_frames/')
-                data_folder = config.get('data_folder', 'data/')
+                # Fall back to config manager
+                if self.config_manager:
+                    annotated_frames_folder = self.config_manager.get_path('annotated_frames_folder')
+                    data_folder = self.config_manager.get_path('data_folder')
+                else:
+                    # Fall back to global config
+                    config = get_config()
+                    annotated_frames_folder = config.get('annotated_frames_folder', 'annotated_frames/')
+                    data_folder = config.get('data_folder', 'data/')
 
             feature_size = int(self.params.get('feature_size', 15))
             min_mass = float(self.params.get('min_mass', 100.0))
@@ -112,7 +111,8 @@ class DetectionParametersWidget(QWidget):
     openTrajectoryLinking = Signal()
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.project_manager = None
+        self.config_manager = None
+        self.file_controller = None
 
         self.total_frames = 0
         self.find_particles_thread = None
@@ -207,9 +207,13 @@ class DetectionParametersWidget(QWidget):
         self.threshold_input.lineEdit().returnPressed.connect(self.save_params)
         self.invert_input.stateChanged.connect(lambda _state: self.save_params())
 
-    def set_project_manager(self, project_manager):
-        """Set the project manager for this widget."""
-        self.project_manager = project_manager
+    def set_config_manager(self, config_manager):
+        """Set the config manager for this widget."""
+        self.config_manager = config_manager
+    
+    def set_file_controller(self, file_controller):
+        """Set the file controller for this widget."""
+        self.file_controller = file_controller
 
     def clear_processed_frames(self):
         self.processed_frames.clear()
@@ -254,19 +258,18 @@ class DetectionParametersWidget(QWidget):
         self.save_params()
         params = get_detection_params()
         
-        # Use project-specific config if available, otherwise fall back to global
-        if self.project_manager and self.project_manager.get_project_config():
-            import configparser
-            config = configparser.ConfigParser()
-            config.read(self.project_manager.get_project_config())
-            project_path = self.project_manager.get_project_path()
-            if 'Paths' in config:
-                original_frames_folder = os.path.join(project_path, config['Paths'].get('original_frames_folder', 'original_frames/'))
-            else:
-                original_frames_folder = os.path.join(project_path, 'original_frames')
+        # Use injected file controller if available
+        if self.file_controller:
+            original_frames_folder = self.file_controller.original_frames_folder
         else:
-            config = get_config()
-            original_frames_folder = config.get('original_frames_folder', 'original_frames/')
+            # Fall back to config manager
+            if self.config_manager:
+                original_frames_folder = self.config_manager.get_path('original_frames_folder')
+            else:
+                # Fall back to global config
+                from ..config_parser import get_config
+                config = get_config()
+                original_frames_folder = config.get('original_frames_folder', 'original_frames/')
 
         start = self.start_frame_input.value()
         end = self.end_frame_input.value()
@@ -311,19 +314,18 @@ class DetectionParametersWidget(QWidget):
         self.save_params()
         params = get_detection_params()
         
-        # Use project-specific config if available, otherwise fall back to global
-        if self.project_manager and self.project_manager.get_project_config():
-            import configparser
-            config = configparser.ConfigParser()
-            config.read(self.project_manager.get_project_config())
-            project_path = self.project_manager.get_project_path()
-            if 'Paths' in config:
-                original_frames_folder = os.path.join(project_path, config['Paths'].get('original_frames_folder', 'original_frames/'))
-            else:
-                original_frames_folder = os.path.join(project_path, 'original_frames')
+        # Use injected file controller if available
+        if self.file_controller:
+            original_frames_folder = self.file_controller.original_frames_folder
         else:
-            config = get_config()
-            original_frames_folder = config.get('original_frames_folder', 'original_frames/')
+            # Fall back to config manager
+            if self.config_manager:
+                original_frames_folder = self.config_manager.get_path('original_frames_folder')
+            else:
+                # Fall back to global config
+                from ..config_parser import get_config
+                config = get_config()
+                original_frames_folder = config.get('original_frames_folder', 'original_frames/')
         
         if not os.path.exists(original_frames_folder):
             print(f"Frames folder not found: {original_frames_folder}")
@@ -356,7 +358,7 @@ class DetectionParametersWidget(QWidget):
         self.next_button.setEnabled(False)
         self.progress_display.setText("Processing remaining frames...")
 
-        self.detect_all_thread = DetectAllFramesThread(frames_to_process, params, self.project_manager)
+        self.detect_all_thread = DetectAllFramesThread(frames_to_process, params, self.config_manager, self.file_controller)
         self.detect_all_thread.processing_frame.connect(self.progress_display.setText)
         self.detect_all_thread.finished.connect(self.on_detect_all_finished)
         self.detect_all_thread.start()

@@ -55,17 +55,35 @@ VIDEOS_FOLDER = config.get('videos_folder', 'videos/')
 class ParticleDetectionWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.project_manager = None
+        self.config_manager = None
+        self.file_controller = None
         self.setup_ui()
     
-    def set_project_manager(self, project_manager):
-        """Set the project manager for this window."""
-        self.project_manager = project_manager
-        # Pass project manager to widgets that need it
+    def set_config_manager(self, config_manager):
+        """Set the config manager for this window."""
+        self.config_manager = config_manager
+        # Pass config manager to widgets that need it
         if hasattr(self, 'main_layout') and hasattr(self.main_layout, 'right_panel'):
-            self.main_layout.right_panel.set_project_manager(project_manager)
+            self.main_layout.right_panel.set_config_manager(config_manager)
         if hasattr(self, 'frame_player'):
-            self.frame_player.set_project_manager(project_manager)
+            self.frame_player.set_config_manager(config_manager)
+        if hasattr(self, 'errant_particle_gallery') and hasattr(self.errant_particle_gallery, 'set_config_manager'):
+            self.errant_particle_gallery.set_config_manager(config_manager)
+        if hasattr(self, 'main_layout') and hasattr(self.main_layout, 'left_panel'):
+            self.main_layout.left_panel.set_config_manager(config_manager)
+    
+    def set_file_controller(self, file_controller):
+        """Set the file controller for this window."""
+        self.file_controller = file_controller
+        # Pass file controller to widgets that need it
+        if hasattr(self, 'main_layout') and hasattr(self.main_layout, 'right_panel'):
+            self.main_layout.right_panel.set_file_controller(file_controller)
+        if hasattr(self, 'frame_player'):
+            self.frame_player.set_file_controller(file_controller)
+        if hasattr(self, 'errant_particle_gallery') and hasattr(self.errant_particle_gallery, 'set_file_controller'):
+            self.errant_particle_gallery.set_file_controller(file_controller)
+        if hasattr(self, 'main_layout') and hasattr(self.main_layout, 'left_panel'):
+            self.main_layout.left_panel.set_file_controller(file_controller)
 
     def setup_ui(self):
         # Main Widget

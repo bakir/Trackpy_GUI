@@ -3,64 +3,46 @@ File Controller Module
 
 Description: Centralized file and folder management for the particle tracking application.
              Handles all file operations including cleanup, creation, and data management.
-             Now supports project-specific folder structures.
+             Now uses dependency injection for configuration.
 """
 
 import os
 import shutil
 import pandas as pd
-import configparser
-from .config_parser import get_config
+from .config_manager import ConfigManager
 
 
 class FileController:
     """Centralized controller for all file and folder operations."""
     
-    def __init__(self, project_manager=None):
-        """Initialize the file controller with configuration."""
-        self.project_manager = project_manager
-        self._load_config()
+    def __init__(self, config_manager: ConfigManager, project_path: str = None):
+        """
+        Initialize the file controller with configuration.
+        
+        Parameters
+        ----------
+        config_manager : ConfigManager
+            Configuration manager instance
+        project_path : str, optional
+            Project root path for project-specific operations
+        """
+        self.config_manager = config_manager
+        self.project_path = project_path
+        self._load_paths()
     
-    def _load_config(self):
-        """Load configuration from project or global config."""
-        if self.project_manager and self.project_manager.get_project_config():
-            # Use project-specific config
-            config_path = self.project_manager.get_project_config()
-            config = configparser.ConfigParser()
-            config.read(config_path)
-            
-            # Get project folder paths
-            project_path = self.project_manager.get_project_path()
-            
-            if 'Paths' in config:
-                self.particles_folder = os.path.join(project_path, config['Paths'].get('particles_folder', 'particles/'))
-                self.original_frames_folder = os.path.join(project_path, config['Paths'].get('original_frames_folder', 'original_frames/'))
-                self.annotated_frames_folder = os.path.join(project_path, config['Paths'].get('annotated_frames_folder', 'annotated_frames/'))
-                self.rb_gallery_folder = os.path.join(project_path, config['Paths'].get('rb_gallery_folder', 'rb_gallery'))
-                self.videos_folder = os.path.join(project_path, config['Paths'].get('videos_folder', 'videos/'))
-                self.data_folder = os.path.join(project_path, config['Paths'].get('data_folder', 'data/'))
-            else:
-                # Fallback to default project structure
-                self.particles_folder = os.path.join(project_path, 'particles')
-                self.original_frames_folder = os.path.join(project_path, 'original_frames')
-                self.annotated_frames_folder = os.path.join(project_path, 'annotated_frames')
-                self.rb_gallery_folder = os.path.join(project_path, 'rb_gallery')
-                self.videos_folder = os.path.join(project_path, 'videos')
-                self.data_folder = os.path.join(project_path, 'data')
-        else:
-            # Use global config
-            config = get_config()
-            self.particles_folder = config.get('particles_folder', 'particles/')
-            self.original_frames_folder = config.get('original_frames_folder', 'original_frames/')
-            self.annotated_frames_folder = config.get('annotated_frames_folder', 'annotated_frames/')
-            self.rb_gallery_folder = config.get('rb_gallery_folder', 'rb_gallery')
-            self.videos_folder = config.get('videos_folder', 'videos/')
-            self.data_folder = config.get('data_folder', 'data/')
+    def _load_paths(self):
+        """Load folder paths from configuration."""
+        self.particles_folder = self.config_manager.get_path('particles_folder', self.project_path)
+        self.original_frames_folder = self.config_manager.get_path('original_frames_folder', self.project_path)
+        self.annotated_frames_folder = self.config_manager.get_path('annotated_frames_folder', self.project_path)
+        self.rb_gallery_folder = self.config_manager.get_path('rb_gallery_folder', self.project_path)
+        self.videos_folder = self.config_manager.get_path('videos_folder', self.project_path)
+        self.data_folder = self.config_manager.get_path('data_folder', self.project_path)
     
-    def set_project_manager(self, project_manager):
-        """Set the project manager and reload configuration."""
-        self.project_manager = project_manager
-        self._load_config()
+    def set_project_path(self, project_path: str):
+        """Set the project path and reload folder paths."""
+        self.project_path = project_path
+        self._load_paths()
     
     def ensure_folder_exists(self, folder_path: str) -> None:
         """Ensure a folder exists, create it if it doesn't."""

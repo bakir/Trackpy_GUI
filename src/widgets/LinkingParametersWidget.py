@@ -26,6 +26,8 @@ class LinkingParametersWidget(QWidget):
     
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.config_manager = None
+        self.file_controller = None
         
         # Store detected particles and linked trajectories
         self.detected_particles = None
@@ -109,6 +111,14 @@ class LinkingParametersWidget(QWidget):
         self.scaling_input.lineEdit().returnPressed.connect(self.save_params)
         self.max_speed_input.lineEdit().returnPressed.connect(self.save_params)
 
+    def set_config_manager(self, config_manager):
+        """Set the config manager for this widget."""
+        self.config_manager = config_manager
+    
+    def set_file_controller(self, file_controller):
+        """Set the file controller for this widget."""
+        self.file_controller = file_controller
+
     def load_params(self):
         params = get_linking_params()
         self.search_range_input.setValue(int(params.get('search_range', 10)))
@@ -136,8 +146,19 @@ class LinkingParametersWidget(QWidget):
         
         # Get linking parameters
         linking_params = get_linking_params()
-        config = get_config()
-        data_folder = config.get('data_folder', 'data/') 
+        
+        # Use injected file controller if available
+        if self.file_controller:
+            data_folder = self.file_controller.data_folder
+        else:
+            # Fall back to config manager
+            if self.config_manager:
+                data_folder = self.config_manager.get_path('data_folder')
+            else:
+                # Fall back to global config
+                from ..config_parser import get_config
+                config = get_config()
+                data_folder = config.get('data_folder', 'data/') 
         
         # Check if particles file exists
         particles_file = os.path.join(data_folder, 'all_particles.csv')
@@ -209,6 +230,8 @@ class LinkingParametersWidget(QWidget):
             import numpy as np
             
             # Get image dimensions from first frame
+            # Fall back to global config
+            from ..config_parser import get_config
             config = get_config()
             original_frames_folder = config.get('original_frames_folder', 'original_frames/')
             frame_files = []
@@ -280,6 +303,8 @@ class LinkingParametersWidget(QWidget):
         """Create RB gallery using particle_processing function."""
         try:
             import particle_processing
+            # Fall back to global config
+            from ..config_parser import get_config
             config = get_config()
             original_frames_folder = config.get('original_frames_folder', 'original_frames/')
             rb_gallery_folder = config.get('rb_gallery_folder', 'rb_gallery')

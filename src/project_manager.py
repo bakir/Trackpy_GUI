@@ -7,7 +7,7 @@ Description: Handles project creation, management, and configuration.
 
 import os
 import shutil
-from .config_parser import get_config
+from .config_manager import ConfigManager
 
 
 class ProjectManager:
@@ -56,17 +56,17 @@ class ProjectManager:
                 folder_path = os.path.join(project_folder_path, folder)
                 os.makedirs(folder_path, exist_ok=True)
             
-            # Copy global config to project folder
-            global_config_path = os.path.join(os.path.dirname(__file__), '..', 'config.ini')
+            # Copy template config to project folder
+            template_config_path = os.path.join(os.path.dirname(__file__), '..', 'template_config.ini')
             project_config_path = os.path.join(project_folder_path, 'config.ini')
             
-            if os.path.exists(global_config_path):
-                shutil.copy2(global_config_path, project_config_path)
+            if os.path.exists(template_config_path):
+                shutil.copy2(template_config_path, project_config_path)
                 
                 # Update paths in project config to be relative to project folder
                 self._update_project_config_paths(project_config_path, project_folder_path)
             else:
-                # Create default config if global doesn't exist
+                # Create default config if template doesn't exist
                 self._create_default_project_config(project_config_path, project_folder_path)
             
             # Create project info file
@@ -136,38 +136,38 @@ class ProjectManager:
         }
     
     def _update_project_config_paths(self, config_path: str, project_path: str):
-        """Update config file paths to be relative to project folder."""
+        """Update config file paths to be absolute paths relative to project folder."""
         import configparser
         
         config = configparser.ConfigParser()
         config.read(config_path)
         
-        # Update paths to be relative to project folder
+        # Update paths to be absolute paths relative to project folder
         if 'Paths' in config:
-            config['Paths']['particles_folder'] = 'particles/'
-            config['Paths']['original_frames_folder'] = 'original_frames/'
-            config['Paths']['annotated_frames_folder'] = 'annotated_frames/'
-            config['Paths']['rb_gallery_folder'] = 'rb_gallery/'
-            config['Paths']['data_folder'] = 'data/'
-            config['Paths']['videos_folder'] = 'videos/'
+            config['Paths']['particles_folder'] = os.path.abspath(os.path.join(project_path, 'particles'))
+            config['Paths']['original_frames_folder'] = os.path.abspath(os.path.join(project_path, 'original_frames'))
+            config['Paths']['annotated_frames_folder'] = os.path.abspath(os.path.join(project_path, 'annotated_frames'))
+            config['Paths']['rb_gallery_folder'] = os.path.abspath(os.path.join(project_path, 'rb_gallery'))
+            config['Paths']['data_folder'] = os.path.abspath(os.path.join(project_path, 'data'))
+            config['Paths']['videos_folder'] = os.path.abspath(os.path.join(project_path, 'videos'))
         
         with open(config_path, 'w') as f:
             config.write(f)
     
     def _create_default_project_config(self, config_path: str, project_path: str):
-        """Create a default config file for the project."""
+        """Create a default config file for the project with absolute paths."""
         import configparser
         
         config = configparser.ConfigParser()
         
-        # Paths section
+        # Paths section with absolute paths
         config['Paths'] = {
-            'particles_folder': 'particles/',
-            'original_frames_folder': 'original_frames/',
-            'annotated_frames_folder': 'annotated_frames/',
-            'rb_gallery_folder': 'rb_gallery/',
-            'data_folder': 'data/',
-            'videos_folder': 'videos/'
+            'particles_folder': os.path.abspath(os.path.join(project_path, 'particles')),
+            'original_frames_folder': os.path.abspath(os.path.join(project_path, 'original_frames')),
+            'annotated_frames_folder': os.path.abspath(os.path.join(project_path, 'annotated_frames')),
+            'rb_gallery_folder': os.path.abspath(os.path.join(project_path, 'rb_gallery')),
+            'data_folder': os.path.abspath(os.path.join(project_path, 'data')),
+            'videos_folder': os.path.abspath(os.path.join(project_path, 'videos'))
         }
         
         # Detection section

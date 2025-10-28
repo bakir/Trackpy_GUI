@@ -25,6 +25,8 @@ STANDARD_DPI = 100
 class GraphingPanelWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.config_manager = None
+        self.file_controller = None
         
         # Graph area
         self.layout = QVBoxLayout(self)
@@ -40,7 +42,13 @@ class GraphingPanelWidget(QWidget):
         # Center the canvas in the layout
         self.layout.addWidget(self.canvas, alignment = Qt.AlignCenter) 
      
-
+    def set_config_manager(self, config_manager):
+        """Set the config manager for this widget."""
+        self.config_manager = config_manager
+    
+    def set_file_controller(self, file_controller):
+        """Set the file controller for this widget."""
+        self.file_controller = file_controller
 
         # buttons
         self.graphing_buttons = QWidget()
@@ -111,8 +119,21 @@ class GraphingPanelWidget(QWidget):
     def get_mass_count(self):
         # Get parameters
         params = get_detection_params() 
-        config = get_config()
-        frames_folder = config.get('frames_folder', 'frames/')
+        
+        # Use injected file controller if available
+        if self.file_controller:
+            frames_folder = self.file_controller.original_frames_folder
+        else:
+            # Fall back to config manager
+            if self.config_manager:
+                frames_folder = self.config_manager.get_path('original_frames_folder')
+            else:
+                # Fall back to global config
+                from ..config_parser import get_config
+                # Fall back to global config
+                from ..config_parser import get_config
+                config = get_config()
+                frames_folder = config.get('frames_folder', 'frames/')
         
         # Check if frames exist
         if not os.path.exists(frames_folder):

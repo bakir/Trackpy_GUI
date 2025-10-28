@@ -14,7 +14,7 @@ from src.widgets.ParticleDetectionWindow import ParticleDetectionWindow
 from src.widgets.TrajectoryLinkingWindow import TrajectoryLinkingWindow
 from src.project_manager import ProjectManager
 from src.file_controller import FileController
-from src.config_parser import get_config
+from src.config_manager import ConfigManager
 
 
 class ParticleTrackingAppController(QMainWindow):
@@ -24,9 +24,11 @@ class ParticleTrackingAppController(QMainWindow):
         super().__init__()
         self.setWindowTitle("Particle Tracking GUI")
         
-        # Initialize managers
+        # Initialize configuration and managers
+        self.template_config = ConfigManager()  # Template config for new projects
+        self.project_config = None  # Will be set when project is loaded
         self.project_manager = ProjectManager()
-        self.file_controller = FileController(self.project_manager)
+        self.file_controller = None  # Will be initialized when project is loaded
         
         # Initialize windows
         self.start_screen = None
@@ -60,8 +62,10 @@ class ParticleTrackingAppController(QMainWindow):
         """Handle project selection from start screen."""
         # Load the project
         if self.project_manager.load_project(project_path):
-            # Update file controller with project
-            self.file_controller.set_project_manager(self.project_manager)
+            # Initialize project-specific config and file controller
+            project_config_path = os.path.join(project_path, 'config.ini')
+            self.project_config = ConfigManager(project_config_path)
+            self.file_controller = FileController(self.project_config, project_path)
             
             # Set file controller in particle processing module
             from src import particle_processing
@@ -79,7 +83,8 @@ class ParticleTrackingAppController(QMainWindow):
         
         # Create particle detection window
         self.particle_detection_window = ParticleDetectionWindow()
-        self.particle_detection_window.set_project_manager(self.project_manager)
+        self.particle_detection_window.set_config_manager(self.project_config)
+        self.particle_detection_window.set_file_controller(self.file_controller)
         
         # Connect signals from particle detection window
         self.particle_detection_window.main_layout.right_panel.openTrajectoryLinking.connect(
@@ -100,7 +105,8 @@ class ParticleTrackingAppController(QMainWindow):
         
         # Create trajectory linking window
         self.trajectory_linking_window = TrajectoryLinkingWindow()
-        self.trajectory_linking_window.set_project_manager(self.project_manager)
+        self.trajectory_linking_window.set_config_manager(self.project_config)
+        self.trajectory_linking_window.set_file_controller(self.file_controller)
         
         # Connect signals from trajectory linking window
         self.trajectory_linking_window.main_layout.right_panel.goBackToDetection.connect(
@@ -140,7 +146,8 @@ class ParticleTrackingAppController(QMainWindow):
     
     def cleanup_rb_gallery(self):
         """Delete all files in the rb_gallery folder."""
-        self.file_controller.cleanup_rb_gallery()
+        if self.file_controller:
+            self.file_controller.cleanup_rb_gallery()
     
     def closeEvent(self, event):
         """Handle application close event."""
@@ -154,7 +161,8 @@ class ParticleTrackingAppController(QMainWindow):
     
     def cleanup_all_temp_folders(self):
         """Delete all files in temporary folders."""
-        self.file_controller.cleanup_temp_folders()
+        if self.file_controller:
+            self.file_controller.cleanup_temp_folders()
     
     def get_project_manager(self):
         """Get the project manager instance."""
