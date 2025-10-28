@@ -15,6 +15,8 @@ import os
 import particle_tracking
 import pandas as pd
 
+from TrajectoryPlottingWidget import *
+
 class LinkingParametersWidget(QWidget):
     particlesDetected = Signal()
     trajectoriesLinked = Signal()
@@ -22,8 +24,10 @@ class LinkingParametersWidget(QWidget):
     rbGalleryCreated = Signal()  # Signal that RB gallery was created
     goBackToDetection = Signal()  # Signal to go back to detection window
     
-    def __init__(self, parent=None):
+    def __init__(self, trajectory_plotting, parent=None):
         super().__init__(parent)
+        # Create plotting instance
+        self.trajectory_plotting = trajectory_plotting
         
         # Store detected particles and linked trajectories
         self.detected_particles = None
@@ -192,6 +196,10 @@ class LinkingParametersWidget(QWidget):
             # Emit signals
             self.trajectoriesLinked.emit()
             self.rbGalleryCreated.emit()
+
+            # Pass linked patricle data to plotting widget
+            self.trajectory_plotting.get_linked_particles(self.linked_trajectories)
+
             
         except Exception as e:
             print(f"Error linking trajectories: {e}")
