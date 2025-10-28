@@ -1,8 +1,7 @@
-
 """
-Trajectory Linking Window
+Particle Detection Window
 
-Description: Main window for Trajectory Linkning. Imports trajectory linking widgets.
+Description: Main window for Particle detection. Imports particle detection widgets.
              Generated boiler plate code using Cursor.
 """
 
@@ -35,52 +34,25 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qtagg import FigureCanvas
 from matplotlib.figure import Figure
 
-from .ErrantTrajectoryGalleryWidget import *
-from .TrajectoryPlayerWidget import *
-from .TrajectoryPlottingWidget import *
-from .LinkingParametersWidget import *
-from .ParticleDetectionWindow import *
+from .ErrantParticleGalleryWidget import *
+from .FramePlayerWidget import *
+from .GraphingPanelWidget import *
+from .DetectionParametersWidget import *
+from .TrajectoryLinkingWindow import *
 
 
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from src import particle_processing
-from src.config_parser import get_config
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from .. import particle_processing
+from ..config_parser import get_config
 config = get_config()
-PARTICLES_FOLDER = config.get('particles_folder', 'particles/')
+DATA_FOLDER = config.get('data_folder', 'data/')
 ORIGINAL_FRAMES_FOLDER = config.get('original_frames_folder', 'original_frames/')
+ANNOTATED_FRAMES_FOLDER = config.get('annotated_frames_folder', 'annotated_frames/')
 VIDEOS_FOLDER = config.get('videos_folder', 'videos/')
 
-def save_video_frames(video_path: str, output_folder: str):
-    """
-    Extracts all frames from a video and saves them as .jpg in the output folder.
-
-    Args:
-        video_path (str): Path to the video file.
-        output_folder (str): Path to the folder where frames will be saved.
-    """
-    # Make sure output folder exists
-    os.makedirs(output_folder, exist_ok=True)
-
-    cap = cv2.VideoCapture(video_path)
-    if not cap.isOpened():
-        raise ValueError(f"Could not open video: {video_path}")
-
-    frame_idx = 0
-    while True:
-        ret, frame = cap.read()
-        if not ret or frame_idx > 5:
-            break  # End of video
-
-        frame_path = os.path.join(output_folder, f"frame_{frame_idx:05d}.jpg")
-        cv2.imwrite(frame_path, frame)
-        frame_idx += 1
-
-    cap.release()
-    print(f"Saved {frame_idx} frames to {output_folder}")
-
-class TrajectoryLinkingWindow(QMainWindow):
+class ParticleDetectionWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setup_ui()
@@ -95,25 +67,26 @@ class TrajectoryLinkingWindow(QMainWindow):
         # Menu Bar
         menubar = self.menuBar()
         file_menu = menubar.addMenu("File")
+        import_action = QAction("Import Video", self)
+        import_action.triggered.connect(self.import_video)
+        file_menu.addAction(import_action)
+
+        # Create an "Export" QMenu instead of a QAction
         export_menu = file_menu.addMenu("Export Data")
         export_particle_data_menu = export_menu.addMenu("Particle Data")
-        export_trajectory_data_menu = export_menu.addMenu("Trajectory Data")
 
         # Create the QActions for your sub-options
         export_particle_data_csv_action = QAction("as CSV", self)
         export_particle_data_pkl_action = QAction("as PKL", self)
-        export_trajectory_data_csv_action = QAction("as CSV", self)
-        export_trajectory_data_pkl_action = QAction("as PKL", self)
+
         # Add the sub-option actions to the "Export" menu
         export_particle_data_menu.addAction(export_particle_data_csv_action)
         export_particle_data_menu.addAction(export_particle_data_pkl_action)
-        export_trajectory_data_menu.addAction(export_trajectory_data_csv_action)
-        export_trajectory_data_menu.addAction(export_trajectory_data_pkl_action)
+
         # You can then connect your sub-actions to functions
         export_particle_data_csv_action.triggered.connect(self.export_particles_csv)
         export_particle_data_pkl_action.triggered.connect(self.export_particles_pkl)
-        export_trajectory_data_csv_action.triggered.connect(self.export_trajectories_csv)
-        export_trajectory_data_pkl_action.triggered.connect(self.export_trajectories_pkl)
+
 
         options_menu = menubar.addMenu("Options")
         stream_action = QAction("Stream", self)
@@ -121,40 +94,51 @@ class TrajectoryLinkingWindow(QMainWindow):
         options_menu.addAction(stream_action)
 
         # Left Panel
-        self.main_layout.left_panel = TrajectoryPlottingWidget()
+        self.main_layout.left_panel = GraphingPanelWidget()
         self.main_layout.addWidget(self.main_layout.left_panel)
 
         # Middle Panel
         self.main_layout.middle_panel = QWidget()
         self.middle_layout = QVBoxLayout(self.main_layout.middle_panel)
 
-        self.frame_player = TrajectoryPlayerWidget()
+        self.frame_player = FramePlayerWidget()
         self.middle_layout.addWidget(self.frame_player)
-        self.errant_particle_gallery = ErrantTrajectoryGalleryWidget()
+        self.errant_particle_gallery = ErrantParticleGalleryWidget()
         self.middle_layout.addWidget(self.errant_particle_gallery)
 
         self.main_layout.addWidget(self.main_layout.middle_panel)
 
         # Right Panel
-        self.main_layout.right_panel = LinkingParametersWidget()
+        self.main_layout.right_panel = DetectionParametersWidget()
         self.right_layout = QVBoxLayout(self.main_layout.right_panel)
         self.main_layout.addWidget(self.main_layout.right_panel)
         
-        # Connect trajectory visualization signal to display in trajectory player
-        self.main_layout.right_panel.trajectoryVisualizationCreated.connect(self.frame_player.display_trajectory_image)
-        
-        # Connect back button signal to return to detection window
-        self.main_layout.right_panel.goBackToDetection.connect(self.go_back_to_detection)
-        
-        # Connect RB gallery creation signal to refresh the trajectory gallery
-        self.main_layout.right_panel.rbGalleryCreated.connect(self.errant_particle_gallery.refresh_rb_gallery)
+        # Connect signals
+        self.main_layout.right_panel.particlesUpdated.connect(self.errant_particle_gallery.refresh_particles)
+        self.main_layout.right_panel.openTrajectoryLinking.connect(self.open_trajectory_linking_window)
+        self.frame_player.frames_saved.connect(self.main_layout.right_panel.set_total_frames)
 
-    
+    def import_video(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select Video", VIDEOS_FOLDER, "Video Files (*.avi *.mp4 *.mov *.mkv);;All Files (*)")
+        if not file_path:
+            return
+        # Ensure frames folders exist and are clean
+        os.makedirs(ORIGINAL_FRAMES_FOLDER, exist_ok=True)
+        os.makedirs(ANNOTATED_FRAMES_FOLDER, exist_ok=True)
+        try:
+            particle_processing.delete_all_files_in_folder(ORIGINAL_FRAMES_FOLDER)
+            particle_processing.delete_all_files_in_folder(ANNOTATED_FRAMES_FOLDER)
+            self.main_layout.right_panel.clear_processed_frames()
+        except Exception:
+            pass
+        # Save video frames and load them into the player
+        self.frame_player.save_video_frames(file_path)
+
     def _export_data(self, source_filename: str, target_format: str):
         config = get_config()
-        particles_folder = config.get('particles_folder', 'particles/')
+        data_folder = config.get('data_folder', 'data/')
         
-        source_file_path = os.path.join(particles_folder, source_filename)
+        source_file_path = os.path.join(data_folder, source_filename)
     
         
         # 1. Check if the source file exists
@@ -210,28 +194,27 @@ class TrajectoryLinkingWindow(QMainWindow):
         """Exports the 'all_particles.csv' data as a user-selected pickle file."""
         self._export_data(source_filename='all_particles.csv', target_format='pkl')
 
-    def export_trajectories_csv(self):
-        """Exports the 'trajectories.csv' file to a user-selected CSV file."""
-        self._export_data(source_filename='trajectories.csv', target_format='csv')
-
-    def export_trajectories_pkl(self):
-        self._export_data(source_filename='trajectories.csv', target_format='pkl')
-
     def stream(self):
         return
     
-    def go_back_to_detection(self):
-        """Emit signal to switch back to particle detection window."""
+    def open_trajectory_linking_window(self):
+        """Emit signal to switch to trajectory linking window."""
         # The controller will handle the actual window switching
         pass
 
-    
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-
-    # Sets the style of the gui
-    app.setStyle(QtWidgets.QStyleFactory.create("Fusion"))
-    detection_win = TrajectoryLinkingWindow()
-    detection_win.show()
-    sys.exit(app.exec())
-
+# clean up temp folders on exit for now
+def cleanup_temp_folders():
+    """Delete all files in frames and particles folders on app shutdown."""
+    # pass
+    try:
+        particle_processing.delete_all_files_in_folder(PARTICLES_FOLDER)
+    except Exception:
+        pass
+    try:
+        particle_processing.delete_all_files_in_folder(ORIGINAL_FRAMES_FOLDER)
+    except Exception:
+        pass
+    try:
+        particle_processing.delete_all_files_in_folder(ANNOTATED_FRAMES_FOLDER)
+    except Exception:
+        pass

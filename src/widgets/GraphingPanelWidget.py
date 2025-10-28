@@ -12,9 +12,9 @@ from matplotlib.backends.backend_qtagg import FigureCanvas
 from matplotlib.figure import Figure
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from src import particle_processing
-from src.config_parser import *
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from .. import particle_processing
+from ..config_parser import *
 import os
 from copy import copy
 

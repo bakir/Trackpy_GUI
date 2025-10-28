@@ -3,11 +3,11 @@ import os
 
 def get_config():
     """
-    Reads the config.txt file and returns a dictionary of settings.
+    Reads the config.ini file and returns a dictionary of settings.
     """
     config = configparser.ConfigParser()
-    # Assuming config.txt is in the same directory as main.py
-    config_path = os.path.join(os.path.dirname(__file__), 'config.txt')
+    # Assuming config.ini is in the same directory as main.py
+    config_path = os.path.join(os.path.dirname(__file__), '..', 'config.ini')
     config.read(config_path)
     
     # Create a dictionary to hold the configuration
@@ -23,9 +23,9 @@ def get_config():
     return config_dict
 
 def get_detection_params():
-    """Read detection parameters from config.txt under [Detection]."""
+    """Read detection parameters from config.ini under [Detection]."""
     config = configparser.ConfigParser()
-    config_path = os.path.join(os.path.dirname(__file__), 'config.txt')
+    config_path = os.path.join(os.path.dirname(__file__), '..', 'config.ini')
     config.read(config_path)
 
     params = {
@@ -68,9 +68,9 @@ def get_detection_params():
     return params
 
 def save_detection_params(params):
-    """Write detection parameters to config.txt under [Detection]."""
+    """Write detection parameters to config.ini under [Detection]."""
     config = configparser.ConfigParser()
-    config_path = os.path.join(os.path.dirname(__file__), 'config.txt')
+    config_path = os.path.join(os.path.dirname(__file__), '..', 'config.ini')
     # Read existing config if present
     if os.path.exists(config_path):
         config.read(config_path)
@@ -88,9 +88,9 @@ def save_detection_params(params):
 
 
 def get_linking_params():
-    """Read linking parameters from config.txt under [Linking]."""
+    """Read linking parameters from config.ini under [Linking]."""
     config = configparser.ConfigParser()
-    config_path = os.path.join(os.path.dirname(__file__), 'config.txt')
+    config_path = os.path.join(os.path.dirname(__file__), '..', 'config.ini')
     config.read(config_path)
 
     params = {
@@ -139,9 +139,9 @@ def get_linking_params():
 
 
 def save_linking_params(params):
-    """Write linking parameters to config.txt under [Linking]."""
+    """Write linking parameters to config.ini under [Linking]."""
     config = configparser.ConfigParser()
-    config_path = os.path.join(os.path.dirname(__file__), 'config.txt')
+    config_path = os.path.join(os.path.dirname(__file__), '..', 'config.ini')
     # Read existing config if present
     if os.path.exists(config_path):
         config.read(config_path)

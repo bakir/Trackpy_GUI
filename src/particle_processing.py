@@ -1,43 +1,269 @@
 """
 Particle Processing Module
 
-Description: Core particle processing functions for detection, cropping, and RB gallery creation.
-             Initial functions written using Cursor.
-
+Description: Combined particle detection, tracking, and processing functions.
+             Includes TrackPy wrapper functions and particle processing workflows.
 """
 
 import cv2
 import os
 import numpy as np
 import pandas as pd
-from . import particle_tracking
-from .config_parser import get_config, get_detection_params
-import matplotlib.pyplot as plt
 import trackpy as tp
+import pims
+import matplotlib.pyplot as plt
+from .config_parser import get_detection_params, get_config
+from .file_controller import FileController
 
-config = get_config()
-PARTICLES_FOLDER = config.get('particles_folder', 'particles/')
-ANNOTATED_FRAMES_FOLDER = config.get('annotated_frames_folder', 'annotated_frames/')
+# Initialize file controller
+file_controller = FileController()
+
+
+# =============================================================================
+# TRACKPY WRAPPER FUNCTIONS
+# =============================================================================
+
+@pims.pipeline
+def grayscale(frame):
+    """Converts a frame to grayscale."""
+    # This function is for use with pims pipelines, which expect RGB.
+    # For single frames with OpenCV, use cv2.cvtColor.
+    red = frame[:, :, 0]
+    green = frame[:, :, 1]
+    blue = frame[:, :, 2]
+    return (1/3.0) * red + (1/3.0) * green + (1/3.0) * blue
+
+
+def locate_particles(frame, feature_size=15, min_mass=100, invert=False, threshold=0):
+    """
+    Locates bright spots (particles) in a single grayscale frame.
+
+    Parameters
+    ----------
+    frame : array
+        A single grayscale frame from a video.
+    feature_size : int, optional
+        The approximate diameter of features to detect. Must be an odd integer.
+    min_mass : float, optional
+        The minimum integrated brightness of a feature.
+    invert : bool, optional
+        Set to True if looking for dark spots on a bright background.
+    threshold : float, optional
+        Clip band-passed data below this value.
+
+    Returns
+    -------
+    pandas.DataFrame
+        A DataFrame with the coordinates and other properties of the located particles.
+    """
+    located_features = tp.locate(
+        frame,
+        diameter=feature_size,
+        minmass=min_mass,
+        invert=invert,
+        threshold=threshold
+    )
+    return located_features
+
+
+def link_particles_to_trajectories(video_path, output_folder=None, params=None):
+    """
+    Main function to detect particles in all frames and link them into trajectories.
+    
+    Parameters
+    ----------
+    video_path : str
+        Path to the video file to analyze
+    output_folder : str, optional
+        Folder to save trajectory data. If None, uses data folder from config.
+    params : dict, optional
+        Detection parameters. If None, reads from config.ini
+        
+    Returns
+    -------
+    pandas.DataFrame
+        DataFrame with linked trajectories containing columns:
+        - x, y: particle coordinates
+        - frame: frame number
+        - particle: trajectory ID
+        - mass, size, ecc: particle properties
+    """
+    if params is None:
+        params = get_detection_params()
+    
+    if output_folder is None:
+        output_folder = file_controller.data_folder
+    
+    # Ensure output folder exists
+    file_controller.ensure_folder_exists(output_folder)
+    
+    # Load video
+    try:
+        video = pims.Video(video_path)
+    except Exception as e:
+        print(f"Error loading video: {e}")
+        return None
+    
+    print(f"Processing video with {len(video)} frames...")
+    
+    # Get detection parameters
+    feature_size = int(params.get('feature_size', 15))
+    min_mass = float(params.get('min_mass', 100.0))
+    invert = bool(params.get('invert', False))
+    threshold = float(params.get('threshold', 0.0))
+    
+    # Ensure odd feature size as required by trackpy
+    if feature_size % 2 == 0:
+        feature_size += 1
+    
+    # Step 1: Detect particles in all frames
+    print("Detecting particles in all frames...")
+    try:
+        # Use trackpy's batch function for efficient processing
+        particles = tp.batch(
+            video, 
+            diameter=feature_size, 
+            minmass=min_mass, 
+            invert=invert, 
+            threshold=threshold,
+            processes=1  # Use single process to avoid multiprocessing issues
+        )
+    except Exception as e:
+        print(f"Error in particle detection: {e}")
+        return None
+    
+    print(f"Found {len(particles)} particle detections across {particles['frame'].nunique()} frames")
+    
+    if len(particles) == 0:
+        print("No particles detected!")
+        return None
+    
+    # Step 2: Link particles into trajectories
+    print("Linking particles into trajectories...")
+    
+    # Calculate search range based on expected particle speed
+    # Assuming max speed of ~100 microns/second and typical fps
+    fps = 30  # Default fps, could be extracted from video
+    scaling = 1.0  # microns per pixel, could be from config
+    max_speed_um_per_sec = 100
+    search_range = int(np.ceil(max_speed_um_per_sec / (fps * scaling)))
+    
+    # Memory parameter: how many frames a particle can disappear and still be linked
+    memory = 10
+    
+    try:
+        trajectories = tp.link_df(
+            particles, 
+            search_range=search_range, 
+            memory=memory
+        )
+    except Exception as e:
+        print(f"Error in trajectory linking: {e}")
+        return None
+    
+    print(f"Created {trajectories['particle'].nunique()} trajectories")
+    
+    # Step 3: Filter short trajectories
+    min_trajectory_length = 10
+    print(f"Filtering trajectories shorter than {min_trajectory_length} frames...")
+    
+    trajectories_filtered = tp.filter_stubs(trajectories, min_trajectory_length)
+    
+    print(f"After filtering: {trajectories_filtered['particle'].nunique()} trajectories")
+    
+    # Step 4: Drift subtraction (optional but recommended)
+    print("Computing and subtracting drift...")
+    try:
+        # Compute drift
+        drift = tp.compute_drift(trajectories_filtered, smoothing=15)
+        
+        # Subtract drift
+        trajectories_final = tp.subtract_drift(trajectories_filtered, drift)
+        trajectories_final = trajectories_final.reset_index(drop=True)
+        
+        print("Drift subtraction completed")
+    except Exception as e:
+        print(f"Warning: Drift subtraction failed: {e}")
+        print("Using trajectories without drift subtraction")
+        trajectories_final = trajectories_filtered
+    
+    # Step 5: Save results using FileController
+    file_controller.save_trajectories_data(trajectories_final, "trajectories.csv")
+    
+    return trajectories_final
+
+
+def analyze_trajectories(trajectories_df, scaling=1.0, fps=30):
+    """
+    Analyze linked trajectories to compute MSD and other metrics.
+    
+    Parameters
+    ----------
+    trajectories_df : pandas.DataFrame
+        DataFrame with trajectory data from link_particles_to_trajectories
+    scaling : float
+        Microns per pixel
+    fps : float
+        Frames per second
+        
+    Returns
+    -------
+    dict
+        Dictionary containing analysis results
+    """
+    if trajectories_df is None or len(trajectories_df) == 0:
+        return None
+    
+    results = {}
+    
+    # Compute ensemble mean square displacement (eMSD)
+    try:
+        emsd = tp.emsd(trajectories_df, mpp=scaling, fps=fps, max_lagtime=100)
+        results['emsd'] = emsd
+        print("Computed ensemble MSD")
+    except Exception as e:
+        print(f"Error computing eMSD: {e}")
+    
+    # Compute individual MSD (iMSD) 
+    try:
+        imsd = tp.imsd(trajectories_df, mpp=scaling, fps=fps, max_lagtime=100)
+        results['imsd'] = imsd
+        print("Computed individual MSD")
+    except Exception as e:
+        print(f"Error computing iMSD: {e}")
+    
+    # Basic statistics
+    results['num_trajectories'] = trajectories_df['particle'].nunique()
+    results['num_frames'] = trajectories_df['frame'].nunique()
+    results['total_detections'] = len(trajectories_df)
+    
+    # Trajectory lengths
+    traj_lengths = trajectories_df.groupby('particle').size()
+    results['mean_trajectory_length'] = traj_lengths.mean()
+    results['std_trajectory_length'] = traj_lengths.std()
+    
+    print(f"Analysis complete:")
+    print(f"  - {results['num_trajectories']} trajectories")
+    print(f"  - {results['num_frames']} frames")
+    print(f"  - Mean trajectory length: {results['mean_trajectory_length']:.1f} frames")
+    
+    return results
+
+
+# =============================================================================
+# PARTICLE PROCESSING FUNCTIONS
+# =============================================================================
 
 def delete_all_files_in_folder(folder_path):
     """
     Deletes all files within a specified folder.
+    Delegates to FileController for consistency.
 
     Args:
         folder_path (str): The path to the folder.
     """
-    if not os.path.isdir(folder_path):
-        print(f"Error: '{folder_path}' is not a valid directory.")
-        return
+    file_controller.delete_all_files_in_folder(folder_path)
 
-    for filename in os.listdir(folder_path):
-        file_path = os.path.join(folder_path, filename)
-        if os.path.isfile(file_path):  # Ensure it's a file, not a subdirectory
-            try:
-                os.remove(file_path)
-                print(f"Deleted: {file_path}")
-            except OSError as e:
-                print(f"Error deleting {file_path}: {e}")
 
 def find_and_save_errant_particles(image_paths, params=None, progress_callback=None):
     """
@@ -50,12 +276,10 @@ def find_and_save_errant_particles(image_paths, params=None, progress_callback=N
     progress_callback : Signal, optional
         A signal to emit progress updates.
     """
-    delete_all_files_in_folder(PARTICLES_FOLDER)
-
-    if not os.path.exists(PARTICLES_FOLDER):
-        os.makedirs(PARTICLES_FOLDER)
-    if not os.path.exists(ANNOTATED_FRAMES_FOLDER):
-        os.makedirs(ANNOTATED_FRAMES_FOLDER)
+    # Use FileController for folder management
+    file_controller.delete_all_files_in_folder(file_controller.particles_folder)
+    file_controller.ensure_folder_exists(file_controller.particles_folder)
+    file_controller.ensure_folder_exists(file_controller.annotated_frames_folder)
 
     if params is None:
         params = get_detection_params()
@@ -86,7 +310,7 @@ def find_and_save_errant_particles(image_paths, params=None, progress_callback=N
         original_images[frame_idx] = image
         gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-        features = particle_tracking.locate_particles(
+        features = locate_particles(
             gray_image,
             feature_size=feature_size,
             min_mass=min_mass,
@@ -101,7 +325,7 @@ def find_and_save_errant_particles(image_paths, params=None, progress_callback=N
             annotated_image = image.copy()
             for index, particle in features.iterrows():
                 cv2.circle(annotated_image, (int(particle.x), int(particle.y)), int(feature_size/2) + 2, (0, 255, 255), 2)
-            annotated_frame_path = os.path.join(ANNOTATED_FRAMES_FOLDER, f"frame_{frame_number:05d}.jpg")
+            annotated_frame_path = file_controller.get_annotated_frame_path(frame_number)
             cv2.imwrite(annotated_frame_path, annotated_image)
 
     if not all_features:
@@ -138,10 +362,10 @@ def find_and_save_errant_particles(image_paths, params=None, progress_callback=N
             cv2.line(particle_image, (center_x, center_y - cross_size), (center_x, center_y + cross_size), (255, 255, 255), 1)
 
             base_filename = f"particle_{i}"
-            particle_filename = os.path.join(PARTICLES_FOLDER, f"{base_filename}.png")
+            particle_filename = os.path.join(file_controller.particles_folder, f"{base_filename}.png")
             cv2.imwrite(particle_filename, particle_image)
 
-            mass_info_filename = os.path.join(PARTICLES_FOLDER, f"{base_filename}.txt")
+            mass_info_filename = os.path.join(file_controller.particles_folder, f"{base_filename}.txt")
             with open(mass_info_filename, 'w') as f:
                 f.write(f"mass: {particle['mass']:.2f}\n")
                 f.write(f"min_mass: {min_mass}\n")
@@ -150,6 +374,7 @@ def find_and_save_errant_particles(image_paths, params=None, progress_callback=N
         progress_callback.emit("Done.")
 
     return combined_features
+
 
 def create_rb_gallery(trajectories_file, original_frames_folder, output_folder=None):
     """
@@ -164,19 +389,12 @@ def create_rb_gallery(trajectories_file, original_frames_folder, output_folder=N
     output_folder : str, optional
         Path to save the RB gallery images. If None, uses rb_gallery/
     """
-    import pandas as pd
-    from config_parser import get_config
-    
     if output_folder is None:
-        config = get_config()
-        output_folder = config.get('rb_gallery_folder', 'rb_gallery')
+        output_folder = file_controller.rb_gallery_folder
     
-    # Create output directory
-    if not os.path.exists(output_folder):
-        os.makedirs(output_folder)
-    else:
-        # Clear existing files
-        delete_all_files_in_folder(output_folder)
+    # Use FileController for folder management
+    file_controller.ensure_folder_exists(output_folder)
+    file_controller.delete_all_files_in_folder(output_folder)
     
     # Load trajectory data
     try:
@@ -294,3 +512,15 @@ def create_rb_gallery(trajectories_file, original_frames_folder, output_folder=N
     
     print(f"RB gallery created in: {output_folder}")
     print(f"Processed {len(unique_particles)} particles")
+
+
+if __name__ == '__main__':
+    # Example usage
+    video_path = "path/to/your/video.avi"
+    trajectories = link_particles_to_trajectories(video_path)
+    
+    if trajectories is not None:
+        analysis = analyze_trajectories(trajectories)
+        print("Trajectory linking and analysis complete!")
+    else:
+        print("Trajectory linking failed!")

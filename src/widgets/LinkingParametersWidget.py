@@ -12,9 +12,9 @@ from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QFormLayout, QSpinBo
 from PySide6.QtCore import Qt, Signal
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from src.config_parser import *
-from src import particle_tracking
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from ..config_parser import *
+from .. import particle_processing
 import pandas as pd
 
 class LinkingParametersWidget(QWidget):
@@ -137,10 +137,10 @@ class LinkingParametersWidget(QWidget):
         # Get linking parameters
         linking_params = get_linking_params()
         config = get_config()
-        particles_folder = config.get('particles_folder', 'particles/') 
+        data_folder = config.get('data_folder', 'data/') 
         
         # Check if particles file exists
-        particles_file = os.path.join(particles_folder, 'all_particles.csv')
+        particles_file = os.path.join(data_folder, 'all_particles.csv')
         if not os.path.exists(particles_file):
             print(f"Particles file not found: {particles_file}")
             print("Please run 'Next' in the particle detection window first.")
@@ -181,15 +181,15 @@ class LinkingParametersWidget(QWidget):
             self.linked_trajectories = trajectories_filtered
             
             # Save trajectories
-            trajectories_file = os.path.join(particles_folder, 'trajectories.csv')
+            trajectories_file = os.path.join(data_folder, 'trajectories.csv')
             trajectories_filtered.to_csv(trajectories_file, index=False)
             print(f"Saved trajectories to: {trajectories_file}")
             
             # Create trajectory visualization
-            self.create_trajectory_visualization(trajectories_filtered, particles_folder)
+            self.create_trajectory_visualization(trajectories_filtered, data_folder)
             
             # Create RB gallery for trajectory validation
-            self.create_rb_gallery(trajectories_file, particles_folder)
+            self.create_rb_gallery(trajectories_file, data_folder)
             
             # Emit signals
             self.trajectoriesLinked.emit()

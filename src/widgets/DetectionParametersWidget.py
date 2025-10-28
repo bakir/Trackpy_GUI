@@ -10,10 +10,10 @@ import trackpy as tp
 import matplotlib.pyplot as plt
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from src.config_parser import *
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from ..config_parser import *
 import cv2
-from src import particle_processing
+from .. import particle_processing
 
 class FindParticlesThread(QThread):
     processing_frame = Signal(str)
@@ -76,9 +76,9 @@ class DetectAllFramesThread(QThread):
 
             if all_particles:
                 combined_particles = pd.concat(all_particles, ignore_index=True)
-                particles_folder = config.get('particles_folder', 'particles/')
-                os.makedirs(particles_folder, exist_ok=True)
-                particles_file = os.path.join(particles_folder, 'all_particles.csv')
+                data_folder = config.get('data_folder', 'data/')
+                os.makedirs(data_folder, exist_ok=True)
+                particles_file = os.path.join(data_folder, 'all_particles.csv')
                 
                 if os.path.exists(particles_file):
                     existing_df = pd.read_csv(particles_file)
