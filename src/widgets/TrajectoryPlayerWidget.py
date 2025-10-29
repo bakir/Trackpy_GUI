@@ -13,7 +13,8 @@ from PySide6.QtGui import QPixmap
 class TrajectoryPlayerWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-
+        self.config_manager = None
+        self.file_controller = None
         self.layout = QVBoxLayout(self)
         
         # Photo display for trajectory visualization
@@ -28,6 +29,14 @@ class TrajectoryPlayerWidget(QWidget):
         
         # Store current pixmap for resize handling
         self.current_pixmap = None
+
+    def set_config_manager(self, config_manager):
+        """Set the config manager for this widget."""
+        self.config_manager = config_manager
+
+    def set_file_controller(self, file_controller):
+        """Set the file controller for this widget."""
+        self.file_controller = file_controller
 
     def display_trajectory_image(self, image_path):
         """Display a trajectory visualization image."""
