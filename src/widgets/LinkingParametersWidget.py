@@ -24,10 +24,11 @@ class LinkingParametersWidget(QWidget):
     rbGalleryCreated = Signal()  # Signal that RB gallery was created
     goBackToDetection = Signal()  # Signal to go back to detection window
     
-    def __init__(self, parent=None):
+    def __init__(self, trajectory_plotting, parent=None):
         super().__init__(parent)
         self.config_manager = None
         self.file_controller = None
+        self.trajectory_plotting = trajectory_plotting
         
         # Store detected particles and linked trajectories
         self.detected_particles = None
@@ -215,6 +216,10 @@ class LinkingParametersWidget(QWidget):
             # Emit signals
             self.trajectoriesLinked.emit()
             self.rbGalleryCreated.emit()
+
+            # Pass linked patricle data to plotting widget
+            self.trajectory_plotting.get_linked_particles(self.linked_trajectories)
+
             
         except Exception as e:
             print(f"Error linking trajectories: {e}")
@@ -230,10 +235,13 @@ class LinkingParametersWidget(QWidget):
             import numpy as np
             
             # Get image dimensions from first frame
-            # Fall back to global config
-            from ..config_parser import get_config
-            config = get_config()
-            original_frames_folder = config.get('original_frames_folder', 'original_frames/')
+            if self.file_controller:
+                original_frames_folder = self.file_controller.original_frames_folder
+            else:
+                from ..config_parser import get_config
+                config = get_config()
+                original_frames_folder = config.get('original_frames_folder', 'original_frames/')
+
             frame_files = []
             for filename in sorted(os.listdir(original_frames_folder)):
                 if filename.lower().endswith(('.jpg', '.jpeg', '.png', '.tif', '.tiff')):
@@ -299,15 +307,17 @@ class LinkingParametersWidget(QWidget):
         except Exception as e:
             print(f"Error creating trajectory visualization: {e}")
 
-    def create_rb_gallery(self, trajectories_file, particles_folder):
+    def create_rb_gallery(self, trajectories_file, data_folder):
         """Create RB gallery using particle_processing function."""
         try:
-            import particle_processing
-            # Fall back to global config
-            from ..config_parser import get_config
-            config = get_config()
-            original_frames_folder = config.get('original_frames_folder', 'original_frames/')
-            rb_gallery_folder = config.get('rb_gallery_folder', 'rb_gallery')
+            if self.file_controller:
+                original_frames_folder = self.file_controller.original_frames_folder
+                rb_gallery_folder = self.file_controller.rb_gallery_folder
+            else:
+                from ..config_parser import get_config
+                config = get_config()
+                original_frames_folder = config.get('original_frames_folder', 'original_frames/')
+                rb_gallery_folder = config.get('rb_gallery_folder', 'rb_gallery')
             
             # Call the RB gallery creation function
             particle_processing.create_rb_gallery(

@@ -46,11 +46,6 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from .. import particle_processing
 from ..config_parser import get_config
-config = get_config()
-DATA_FOLDER = config.get('data_folder', 'data/')
-ORIGINAL_FRAMES_FOLDER = config.get('original_frames_folder', 'original_frames/')
-ANNOTATED_FRAMES_FOLDER = config.get('annotated_frames_folder', 'annotated_frames/')
-VIDEOS_FOLDER = config.get('videos_folder', 'videos/')
 
 class ParticleDetectionWindow(QMainWindow):
     def __init__(self):
@@ -137,44 +132,58 @@ class ParticleDetectionWindow(QMainWindow):
         self.main_layout.addWidget(self.main_layout.middle_panel)
 
         # Right Panel
-        self.main_layout.right_panel = DetectionParametersWidget()
+        self.main_layout.right_panel = DetectionParametersWidget(self.main_layout.left_panel)
         self.right_layout = QVBoxLayout(self.main_layout.right_panel)
         self.main_layout.addWidget(self.main_layout.right_panel)
         
         # Connect signals
         self.main_layout.right_panel.particlesUpdated.connect(self.errant_particle_gallery.refresh_particles)
         self.main_layout.right_panel.openTrajectoryLinking.connect(self.open_trajectory_linking_window)
+        self.main_layout.right_panel.parameter_changed.connect(self.clear_processed_data)
         self.frame_player.frames_saved.connect(self.main_layout.right_panel.set_total_frames)
 
+    def clear_processed_data(self):
+        print("Particle detection parameters changed. Clearing processed data...")
+        if self.file_controller:
+            try:
+                self.file_controller.delete_all_files_in_folder(self.file_controller.annotated_frames_folder)
+                self.errant_particle_gallery.clear_gallery()
+            except Exception as e:
+                print(f"Error clearing processed data: {e}")
+
     def import_video(self):
-        file_path, _ = QFileDialog.getOpenFileName(self, "Select Video", VIDEOS_FOLDER, "Video Files (*.avi *.mp4 *.mov *.mkv);;All Files (*)")
+        if not self.file_controller:
+            print("File controller not set")
+            return
+
+        videos_folder = self.file_controller.videos_folder
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select Video", videos_folder, "Video Files (*.avi *.mp4 *.mov *.mkv);;All Files (*)")
         if not file_path:
             return
-        # Ensure frames folders exist and are clean
-        os.makedirs(ORIGINAL_FRAMES_FOLDER, exist_ok=True)
-        os.makedirs(ANNOTATED_FRAMES_FOLDER, exist_ok=True)
+
+        self.file_controller.ensure_folder_exists(self.file_controller.original_frames_folder)
+        self.file_controller.ensure_folder_exists(self.file_controller.annotated_frames_folder)
         try:
-            particle_processing.delete_all_files_in_folder(ORIGINAL_FRAMES_FOLDER)
-            particle_processing.delete_all_files_in_folder(ANNOTATED_FRAMES_FOLDER)
+            self.file_controller.delete_all_files_in_folder(self.file_controller.original_frames_folder)
+            self.file_controller.delete_all_files_in_folder(self.file_controller.annotated_frames_folder)
             self.main_layout.right_panel.clear_processed_frames()
-        except Exception:
-            pass
-        # Save video frames and load them into the player
+        except Exception as e:
+            print(f"Error cleaning up old frame folders: {e}")
+
         self.frame_player.save_video_frames(file_path)
 
     def _export_data(self, source_filename: str, target_format: str):
-        config = get_config()
-        data_folder = config.get('data_folder', 'data/')
-        
+        if not self.file_controller:
+            print("File controller not set")
+            return
+
+        data_folder = self.file_controller.data_folder
         source_file_path = os.path.join(data_folder, source_filename)
     
-        
-        # 1. Check if the source file exists
         if not os.path.exists(source_file_path):
             print("Could not find selected data")
             return
 
-        # 2. Prepare file dialog options based on target format
         if target_format == 'csv':
             file_filter = "CSV Files (*.csv);;All Files (*)"
         elif target_format == 'pkl':
@@ -183,7 +192,6 @@ class ParticleDetectionWindow(QMainWindow):
             print(f"Error: Unsupported export format '{target_format}'")
             return
 
-        # 3. Open the 'Save File' dialog
         default_name = f"{os.path.splitext(source_filename)[0]}_export.{target_format}"
         save_path, _ = QFileDialog.getSaveFileName(
             self,
@@ -192,27 +200,22 @@ class ParticleDetectionWindow(QMainWindow):
             file_filter
         )
 
-        # 4. If the user cancelled, exit the method
         if not save_path:
             return
 
-        # 5. Perform the export operation
         try:
-            # For both formats, read the source CSV with pandas
+            import pandas as pd
             df = pd.read_csv(source_file_path)
 
             if target_format == 'csv':
-                # Save the DataFrame to a new CSV file, without the index column
                 df.to_csv(save_path, index=False)
             elif target_format == 'pkl':
-                # Save the DataFrame to a pickle file
                 df.to_pickle(save_path)
             
             print(f"Data successfully exported to: {save_path}")
 
         except Exception as e:
             print(f"An error occurred during export: {e}")
-            # Consider showing a QMessageBox to inform the user of the error.
 
     def export_particles_csv(self):
         """Exports the 'all_particles.csv' file to a user-selected CSV file."""
@@ -228,21 +231,4 @@ class ParticleDetectionWindow(QMainWindow):
     def open_trajectory_linking_window(self):
         """Emit signal to switch to trajectory linking window."""
         # The controller will handle the actual window switching
-        pass
-
-# clean up temp folders on exit for now
-def cleanup_temp_folders():
-    """Delete all files in frames and particles folders on app shutdown."""
-    # pass
-    try:
-        particle_processing.delete_all_files_in_folder(PARTICLES_FOLDER)
-    except Exception:
-        pass
-    try:
-        particle_processing.delete_all_files_in_folder(ORIGINAL_FRAMES_FOLDER)
-    except Exception:
-        pass
-    try:
-        particle_processing.delete_all_files_in_folder(ANNOTATED_FRAMES_FOLDER)
-    except Exception:
         pass

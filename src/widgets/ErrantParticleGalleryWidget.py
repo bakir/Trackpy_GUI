@@ -38,6 +38,8 @@ from matplotlib.figure import Figure
 class ErrantParticleGalleryWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.config_manager = None
+        self.file_controller = None
 
         self.layout = QVBoxLayout(self)
 
@@ -52,10 +54,10 @@ class ErrantParticleGalleryWidget(QWidget):
         self.photo_label.setScaledContents(False)
         self.layout.addWidget(self.photo_label)
 
-        # mass info
-        self.mass_info_label = QLabel("Mass info")
-        self.mass_info_label.setAlignment(Qt.AlignCenter)
-        self.layout.addWidget(self.mass_info_label)
+        # info
+        self.info_label = QLabel("Info")
+        self.info_label.setAlignment(Qt.AlignCenter)
+        self.layout.addWidget(self.info_label)
 
         # --- Frame Navigation ---
         self.frame_nav_layout = QHBoxLayout()
@@ -75,15 +77,28 @@ class ErrantParticleGalleryWidget(QWidget):
         self.layout.addLayout(self.frame_nav_layout)
 
         # particles directory and files
-        self.particles_dir = os.path.join(os.path.dirname(__file__), "particles")
-        self.particle_files = self._load_particle_files(self.particles_dir)
+        self.particles_dir = ""
+        self.particle_files = []
         self.current_pixmap = None
 
         # show initial particle if available
         self._display_particle(self.curr_particle_idx)
 
+    def set_config_manager(self, config_manager):
+        """Set the config manager for this widget."""
+        self.config_manager = config_manager
+
+    def set_file_controller(self, file_controller):
+        """Set the file controller for this widget."""
+        self.file_controller = file_controller
+        if self.file_controller:
+            self.particles_dir = self.file_controller.particles_folder
+            self.refresh_particles()
+
     def refresh_particles(self):
         """Reload the list of particle image files and refresh display."""
+        if not self.particles_dir:
+            return
         self.particle_files = self._load_particle_files(self.particles_dir)
         # clamp current index within bounds
         if self.particle_files:
@@ -91,6 +106,18 @@ class ErrantParticleGalleryWidget(QWidget):
         else:
             self.curr_particle_idx = 0
         self._display_particle(self.curr_particle_idx)
+
+    def clear_gallery(self):
+        """Clears all displayed errant particles and deletes the corresponding files."""
+        if self.file_controller:
+            try:
+                self.file_controller.delete_all_files_in_folder(self.particles_dir)
+                self.particle_files = []
+                self.curr_particle_idx = 0
+                self._display_particle(self.curr_particle_idx)
+                print(f"Cleared errant particle gallery and deleted files in {self.particles_dir}")
+            except Exception as e:
+                print(f"Error clearing errant particle gallery: {e}")
 
     def _load_particle_files(self, directory_path):
         """Return a sorted list of image file paths in the particles directory."""
@@ -100,8 +127,7 @@ class ErrantParticleGalleryWidget(QWidget):
         files = []
         try:
             for name in os.listdir(directory_path):
-                root, ext = os.path.splitext(name)
-                if ext.lower() in valid_exts:
+                if os.path.splitext(name)[1].lower() in valid_exts:
                     files.append(os.path.join(directory_path, name))
         except Exception:
             return []
@@ -121,20 +147,20 @@ class ErrantParticleGalleryWidget(QWidget):
             else:
                 self.photo_label.setText("Failed to load image")
             
-            # Load and display mass info
-            mass_info_path = os.path.splitext(file_path)[0] + ".txt"
-            if os.path.exists(mass_info_path):
-                with open(mass_info_path, 'r') as f:
-                    self.mass_info_label.setText(f.read())
+            # Load and display info
+            info_path = os.path.splitext(file_path)[0] + ".txt"
+            if os.path.exists(info_path):
+                with open(info_path, 'r') as f:
+                    self.info_label.setText(f.read())
             else:
-                self.mass_info_label.setText("")
+                self.info_label.setText("")
 
             self._update_display_text()
         else:
             # out of bounds or no files
             if not self.particle_files:
                 self.photo_label.setText("No particle images found")
-            self.mass_info_label.setText("")
+            self.info_label.setText("")
             self._update_display_text()
 
     def resizeEvent(self, event):

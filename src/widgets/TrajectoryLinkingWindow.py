@@ -1,4 +1,3 @@
-
 """
 Trajectory Linking Window
 
@@ -47,38 +46,6 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from .. import particle_processing
 from ..config_parser import get_config
-config = get_config()
-DATA_FOLDER = config.get('data_folder', 'data/')
-ORIGINAL_FRAMES_FOLDER = config.get('original_frames_folder', 'original_frames/')
-VIDEOS_FOLDER = config.get('videos_folder', 'videos/')
-
-def save_video_frames(video_path: str, output_folder: str):
-    """
-    Extracts all frames from a video and saves them as .jpg in the output folder.
-
-    Args:
-        video_path (str): Path to the video file.
-        output_folder (str): Path to the folder where frames will be saved.
-    """
-    # Make sure output folder exists
-    os.makedirs(output_folder, exist_ok=True)
-
-    cap = cv2.VideoCapture(video_path)
-    if not cap.isOpened():
-        raise ValueError(f"Could not open video: {video_path}")
-
-    frame_idx = 0
-    while True:
-        ret, frame = cap.read()
-        if not ret or frame_idx > 5:
-            break  # End of video
-
-        frame_path = os.path.join(output_folder, f"frame_{frame_idx:05d}.jpg")
-        cv2.imwrite(frame_path, frame)
-        frame_idx += 1
-
-    cap.release()
-    print(f"Saved {frame_idx} frames to {output_folder}")
 
 class TrajectoryLinkingWindow(QMainWindow):
     def __init__(self):
@@ -156,7 +123,7 @@ class TrajectoryLinkingWindow(QMainWindow):
         self.main_layout.addWidget(self.main_layout.middle_panel)
 
         # Right Panel
-        self.main_layout.right_panel = LinkingParametersWidget()
+        self.main_layout.right_panel = LinkingParametersWidget(self.main_layout.left_panel)
         self.right_layout = QVBoxLayout(self.main_layout.right_panel)
         self.main_layout.addWidget(self.main_layout.right_panel)
         
@@ -171,18 +138,17 @@ class TrajectoryLinkingWindow(QMainWindow):
 
     
     def _export_data(self, source_filename: str, target_format: str):
-        config = get_config()
-        data_folder = config.get('data_folder', 'data/')
-        
+        if not self.file_controller:
+            print("File controller not set")
+            return
+
+        data_folder = self.file_controller.data_folder
         source_file_path = os.path.join(data_folder, source_filename)
     
-        
-        # 1. Check if the source file exists
         if not os.path.exists(source_file_path):
             print("Could not find selected data")
             return
 
-        # 2. Prepare file dialog options based on target format
         if target_format == 'csv':
             file_filter = "CSV Files (*.csv);;All Files (*)"
         elif target_format == 'pkl':
@@ -191,7 +157,6 @@ class TrajectoryLinkingWindow(QMainWindow):
             print(f"Error: Unsupported export format '{target_format}'")
             return
 
-        # 3. Open the 'Save File' dialog
         default_name = f"{os.path.splitext(source_filename)[0]}_export.{target_format}"
         save_path, _ = QFileDialog.getSaveFileName(
             self,
@@ -200,27 +165,22 @@ class TrajectoryLinkingWindow(QMainWindow):
             file_filter
         )
 
-        # 4. If the user cancelled, exit the method
         if not save_path:
             return
 
-        # 5. Perform the export operation
         try:
-            # For both formats, read the source CSV with pandas
+            import pandas as pd
             df = pd.read_csv(source_file_path)
 
             if target_format == 'csv':
-                # Save the DataFrame to a new CSV file, without the index column
                 df.to_csv(save_path, index=False)
             elif target_format == 'pkl':
-                # Save the DataFrame to a pickle file
                 df.to_pickle(save_path)
             
             print(f"Data successfully exported to: {save_path}")
 
         except Exception as e:
             print(f"An error occurred during export: {e}")
-            # Consider showing a QMessageBox to inform the user of the error.
 
     def export_particles_csv(self):
         """Exports the 'all_particles.csv' file to a user-selected CSV file."""
@@ -244,14 +204,3 @@ class TrajectoryLinkingWindow(QMainWindow):
         """Emit signal to switch back to particle detection window."""
         # The controller will handle the actual window switching
         pass
-
-    
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-
-    # Sets the style of the gui
-    app.setStyle(QtWidgets.QStyleFactory.create("Fusion"))
-    detection_win = TrajectoryLinkingWindow()
-    detection_win.show()
-    sys.exit(app.exec())
-
