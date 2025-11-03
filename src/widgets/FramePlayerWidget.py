@@ -24,6 +24,8 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import QPixmap, QImage
 
+from ..particle_processing import annotate_frame, save_errant_particle_crops_for_frame
+
 class SaveFramesThread(QThread):
     """Thread for extracting and saving frames from video"""
     save_complete = Signal(int)  # total_frames
@@ -62,6 +64,7 @@ class SaveFramesThread(QThread):
 class FramePlayerWidget(QWidget):
     """Widget for displaying video frames from a folder of images"""
     frames_saved = Signal(int)
+    errant_particles_updated = Signal()
 
     def __init__(self):
         super().__init__()
@@ -76,7 +79,13 @@ class FramePlayerWidget(QWidget):
         if config_manager:
             self.original_frames_folder = config_manager.get_path('original_frames_folder')
             self.annotated_frames_folder = config_manager.get_path('annotated_frames_folder')
-    
+            self.update_feature_size()
+
+    def update_feature_size(self):
+        """Update feature size from config."""
+        if self.config_manager:
+            self.feature_size = self.config_manager.get_detection_params().get('feature_size', 15)
+
     def set_file_controller(self, file_controller):
         """Set the file controller."""
         self.file_controller = file_controller
@@ -140,6 +149,7 @@ class FramePlayerWidget(QWidget):
         self.show_annotated = False
         self.original_frames_folder = "original_frames"
         self.annotated_frames_folder = "annotated_frames"
+        self.feature_size = 15
 
     def save_video_frames(self, video_path):
         """Save video frames to disk in a background thread"""
@@ -177,18 +187,25 @@ class FramePlayerWidget(QWidget):
         if not (0 <= frame_number < self.total_frames):
             return
 
-        file_name = f"frame_{frame_number:05d}.jpg"
-        frame_path_to_display = ""
+        if self.file_controller:
+            self.file_controller.delete_all_files_in_folder(self.annotated_frames_folder)
 
-        if self.show_annotated:
-            annotated_path = os.path.join(self.annotated_frames_folder, file_name)
-            if os.path.exists(annotated_path):
-                frame_path_to_display = annotated_path
-            else:
-                # Fallback to original if annotated does not exist
-                frame_path_to_display = os.path.join(self.original_frames_folder, file_name)
-        else:
-            frame_path_to_display = os.path.join(self.original_frames_folder, file_name)
+        file_name = f"frame_{frame_number:05d}.jpg"
+        frame_path_to_display = os.path.join(self.original_frames_folder, file_name)
+
+        if self.file_controller:
+            particle_data = self.file_controller.load_particles_data("found_particles.csv")
+            if not particle_data.empty:
+                particles_in_frame = particle_data[particle_data['frame'] == frame_number]
+                if not particles_in_frame.empty:
+                    params = self.config_manager.get_detection_params()
+                    save_errant_particle_crops_for_frame(frame_number, particles_in_frame, params)
+                    self.errant_particles_updated.emit()
+
+                if self.show_annotated:
+                    annotated_path = annotate_frame(frame_number, particles_in_frame, self.feature_size)
+                    if annotated_path:
+                        frame_path_to_display = annotated_path
 
         if not os.path.exists(frame_path_to_display):
             self.frame_label.clear()

@@ -27,7 +27,7 @@ class FindParticlesThread(QThread):
         self.particles = None
 
     def run(self):
-        self.particles = particle_processing.find_and_save_errant_particles(
+        self.particles = particle_processing.find_and_save_particles(
             self.frame_paths,
             self.params,
             progress_callback=self.processing_frame
@@ -113,7 +113,7 @@ class DetectAllFramesThread(QThread):
             self.finished.emit()
 
 class DetectionParametersWidget(QWidget):
-    particlesUpdated = Signal()
+    particlesUpdated = Signal(object)
     openTrajectoryLinking = Signal()
     parameter_changed = Signal() # Define the new signal
 
@@ -315,7 +315,7 @@ class DetectionParametersWidget(QWidget):
     def on_find_finished(self):
         self.save_button.setEnabled(True)
         self.next_button.setEnabled(True)
-        self.particlesUpdated.emit()
+        self.particlesUpdated.emit(self.find_particles_thread.get_particles())
         
         # Update processed frames set
         if self._last_find_range:

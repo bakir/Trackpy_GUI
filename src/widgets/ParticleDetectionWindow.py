@@ -8,6 +8,7 @@ Description: Main window for Particle detection. Imports particle detection widg
 import os
 import sys
 import cv2
+import pandas as pd
 
 from PySide6.QtCore import QUrl, Qt
 from PySide6.QtGui import QAction, QPixmap
@@ -80,6 +81,9 @@ class ParticleDetectionWindow(QMainWindow):
         if hasattr(self, 'main_layout') and hasattr(self.main_layout, 'left_panel'):
             self.main_layout.left_panel.set_file_controller(file_controller)
 
+        # Load existing particle data if available
+        self.load_particle_data()
+
     def setup_ui(self):
         # Main Widget
         self.central_widget = QWidget()
@@ -137,10 +141,25 @@ class ParticleDetectionWindow(QMainWindow):
         self.main_layout.addWidget(self.main_layout.right_panel)
         
         # Connect signals
-        self.main_layout.right_panel.particlesUpdated.connect(self.errant_particle_gallery.refresh_particles)
+        self.main_layout.right_panel.particlesUpdated.connect(self.on_particles_updated)
         self.main_layout.right_panel.openTrajectoryLinking.connect(self.open_trajectory_linking_window)
         self.main_layout.right_panel.parameter_changed.connect(self.clear_processed_data)
+        self.main_layout.right_panel.parameter_changed.connect(self.frame_player.update_feature_size)
         self.frame_player.frames_saved.connect(self.main_layout.right_panel.set_total_frames)
+        self.frame_player.errant_particles_updated.connect(self.errant_particle_gallery.refresh_particles)
+
+    def on_particles_updated(self, particle_data):
+        if self.frame_player:
+            self.frame_player.display_frame(self.frame_player.current_frame_idx)
+
+    def load_particle_data(self):
+        if self.file_controller:
+            particles_file = os.path.join(self.file_controller.data_folder, 'all_particles.csv')
+            if os.path.exists(particles_file):
+                try:
+                    particle_df = pd.read_csv(particles_file)
+                except Exception as e:
+                    print(f"Error loading particle data: {e}")
 
     def clear_processed_data(self):
         print("Particle detection parameters changed. Clearing processed data...")

@@ -12,7 +12,7 @@ import pandas as pd
 import trackpy as tp
 import pims
 import matplotlib.pyplot as plt
-from .config_parser import get_detection_params, get_config
+from .config_parser import get_config
 from .file_controller import FileController
 
 # Initialize file controller (will be set by main application)
@@ -259,9 +259,9 @@ def analyze_trajectories(trajectories_df, scaling=1.0, fps=30):
 # PARTICLE PROCESSING FUNCTIONS
 # =============================================================================
 
-def find_and_save_errant_particles(image_paths, params=None, progress_callback=None):
+def find_and_save_particles(image_paths, params=None, progress_callback=None):
     """
-    Finds particles in a series of images and saves cropped images of the 5 most errant ones.
+    Finds particles in a series of images and saves the data.
 
     Parameters
     ----------
@@ -270,10 +270,6 @@ def find_and_save_errant_particles(image_paths, params=None, progress_callback=N
     progress_callback : Signal, optional
         A signal to emit progress updates.
     """
-    file_controller.delete_all_files_in_folder(file_controller.particles_folder)
-    file_controller.ensure_folder_exists(file_controller.particles_folder)
-    file_controller.ensure_folder_exists(file_controller.annotated_frames_folder)
-
     if params is None:
         params = get_detection_params()
     feature_size = int(params.get('feature_size', 15))
@@ -285,9 +281,8 @@ def find_and_save_errant_particles(image_paths, params=None, progress_callback=N
         feature_size += 1
 
     all_features = []
-    original_images = {}
 
-    for frame_idx, image_path in enumerate(image_paths):
+    for image_path in image_paths:
         basename = os.path.basename(image_path)
         name_part = os.path.splitext(basename)[0]
         frame_number_str = name_part.split('_')[-1]
@@ -300,7 +295,6 @@ def find_and_save_errant_particles(image_paths, params=None, progress_callback=N
         if image is None:
             continue
         
-        original_images[frame_idx] = image
         gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
         features = locate_particles(
@@ -310,16 +304,8 @@ def find_and_save_errant_particles(image_paths, params=None, progress_callback=N
             invert=invert,
             threshold=threshold
         )
-        features['frame'] = frame_idx
+        features['frame'] = frame_number
         all_features.append(features)
-
-        # Annotate and save frame
-        if not features.empty:
-            annotated_image = image.copy()
-            for index, particle in features.iterrows():
-                cv2.circle(annotated_image, (int(particle.x), int(particle.y)), int(feature_size/2) + 2, (0, 255, 255), 2)
-            annotated_frame_path = os.path.join(file_controller.annotated_frames_folder, f"frame_{frame_number:05d}.jpg")
-            cv2.imwrite(annotated_frame_path, annotated_image)
 
     if not all_features:
         if progress_callback:
@@ -329,79 +315,91 @@ def find_and_save_errant_particles(image_paths, params=None, progress_callback=N
     combined_features = pd.concat(all_features, ignore_index=True)
 
     if not combined_features.empty:
-        combined_features['mass_diff'] = combined_features['mass'] - min_mass
-        top_5_mass_particles = combined_features.nsmallest(5, 'mass_diff')
-
-        for i, particle in top_5_mass_particles.iterrows():
-            frame_idx = int(particle['frame'])
-            image_to_crop = original_images.get(frame_idx)
-            if image_to_crop is None:
-                continue
-
-            x, y, size = particle['x'], particle['y'], particle['size']
-            padding = 5
-            half_size = (int(size) + padding) * 3
-            x_min = max(0, int(x) - half_size)
-            y_min = max(0, int(y) - half_size)
-            x_max = min(image_to_crop.shape[1], int(x) + half_size)
-            y_max = min(image_to_crop.shape[0], int(y) + half_size)
-
-            particle_image = image_to_crop[y_min:y_max, x_min:x_max]
-
-            center_x = int(x) - x_min
-            center_y = int(y) - y_min
-            cross_size = 5
-            cv2.line(particle_image, (center_x - cross_size, center_y), (center_x + cross_size, center_y), (255, 255, 255), 1)
-            cv2.line(particle_image, (center_x, center_y - cross_size), (center_x, center_y + cross_size), (255, 255, 255), 1)
-
-            base_filename = f"mass_particle_{i}"
-            particle_filename = os.path.join(file_controller.particles_folder, f"{base_filename}.png")
-            cv2.imwrite(particle_filename, particle_image)
-
-            mass_info_filename = os.path.join(file_controller.particles_folder, f"{base_filename}.txt")
-            with open(mass_info_filename, 'w') as f:
-                f.write(f"mass: {particle['mass']:.2f}\n")
-                f.write(f"min_mass: {min_mass}\n")
-
-        # Handle feature size difference
-        combined_features['size_diff'] = abs(combined_features['size'] - feature_size)
-        top_5_size_particles = combined_features.nlargest(5, 'size_diff')
-
-        for i, particle in top_5_size_particles.iterrows():
-            frame_idx = int(particle['frame'])
-            image_to_crop = original_images.get(frame_idx)
-            if image_to_crop is None:
-                continue
-
-            x, y, size = particle['x'], particle['y'], particle['size']
-            padding = 5
-            half_size = (int(size) + padding) * 3
-            x_min = max(0, int(x) - half_size)
-            y_min = max(0, int(y) - half_size)
-            x_max = min(image_to_crop.shape[1], int(x) + half_size)
-            y_max = min(image_to_crop.shape[0], int(y) + half_size)
-
-            particle_image = image_to_crop[y_min:y_max, x_min:x_max]
-
-            center_x = int(x) - x_min
-            center_y = int(y) - y_min
-            cross_size = 5
-            cv2.line(particle_image, (center_x - cross_size, center_y), (center_x + cross_size, center_y), (255, 255, 255), 1)
-            cv2.line(particle_image, (center_x, center_y - cross_size), (center_x, center_y + cross_size), (255, 255, 255), 1)
-
-            base_filename = f"size_particle_{i}"
-            particle_filename = os.path.join(file_controller.particles_folder, f"{base_filename}.png")
-            cv2.imwrite(particle_filename, particle_image)
-
-            size_info_filename = os.path.join(file_controller.particles_folder, f"{base_filename}.txt")
-            with open(size_info_filename, 'w') as f:
-                f.write(f"feature_size: {particle['size']:.2f}\n")
-                f.write(f"parameter_feature_size: {feature_size}\n")
+        file_controller.save_particles_data(combined_features, "found_particles.csv")
 
     if progress_callback:
         progress_callback.emit("Done.")
 
     return combined_features
+
+def save_errant_particle_crops_for_frame(frame_number, particle_data_for_frame, params):
+    """Saves cropped images of the 5 most errant particles for a given frame."""
+    if file_controller is None:
+        return
+
+    file_controller.delete_all_files_in_folder(file_controller.particles_folder)
+    file_controller.ensure_folder_exists(file_controller.particles_folder)
+
+    if particle_data_for_frame.empty:
+        return
+
+    feature_size = int(params.get('feature_size', 15))
+    min_mass = float(params.get('min_mass', 100.0))
+
+    image_path = file_controller.get_frame_path(frame_number)
+    image_to_crop = cv2.imread(image_path)
+    if image_to_crop is None:
+        return
+
+    # Mass difference
+    particle_data_for_frame['mass_diff'] = particle_data_for_frame['mass'] - min_mass
+    top_5_mass_particles = particle_data_for_frame.nsmallest(5, 'mass_diff')
+
+    for i, particle in top_5_mass_particles.iterrows():
+        x, y, size = particle['x'], particle['y'], particle['size']
+        padding = 5
+        half_size = (int(size) + padding) * 3
+        x_min = max(0, int(x) - half_size)
+        y_min = max(0, int(y) - half_size)
+        x_max = min(image_to_crop.shape[1], int(x) + half_size)
+        y_max = min(image_to_crop.shape[0], int(y) + half_size)
+
+        particle_image = image_to_crop[y_min:y_max, x_min:x_max]
+
+        center_x = int(x) - x_min
+        center_y = int(y) - y_min
+        cross_size = 5
+        cv2.line(particle_image, (center_x - cross_size, center_y), (center_x + cross_size, center_y), (255, 255, 255), 1)
+        cv2.line(particle_image, (center_x, center_y - cross_size), (center_x, center_y + cross_size), (255, 255, 255), 1)
+
+        base_filename = f"mass_particle_{i}"
+        particle_filename = os.path.join(file_controller.particles_folder, f"{base_filename}.png")
+        cv2.imwrite(particle_filename, particle_image)
+
+        mass_info_filename = os.path.join(file_controller.particles_folder, f"{base_filename}.txt")
+        with open(mass_info_filename, 'w') as f:
+            f.write(f"mass: {particle['mass']:.2f}\n")
+            f.write(f"min_mass: {min_mass}\n")
+
+    # Feature size difference
+    particle_data_for_frame['size_diff'] = abs(particle_data_for_frame['size'] - feature_size)
+    top_5_size_particles = particle_data_for_frame.nlargest(5, 'size_diff')
+
+    for i, particle in top_5_size_particles.iterrows():
+        x, y, size = particle['x'], particle['y'], particle['size']
+        padding = 5
+        half_size = (int(size) + padding) * 3
+        x_min = max(0, int(x) - half_size)
+        y_min = max(0, int(y) - half_size)
+        x_max = min(image_to_crop.shape[1], int(x) + half_size)
+        y_max = min(image_to_crop.shape[0], int(y) + half_size)
+
+        particle_image = image_to_crop[y_min:y_max, x_min:x_max]
+
+        center_x = int(x) - x_min
+        center_y = int(y) - y_min
+        cross_size = 5
+        cv2.line(particle_image, (center_x - cross_size, center_y), (center_x + cross_size, center_y), (255, 255, 255), 1)
+        cv2.line(particle_image, (center_x, center_y - cross_size), (center_x, center_y + cross_size), (255, 255, 255), 1)
+
+        base_filename = f"size_particle_{i}"
+        particle_filename = os.path.join(file_controller.particles_folder, f"{base_filename}.png")
+        cv2.imwrite(particle_filename, particle_image)
+
+        size_info_filename = os.path.join(file_controller.particles_folder, f"{base_filename}.txt")
+        with open(size_info_filename, 'w') as f:
+            f.write(f"feature_size: {particle['size']:.2f}\n")
+            f.write(f"parameter_feature_size: {feature_size}\n")
 
 def create_rb_gallery(trajectories_file, original_frames_folder, output_folder=None):
     """
@@ -539,6 +537,59 @@ def create_rb_gallery(trajectories_file, original_frames_folder, output_folder=N
     
     print(f"RB gallery created in: {output_folder}")
     print(f"Processed {len(unique_particles)} particles")
+
+
+def annotate_frame(frame_number, particle_data_df, feature_size):
+    """
+    Annotates a single frame using pre-existing particle data and saves it.
+
+    Parameters
+    ----------
+    frame_number : int
+        The frame number to process.
+    particle_data_df : pandas.DataFrame
+        DataFrame containing all particle data.
+    feature_size : int
+        The diameter of the features to draw.
+
+    Returns
+    -------
+    str or None
+        The path to the annotated frame, or None if no particles are found for the frame.
+    """
+    if file_controller is None:
+        print("File controller not set in particle_processing.")
+        return None
+
+    # Construct paths
+    original_frame_path = os.path.join(file_controller.original_frames_folder, f"frame_{frame_number:05d}.jpg")
+    annotated_frame_path = os.path.join(file_controller.annotated_frames_folder, f"frame_{frame_number:05d}.jpg")
+
+    # Ensure annotated frames folder exists
+    file_controller.ensure_folder_exists(file_controller.annotated_frames_folder)
+
+    # Filter particles for the current frame
+    frame_particles = particle_data_df[particle_data_df['frame'] == frame_number]
+
+    # If particles are found for this frame, create and save the annotated image
+    if not frame_particles.empty:
+        image = cv2.imread(original_frame_path)
+        if image is None:
+            print(f"Could not read frame: {original_frame_path}")
+            return None
+
+        annotated_image = image.copy()
+        for _, particle in frame_particles.iterrows():
+            cv2.circle(annotated_image, (int(particle.x), int(particle.y)), int(feature_size / 2) + 2, (0, 255, 255), 2)
+        
+        cv2.imwrite(annotated_frame_path, annotated_image)
+        return annotated_frame_path
+
+    # If no particles are found, ensure no old annotated frame exists
+    if os.path.exists(annotated_frame_path):
+        os.remove(annotated_frame_path)
+
+    return None
 
 
 if __name__ == '__main__':
