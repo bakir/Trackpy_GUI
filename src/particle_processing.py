@@ -403,6 +403,119 @@ def find_and_save_errant_particles(image_paths, params=None, progress_callback=N
 
     return combined_features
 
+
+def create_rb_overlay_image(crop1, crop2, x1, y1, x2, y2, threshold_percent=50, crop_size=200):
+    """
+    Create a red-blue overlay image from two cropped frames.
+    
+    Parameters
+    ----------
+    crop1 : numpy array
+        First cropped frame (BGR)
+    crop2 : numpy array
+        Second cropped frame (BGR)
+    x1, y1 : float
+        Particle position in crop1 (relative to crop origin)
+    x2, y2 : float
+        Particle position in crop2 (relative to crop origin)
+    threshold_percent : float
+        Threshold percentage (0-100). For dark background, this is the percentage of 
+        brightest pixels that become the dark color (red/blue)
+    crop_size : int
+        Size of the crop (will be used to resize if crops are different sizes)
+    
+    Returns
+    -------
+    numpy array
+        RB overlay image (RGB format, white background, blue/red particles at 50% opacity)
+    """
+    # Resize crops to same size if needed
+    target_size = (crop_size, crop_size)
+    if crop1.shape[:2] != target_size:
+        crop1 = cv2.resize(crop1, target_size)
+    if crop2.shape[:2] != target_size:
+        crop2 = cv2.resize(crop2, target_size)
+    
+    # Get invert setting from detection parameters
+    from .config_parser import get_detection_params
+    detection_params = get_detection_params()
+    invert = detection_params.get('invert', False)
+    
+    # Convert to grayscale for thresholding
+    gray1 = cv2.cvtColor(crop1, cv2.COLOR_BGR2GRAY)
+    gray2 = cv2.cvtColor(crop2, cv2.COLOR_BGR2GRAY)
+    
+    # Apply percentile-based thresholding
+    # For dark background: threshold_percent means top X% brightest pixels become dark (particles)
+    # For bright background: threshold_percent means top X% brightest pixels become dark (particles)
+    
+    # Calculate threshold value based on percentile
+    # threshold_percent = 10 means top 10% brightest pixels
+    percentile = 100 - threshold_percent  # Inverse: 10% means 90th percentile
+    
+    # Get threshold values
+    threshold_val1 = np.percentile(gray1.flatten(), percentile)
+    threshold_val2 = np.percentile(gray2.flatten(), percentile)
+    
+    # Apply thresholding
+    if invert:
+        # Particles are bright on dark background
+        # Top X% brightest pixels become dark (0), rest becomes white (255)
+        _, thresh1 = cv2.threshold(gray1, threshold_val1, 255, cv2.THRESH_BINARY_INV)
+        _, thresh2 = cv2.threshold(gray2, threshold_val2, 255, cv2.THRESH_BINARY_INV)
+    else:
+        # Particles are dark on bright background
+        # Top X% brightest pixels become dark (0), rest becomes white (255)
+        # We want to threshold so that pixels BRIGHTER than threshold become dark
+        # This means: values > threshold become dark (0), rest becomes white (255)
+        _, thresh1 = cv2.threshold(gray1, threshold_val1, 255, cv2.THRESH_BINARY_INV)
+        _, thresh2 = cv2.threshold(gray2, threshold_val2, 255, cv2.THRESH_BINARY_INV)
+    
+    # Ensure background is white (255) and particles are dark (0)
+    # Check if we need to invert based on which is more common (white background should be majority)
+    white_pixels1 = np.sum(thresh1 == 255)
+    white_pixels2 = np.sum(thresh2 == 255)
+    
+    # If less than 50% white, assume background is black - invert to get white background
+    if white_pixels1 < (thresh1.size * 0.5):
+        thresh1 = cv2.bitwise_not(thresh1)
+    if white_pixels2 < (thresh2.size * 0.5):
+        thresh2 = cv2.bitwise_not(thresh2)
+    
+    # Create white background RGB image
+    rb_overlay = np.ones((crop_size, crop_size, 3), dtype=np.uint8) * 255  # White background
+    
+    # Create colored versions for overlay
+    # Frame 1 (frame_i): Blue particles
+    # Frame 2 (frame_i1): Red particles
+    
+    # Create blue image for frame 1: dark pixels (particles) become blue
+    # In BGR format: blue = [255, 0, 0] (B=255, G=0, R=0)
+    blue_overlay = rb_overlay.copy()
+    particle_mask1 = thresh1 == 0  # Dark pixels are particles
+    blue_overlay[particle_mask1, 0] = 255  # B channel (blue)
+    blue_overlay[particle_mask1, 1] = 0    # G channel
+    blue_overlay[particle_mask1, 2] = 0    # R channel
+    
+    # Create red image for frame 2: dark pixels (particles) become red
+    # In BGR format: red = [0, 0, 255] (B=0, G=0, R=255)
+    red_overlay = rb_overlay.copy()
+    particle_mask2 = thresh2 == 0  # Dark pixels are particles
+    red_overlay[particle_mask2, 0] = 0    # B channel
+    red_overlay[particle_mask2, 1] = 0    # G channel
+    red_overlay[particle_mask2, 2] = 255  # R channel (red)
+    
+    # Overlay at 50% opacity: blend blue and red
+    # Formula: result = alpha * image1 + (1 - alpha) * image2
+    alpha = 0.5
+    rb_overlay = (alpha * blue_overlay + (1 - alpha) * red_overlay).astype(np.uint8)
+    
+    # Convert BGR to RGB for return
+    rb_overlay_rgb = cv2.cvtColor(rb_overlay, cv2.COLOR_BGR2RGB)
+    
+    return rb_overlay_rgb
+
+
 def create_rb_gallery(trajectories_file, frames_folder=None, output_folder=None, 
                      search_range=None, memory=None, min_deviation_multiplier=None, max_displays=None):
     """
@@ -645,70 +758,19 @@ def create_rb_gallery(trajectories_file, frames_folder=None, output_folder=None,
             crop1 = cv2.resize(crop1, target_size)
             crop2 = cv2.resize(crop2, target_size)
             
-            # Get invert setting from detection parameters
-            from .config_parser import get_detection_params
-            detection_params = get_detection_params()
-            invert = detection_params.get('invert', False)
+            # Generate RB overlay image (default threshold 50% for initial creation)
+            rb_overlay = create_rb_overlay_image(
+                crop1, crop2, 
+                x1 - x1_min, y1 - y1_min,  # Relative positions in crop
+                x2 - x2_min, y2 - y2_min,
+                threshold_percent=50  # Default 50% for initial creation
+            )
             
-            # Convert to grayscale for thresholding
-            gray1 = cv2.cvtColor(crop1, cv2.COLOR_BGR2GRAY)
-            gray2 = cv2.cvtColor(crop2, cv2.COLOR_BGR2GRAY)
-            
-            # Apply thresholding based on invert setting
-            # Goal: always threshold so background is white (255) and particles are dark (0)
-            
-            if invert:
-                # Particles are bright on dark background
-                # Use inverse threshold: bright particles become dark (0), dark background becomes white (255)
-                _, thresh1 = cv2.threshold(gray1, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-                _, thresh2 = cv2.threshold(gray2, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-            else:
-                # Particles are dark on bright background
-                # Use normal threshold: dark particles stay dark (0), bright background becomes white (255)
-                _, thresh1 = cv2.threshold(gray1, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-                _, thresh2 = cv2.threshold(gray2, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-            
-            # Ensure background is white (255) and particles are dark (0)
-            # Check if we need to invert based on which is more common (white background should be majority)
-            white_pixels1 = np.sum(thresh1 == 255)
-            white_pixels2 = np.sum(thresh2 == 255)
-            
-            # If less than 50% white, assume background is black - invert to get white background
-            if white_pixels1 < (thresh1.size * 0.5):
-                thresh1 = cv2.bitwise_not(thresh1)
-            if white_pixels2 < (thresh2.size * 0.5):
-                thresh2 = cv2.bitwise_not(thresh2)
-            
-            # Create white background RGB image
-            rb_overlay = np.ones((crop_size, crop_size, 3), dtype=np.uint8) * 255  # White background
-            
-            # Create colored versions for overlay
-            # Frame 1 (frame_i): Blue particles
-            # Frame 2 (frame_i1): Red particles
-            
-            # Create blue image for frame 1: dark pixels (particles) become blue
-            blue_overlay = rb_overlay.copy()
-            particle_mask1 = thresh1 == 0  # Dark pixels are particles
-            blue_overlay[particle_mask1, 0] = 0  # Blue channel
-            blue_overlay[particle_mask1, 1] = 0
-            blue_overlay[particle_mask1, 2] = 255  # Full blue for particles
-            
-            # Create red image for frame 2: dark pixels (particles) become red
-            red_overlay = rb_overlay.copy()
-            particle_mask2 = thresh2 == 0  # Dark pixels are particles
-            red_overlay[particle_mask2, 0] = 255  # Full red for particles
-            red_overlay[particle_mask2, 1] = 0
-            red_overlay[particle_mask2, 2] = 0  # Red channel
-            
-            # Overlay at 50% opacity: blend blue and red
-            # Formula: result = alpha * image1 + (1 - alpha) * image2
-            alpha = 0.5
-            rb_overlay = (alpha * blue_overlay + (1 - alpha) * red_overlay).astype(np.uint8)
-            
-            # Save the RB overlay image
+            # Save the RB overlay image (convert RGB back to BGR for OpenCV save)
             base_filename = f"particle_{particle_id}_link_{frame_i}_to_{frame_i1}"
             output_filename = os.path.join(output_folder, f"{base_filename}_rb_overlay.png")
-            success = cv2.imwrite(output_filename, rb_overlay)
+            rb_overlay_bgr = cv2.cvtColor(rb_overlay, cv2.COLOR_RGB2BGR)
+            success = cv2.imwrite(output_filename, rb_overlay_bgr)
             if success:
                 print(f"    ✅ Saved RB overlay: {output_filename}")
             else:
@@ -732,9 +794,12 @@ def create_rb_gallery(trajectories_file, frames_folder=None, output_folder=None,
             else:
                 issues.append(f"No frame gap (consecutive frames)")
             
-            # Save metadata with detailed information
+            # Save metadata with detailed information (including positions for regeneration)
             metadata_text = f"""PARTICLE ID: {link_info['particle_id']}
 FRAME TRANSITION: {frame_i} → {frame_i+1}
+
+POSITION (Frame {frame_i}): x={link_info['x_i']:.2f}, y={link_info['y_i']:.2f}
+POSITION (Frame {frame_i1}): x={link_info['x_i1']:.2f}, y={link_info['y_i1']:.2f}
 
 PARAMETER VIOLATIONS:
 {chr(10).join(issues)}
