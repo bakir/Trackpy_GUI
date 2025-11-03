@@ -684,13 +684,13 @@ def create_rb_gallery(trajectories_file, frames_folder=None, output_folder=None,
         max_displays = int(linking_params.get('max_displays', 5))
     
     print(f"📊 Creating RB gallery with search_range={search_range}, memory={memory}")
-    print(f"📊 Showing top {max_displays} worst trajectory links (no threshold filtering)")
+    print(f"📊 Showing top {max_displays} worst links per frame pair")
     print(f"📊 Total trajectories: {trajectories['particle'].nunique()}")
     print(f"📊 Total trajectory points: {len(trajectories)}")
     
-    # Score individual links instead of trajectories
+    # Collect ALL links from ALL trajectories, not just worst per trajectory
     unique_particles = trajectories['particle'].unique()
-    link_scores = []
+    all_links = []  # All links from all trajectories
     print(f"📊 Analyzing {len(unique_particles)} unique particles...")
     
     particles_with_links = 0
@@ -703,13 +703,12 @@ def create_rb_gallery(trajectories_file, frames_folder=None, output_folder=None,
             particles_without_links += 1
             continue
         
-        worst_link = None
-        worst_score = float('-inf')  # Start with negative infinity to catch all scores
-        
         num_links = len(particle_data) - 1
         if num_links == 0:
+            particles_without_links += 1
             continue
         
+        # Collect ALL links from this trajectory
         for i in range(num_links):
             curr = particle_data.iloc[i]
             next_p = particle_data.iloc[i + 1]
@@ -734,74 +733,54 @@ def create_rb_gallery(trajectories_file, frames_folder=None, output_folder=None,
             if np.isnan(link_score) or not np.isfinite(link_score):
                 continue
             
-            # Track worst link in this trajectory (highest score = worst)
-            if link_score > worst_score:
-                worst_score = link_score
-                worst_link = {
-                    'particle_id': particle_id,
-                    'score': link_score,
-                    'jump_dist': jump_dist,
-                    'deviation': deviation,
-                    'frame_gap': frame_gap,
-                    'frame_i': int(curr['frame']),
-                    'frame_i1': int(next_p['frame']),
-                    'x_i': curr['x'],
-                    'y_i': curr['y'],
-                    'x_i1': next_p['x'],
-                    'y_i1': next_p['y'],
-                    'data': particle_data
-                }
-        
-        # Ensure worst_link is always set if we had links
-        if num_links > 0 and worst_link is None:
-            # This shouldn't happen, but handle edge case - use first link
-            print(f"    ⚠️  WARNING: Particle {particle_id} had {num_links} links but worst_link is None! Using first link.")
-            first_curr = particle_data.iloc[0]
-            first_next = particle_data.iloc[1]
-            dx = first_next['x'] - first_curr['x']
-            dy = first_next['y'] - first_curr['y']
-            jump_dist = np.sqrt(dx**2 + dy**2)
-            deviation = max(0, jump_dist - search_range)
-            frame_gap = first_next['frame'] - first_curr['frame']
-            excess_gap = max(0, (frame_gap - 1) - memory) if frame_gap > 1 else 0
-            link_score = (jump_dist - search_range) * 10 + deviation + excess_gap * 5
-            worst_link = {
+            # Add ALL links to the collection
+            link_info = {
                 'particle_id': particle_id,
                 'score': link_score,
                 'jump_dist': jump_dist,
                 'deviation': deviation,
                 'frame_gap': frame_gap,
-                'frame_i': int(first_curr['frame']),
-                'frame_i1': int(first_next['frame']),
-                'x_i': first_curr['x'],
-                'y_i': first_curr['y'],
-                'x_i1': first_next['x'],
-                'y_i1': first_next['y'],
+                'frame_i': int(curr['frame']),
+                'frame_i1': int(next_p['frame']),
+                'x_i': curr['x'],
+                'y_i': curr['y'],
+                'x_i1': next_p['x'],
+                'y_i1': next_p['y'],
                 'data': particle_data
             }
+            all_links.append(link_info)
         
-        # Add worst link from this trajectory (no threshold filtering - we want all worst links)
-        # worst_link should always be set if num_links > 0
-        if worst_link is not None:
-            link_scores.append(worst_link)
-            particles_with_links += 1
-        else:
-            particles_without_links += 1
+        particles_with_links += 1
     
-    print(f"📊 Particles with links added: {particles_with_links}")
+    print(f"📊 Particles with links: {particles_with_links}")
     print(f"📊 Particles skipped (no valid links): {particles_without_links}")
+    print(f"📊 Total links collected: {len(all_links)}")
     
-    # Sort by score and take top N (always show worst ones)
-    link_scores.sort(key=lambda x: x['score'], reverse=True)
-    top_links = link_scores[:max_displays]
+    # Group links by frame pair (frame_i, frame_i1)
+    from collections import defaultdict
+    links_by_frame_pair = defaultdict(list)
+    for link in all_links:
+        frame_pair = (link['frame_i'], link['frame_i1'])
+        links_by_frame_pair[frame_pair].append(link)
     
-    print(f"📊 Total worst links found: {len(link_scores)}")
-    print(f"📊 Selected {len(top_links)} worst trajectory links:")
+    print(f"📊 Found {len(links_by_frame_pair)} unique frame pairs")
+    
+    # For each frame pair, get top N worst links
+    top_links = []
+    for frame_pair, links in links_by_frame_pair.items():
+        # Sort links by score (worst first)
+        links.sort(key=lambda x: x['score'], reverse=True)
+        # Take top N worst links for this frame pair
+        top_links_for_pair = links[:max_displays]
+        top_links.extend(top_links_for_pair)
+        print(f"  Frame pair {frame_pair[0]}->{frame_pair[1]}: {len(links)} total links, selected top {len(top_links_for_pair)} worst")
+    
+    # Sort all selected links by score for consistent ordering
+    top_links.sort(key=lambda x: x['score'], reverse=True)
+    
+    print(f"📊 Total links selected across all frame pairs: {len(top_links)}")
     if len(top_links) == 0:
         print("   ⚠️  WARNING: No links found! Check if trajectories have at least 2 frames each.")
-    else:
-        for i, traj in enumerate(top_links):
-            print(f"  {i+1}. Particle {traj['particle_id']}: score={traj['score']:.2f}, jump={traj['jump_dist']:.2f}, frames {traj['frame_i']}->{traj['frame_i1']}")
     
     crop_size = 200  # Size of the crop around each particle (increased for better context)
     

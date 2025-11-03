@@ -140,6 +140,11 @@ class TrajectoryLinkingWindow(QMainWindow):
         # Connect RB gallery creation signal to refresh the trajectory gallery
         self.main_layout.right_panel.rbGalleryCreated.connect(self.errant_particle_gallery.refresh_rb_gallery)
         
+        # Connect overlay change signal to filter gallery by frame pair
+        self.frame_player.overlay_changed.connect(
+            lambda frame_i, frame_i1: self.errant_particle_gallery.set_frame_pair_filter(frame_i, frame_i1)
+        )
+        
         # Connect threshold slider from errant_particle_gallery to frame_player
         # The connection is set up after widgets are created
         def connect_threshold_slider():

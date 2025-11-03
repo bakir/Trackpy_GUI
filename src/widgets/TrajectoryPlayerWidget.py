@@ -7,13 +7,16 @@ both at 50% opacity on white background.
 """
 
 from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QHBoxLayout, QPushButton, QLineEdit, QSlider
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QPixmap, QImage
 import cv2
 import numpy as np
 import os
 
 class TrajectoryPlayerWidget(QWidget):
+    # Signal emitted when overlay changes
+    overlay_changed = Signal(int, int)  # frame_i, frame_i1
+    
     def __init__(self, parent=None):
         super().__init__(parent)
         self.config_manager = None
@@ -173,6 +176,9 @@ class TrajectoryPlayerWidget(QWidget):
         
         self.current_overlay_idx = overlay_idx
         self.update_overlay_display()
+        
+        # Emit signal to notify errant trajectory gallery of frame pair change
+        self.overlay_changed.emit(frame_i, frame_i1)
 
     def update_overlay_display(self):
         """Update overlay display and input."""
