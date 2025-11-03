@@ -310,7 +310,7 @@ class DetectionParametersWidget(QWidget):
 
     def on_particles_data_ready(self, particles_df):
         """Receives the particles DataFrame from the worker thread."""
-        self.graphing_panel.plot_sb(particles_df)
+        self.graphing_panel.set_particles(particles_df)
 
     def on_find_finished(self):
         self.save_button.setEnabled(True)
