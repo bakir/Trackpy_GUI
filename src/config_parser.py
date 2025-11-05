@@ -100,6 +100,7 @@ def get_linking_params():
         'fps': 30.0,
         'scaling': 1.0,
         'max_speed': 100.0,
+        'max_displays': 5,
     }
 
     if config.has_section('Linking'):
@@ -134,6 +135,11 @@ def get_linking_params():
                 params['max_speed'] = float(section.get('max_speed'))
             except Exception:
                 pass
+        if 'max_displays' in section:
+            try:
+                params['max_displays'] = int(section.get('max_displays'))
+            except Exception:
+                pass
 
     return params
 
@@ -155,6 +161,10 @@ def save_linking_params(params):
     config['Linking']['fps'] = str(float(params.get('fps', 30.0)))
     config['Linking']['scaling'] = str(float(params.get('scaling', 1.0)))
     config['Linking']['max_speed'] = str(float(params.get('max_speed', 100.0)))
+    
+    # Save RB gallery parameters if provided
+    if 'max_displays' in params:
+        config['Linking']['max_displays'] = str(int(params.get('max_displays', 5)))
 
     with open(config_path, 'w') as f:
         config.write(f)

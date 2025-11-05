@@ -62,6 +62,8 @@ class TrajectoryLinkingWindow(QMainWindow):
             self.main_layout.right_panel.set_config_manager(config_manager)
         if hasattr(self, 'frame_player'):
             self.frame_player.set_config_manager(config_manager)
+        if hasattr(self, 'errant_particle_gallery'):
+            self.errant_particle_gallery.set_config_manager(config_manager)
     
     def set_file_controller(self, file_controller):
         """Set the file controller for this window."""
@@ -71,6 +73,8 @@ class TrajectoryLinkingWindow(QMainWindow):
             self.main_layout.right_panel.set_file_controller(file_controller)
         if hasattr(self, 'frame_player'):
             self.frame_player.set_file_controller(file_controller)
+        if hasattr(self, 'errant_particle_gallery'):
+            self.errant_particle_gallery.set_file_controller(file_controller)
 
     def setup_ui(self):
         # Main Widget
@@ -127,7 +131,7 @@ class TrajectoryLinkingWindow(QMainWindow):
         self.right_layout = QVBoxLayout(self.main_layout.right_panel)
         self.main_layout.addWidget(self.main_layout.right_panel)
         
-        # Connect trajectory visualization signal to display in trajectory player
+        # Connect trajectory visualization signal - now loads frames for overlay display
         self.main_layout.right_panel.trajectoryVisualizationCreated.connect(self.frame_player.display_trajectory_image)
         
         # Connect back button signal to return to detection window
@@ -135,6 +139,22 @@ class TrajectoryLinkingWindow(QMainWindow):
         
         # Connect RB gallery creation signal to refresh the trajectory gallery
         self.main_layout.right_panel.rbGalleryCreated.connect(self.errant_particle_gallery.refresh_rb_gallery)
+        
+        # Connect overlay change signal to filter gallery by frame pair
+        self.frame_player.overlay_changed.connect(
+            lambda frame_i, frame_i1: self.errant_particle_gallery.set_frame_pair_filter(frame_i, frame_i1)
+        )
+        
+        # Connect threshold slider from errant_particle_gallery to frame_player
+        # The connection is set up after widgets are created
+        def connect_threshold_slider():
+            if hasattr(self.errant_particle_gallery, 'threshold_slider'):
+                slider = self.errant_particle_gallery.threshold_slider
+                self.frame_player.set_threshold_slider(slider)
+        
+        # Connect after a short delay to ensure widgets are fully initialized
+        from PySide6.QtCore import QTimer
+        QTimer.singleShot(100, connect_threshold_slider)
 
     
     def _export_data(self, source_filename: str, target_format: str):

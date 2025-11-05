@@ -401,25 +401,263 @@ def save_errant_particle_crops_for_frame(frame_number, particle_data_for_frame, 
             f.write(f"feature_size: {particle['size']:.2f}\n")
             f.write(f"parameter_feature_size: {feature_size}\n")
 
-def create_rb_gallery(trajectories_file, original_frames_folder, output_folder=None):
+
+def create_full_frame_rb_overlay(frame1, frame2, threshold_percent=50):
     """
-    Creates red-blue overlay images to visualize particle linking between frames.
+    Create a full-frame red-blue overlay image from two frames.
+    
+    Parameters
+    ----------
+    frame1 : numpy array
+        First frame (BGR) - particles will be red
+    frame2 : numpy array
+        Second frame (BGR) - particles will be blue
+    threshold_percent : float
+        Threshold percentage (0-100). For dark background, this is the percentage of 
+        brightest pixels that become the dark color (red/blue)
+    
+    Returns
+    -------
+    numpy array
+        RB overlay image (RGB format, white background, red particles from frame1, blue particles from frame2, both at 50% opacity)
+    """
+    # Ensure frames are same size
+    if frame1.shape[:2] != frame2.shape[:2]:
+        # Resize frame2 to match frame1
+        frame2 = cv2.resize(frame2, (frame1.shape[1], frame1.shape[0]))
+    
+    height, width = frame1.shape[:2]
+    
+    # Get invert setting from detection parameters
+    from .config_parser import get_detection_params
+    detection_params = get_detection_params()
+    invert = detection_params.get('invert', False)
+    
+    # Convert to grayscale for thresholding
+    gray1 = cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY)
+    gray2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY)
+    
+    # Apply percentile-based thresholding
+    # Calculate threshold value based on percentile
+    percentile = 100 - threshold_percent  # Inverse: 10% means 90th percentile
+    
+    # Get threshold values
+    threshold_val1 = np.percentile(gray1.flatten(), percentile)
+    threshold_val2 = np.percentile(gray2.flatten(), percentile)
+    
+    # Apply thresholding
+    if invert:
+        # Particles are bright on dark background
+        _, thresh1 = cv2.threshold(gray1, threshold_val1, 255, cv2.THRESH_BINARY_INV)
+        _, thresh2 = cv2.threshold(gray2, threshold_val2, 255, cv2.THRESH_BINARY_INV)
+    else:
+        # Particles are dark on bright background
+        _, thresh1 = cv2.threshold(gray1, threshold_val1, 255, cv2.THRESH_BINARY_INV)
+        _, thresh2 = cv2.threshold(gray2, threshold_val2, 255, cv2.THRESH_BINARY_INV)
+    
+    # Ensure background is white (255) and particles are dark (0)
+    white_pixels1 = np.sum(thresh1 == 255)
+    white_pixels2 = np.sum(thresh2 == 255)
+    
+    if white_pixels1 < (thresh1.size * 0.5):
+        thresh1 = cv2.bitwise_not(thresh1)
+    if white_pixels2 < (thresh2.size * 0.5):
+        thresh2 = cv2.bitwise_not(thresh2)
+    
+    # Create white background RGB image
+    rb_overlay = np.ones((height, width, 3), dtype=np.uint8) * 255  # White background
+    
+    # Create colored versions for overlay
+    # Frame 1: Red particles
+    # Frame 2: Blue particles
+    
+    # Create red image for frame 1: dark pixels (particles) become red
+    # In BGR format: red = [0, 0, 255] (B=0, G=0, R=255)
+    red_overlay = rb_overlay.copy()
+    particle_mask1 = thresh1 == 0  # Dark pixels are particles
+    red_overlay[particle_mask1, 0] = 0    # B channel
+    red_overlay[particle_mask1, 1] = 0    # G channel
+    red_overlay[particle_mask1, 2] = 255  # R channel (red)
+    
+    # Create blue image for frame 2: dark pixels (particles) become blue
+    # In BGR format: blue = [255, 0, 0] (B=255, G=0, R=0)
+    blue_overlay = rb_overlay.copy()
+    particle_mask2 = thresh2 == 0  # Dark pixels are particles
+    blue_overlay[particle_mask2, 0] = 255  # B channel (blue)
+    blue_overlay[particle_mask2, 1] = 0    # G channel
+    blue_overlay[particle_mask2, 2] = 0    # R channel
+    
+    # Overlay at 50% opacity: blend red and blue
+    # Formula: result = alpha * image1 + (1 - alpha) * image2
+    alpha = 0.5
+    rb_overlay = (alpha * red_overlay + (1 - alpha) * blue_overlay).astype(np.uint8)
+    
+    # Convert BGR to RGB for return
+    rb_overlay_rgb = cv2.cvtColor(rb_overlay, cv2.COLOR_BGR2RGB)
+    
+    return rb_overlay_rgb
+
+
+def create_rb_overlay_image(crop1, crop2, x1, y1, x2, y2, threshold_percent=50, crop_size=200):
+    """
+    Create a red-blue overlay image from two cropped frames.
+    
+    Parameters
+    ----------
+    crop1 : numpy array
+        First cropped frame (BGR)
+    crop2 : numpy array
+        Second cropped frame (BGR)
+    x1, y1 : float
+        Particle position in crop1 (relative to crop origin)
+    x2, y2 : float
+        Particle position in crop2 (relative to crop origin)
+    threshold_percent : float
+        Threshold percentage (0-100). For dark background, this is the percentage of 
+        brightest pixels that become the dark color (red/blue)
+    crop_size : int
+        Size of the crop (will be used to resize if crops are different sizes)
+    
+    Returns
+    -------
+    numpy array
+        RB overlay image (RGB format, white background, blue/red particles at 50% opacity)
+    """
+    # Resize crops to same size if needed
+    target_size = (crop_size, crop_size)
+    if crop1.shape[:2] != target_size:
+        crop1 = cv2.resize(crop1, target_size)
+    if crop2.shape[:2] != target_size:
+        crop2 = cv2.resize(crop2, target_size)
+    
+    # Get invert setting from detection parameters
+    from .config_parser import get_detection_params
+    detection_params = get_detection_params()
+    invert = detection_params.get('invert', False)
+    
+    # Convert to grayscale for thresholding
+    gray1 = cv2.cvtColor(crop1, cv2.COLOR_BGR2GRAY)
+    gray2 = cv2.cvtColor(crop2, cv2.COLOR_BGR2GRAY)
+    
+    # Apply percentile-based thresholding
+    # For dark background: threshold_percent means top X% brightest pixels become dark (particles)
+    # For bright background: threshold_percent means top X% brightest pixels become dark (particles)
+    
+    # Calculate threshold value based on percentile
+    # threshold_percent = 10 means top 10% brightest pixels
+    percentile = 100 - threshold_percent  # Inverse: 10% means 90th percentile
+    
+    # Get threshold values
+    threshold_val1 = np.percentile(gray1.flatten(), percentile)
+    threshold_val2 = np.percentile(gray2.flatten(), percentile)
+    
+    # Apply thresholding
+    if invert:
+        # Particles are bright on dark background
+        # Top X% brightest pixels become dark (0), rest becomes white (255)
+        _, thresh1 = cv2.threshold(gray1, threshold_val1, 255, cv2.THRESH_BINARY_INV)
+        _, thresh2 = cv2.threshold(gray2, threshold_val2, 255, cv2.THRESH_BINARY_INV)
+    else:
+        # Particles are dark on bright background
+        # Top X% brightest pixels become dark (0), rest becomes white (255)
+        # We want to threshold so that pixels BRIGHTER than threshold become dark
+        # This means: values > threshold become dark (0), rest becomes white (255)
+        _, thresh1 = cv2.threshold(gray1, threshold_val1, 255, cv2.THRESH_BINARY_INV)
+        _, thresh2 = cv2.threshold(gray2, threshold_val2, 255, cv2.THRESH_BINARY_INV)
+    
+    # Ensure background is white (255) and particles are dark (0)
+    # Check if we need to invert based on which is more common (white background should be majority)
+    white_pixels1 = np.sum(thresh1 == 255)
+    white_pixels2 = np.sum(thresh2 == 255)
+    
+    # If less than 50% white, assume background is black - invert to get white background
+    if white_pixels1 < (thresh1.size * 0.5):
+        thresh1 = cv2.bitwise_not(thresh1)
+    if white_pixels2 < (thresh2.size * 0.5):
+        thresh2 = cv2.bitwise_not(thresh2)
+    
+    # Create white background RGB image
+    rb_overlay = np.ones((crop_size, crop_size, 3), dtype=np.uint8) * 255  # White background
+    
+    # Create colored versions for overlay
+    # Frame 1 (frame_i): Blue particles
+    # Frame 2 (frame_i1): Red particles
+    
+    # Create blue image for frame 1: dark pixels (particles) become blue
+    # In BGR format: blue = [255, 0, 0] (B=255, G=0, R=0)
+    blue_overlay = rb_overlay.copy()
+    particle_mask1 = thresh1 == 0  # Dark pixels are particles
+    blue_overlay[particle_mask1, 0] = 255  # B channel (blue)
+    blue_overlay[particle_mask1, 1] = 0    # G channel
+    blue_overlay[particle_mask1, 2] = 0    # R channel
+    
+    # Create red image for frame 2: dark pixels (particles) become red
+    # In BGR format: red = [0, 0, 255] (B=0, G=0, R=255)
+    red_overlay = rb_overlay.copy()
+    particle_mask2 = thresh2 == 0  # Dark pixels are particles
+    red_overlay[particle_mask2, 0] = 0    # B channel
+    red_overlay[particle_mask2, 1] = 0    # G channel
+    red_overlay[particle_mask2, 2] = 255  # R channel (red)
+    
+    # Overlay at 50% opacity: blend blue and red
+    # Formula: result = alpha * image1 + (1 - alpha) * image2
+    alpha = 0.5
+    rb_overlay = (alpha * blue_overlay + (1 - alpha) * red_overlay).astype(np.uint8)
+    
+    # Convert BGR to RGB for return
+    rb_overlay_rgb = cv2.cvtColor(rb_overlay, cv2.COLOR_BGR2RGB)
+    
+    return rb_overlay_rgb
+
+
+def create_rb_gallery(trajectories_file, frames_folder=None, output_folder=None, 
+                     search_range=None, memory=None, min_deviation_multiplier=None, max_displays=None):
+    """
+    Creates red-blue overlay images for the worst individual trajectory links.
     
     Parameters
     ----------
     trajectories_file : str
         Path to the CSV file containing trajectory data
-    original_frames_folder : str
-        Path to the folder containing frame images
+    frames_folder : str, optional
+        Path to the folder containing frame images. If None, uses file_controller.
     output_folder : str, optional
-        Path to save the RB gallery images. If None, uses rb_gallery/
+        Path to save the RB gallery images. If None, uses file_controller.rb_gallery_folder.
+    search_range : float, optional
+        Maximum expected jump distance for calculating deviations
+    memory : int, optional
+        Maximum expected memory (frames a particle can disappear)
+    min_deviation_multiplier : float, optional
+        DEPRECATED: No longer used. All worst links are shown regardless of threshold.
+    max_displays : int, optional
+        Maximum number of worst links to display (default 5)
+    
+    Key changes from previous version:
+    - Scores individual frame-to-frame links instead of entire trajectories
+    - Identifies the worst link in each trajectory
+    - Always shows the top N worst links (no threshold filtering)
+    - Displays the specific frame pair where the bad link occurred (not first/last)
+    - Saves detailed metadata in .txt files explaining why each link is problematic
     """
+    # Check if file_controller is available
+    if file_controller is None:
+        print("❌ ERROR: file_controller is not set! Cannot create RB gallery.")
+        print("   Make sure particle_processing.set_file_controller() was called.")
+        return
+    
     if output_folder is None:
         output_folder = file_controller.rb_gallery_folder
+    
+    if frames_folder is None:
+        frames_folder = file_controller.original_frames_folder
+    
+    print(f"📁 RB Gallery output folder: {output_folder}")
+    print(f"📁 Frames folder: {frames_folder}")
     
     # Use FileController for folder management
     file_controller.ensure_folder_exists(output_folder)
     file_controller.delete_all_files_in_folder(output_folder)
+    print(f"✅ Cleared RB gallery folder: {output_folder}")
     
     # Load trajectory data
     try:
@@ -432,54 +670,145 @@ def create_rb_gallery(trajectories_file, original_frames_folder, output_folder=N
         print("No trajectory data found")
         return
     
-    # Get frame files
-    frame_files = []
-    for filename in sorted(os.listdir(original_frames_folder)):
-        if filename.lower().endswith(('.jpg', '.jpeg', '.png', '.tif', '.tiff')):
-            frame_files.append(os.path.join(original_frames_folder, filename))
+    # Get linking parameters if not provided
+    from .config_parser import get_linking_params
+    linking_params = get_linking_params()
+    if search_range is None:
+        search_range = float(linking_params.get('search_range', 10))
+    if memory is None:
+        memory = int(linking_params.get('memory', 10))
+    # max_displays defaults to 5 (show top 5 worst links)
+    if max_displays is None:
+        max_displays = int(linking_params.get('max_displays', 5))
     
-    if len(frame_files) < 2:
-        print("Need at least 2 frames for RB overlay")
-        return
+    print(f"📊 Creating RB gallery with search_range={search_range}, memory={memory}")
+    print(f"📊 Showing top {max_displays} worst links per frame pair")
+    print(f"📊 Total trajectories: {trajectories['particle'].nunique()}")
+    print(f"📊 Total trajectory points: {len(trajectories)}")
     
-    print(f"Creating RB gallery with {len(frame_files)} frames...")
-    
-    # Process each particle trajectory
+    # Collect ALL links from ALL trajectories, not just worst per trajectory
     unique_particles = trajectories['particle'].unique()
-    crop_size = 100  # Size of the crop around each particle
+    all_links = []  # All links from all trajectories
+    print(f"📊 Analyzing {len(unique_particles)} unique particles...")
+    
+    particles_with_links = 0
+    particles_without_links = 0
     
     for particle_id in unique_particles:
         particle_data = trajectories[trajectories['particle'] == particle_id].sort_values('frame')
         
         if len(particle_data) < 2:
-            continue  # Skip particles with only one detection
-        
-        # Get first and last frame positions for this particle
-        first_frame = particle_data.iloc[0]
-        last_frame = particle_data.iloc[-1]
-        
-        frame1_idx = int(first_frame['frame'])
-        frame2_idx = int(last_frame['frame'])
-        
-        # Skip if same frame
-        if frame1_idx == frame2_idx:
+            particles_without_links += 1
             continue
         
-        # Skip if frame indices are out of range
-        if frame1_idx >= len(frame_files) or frame2_idx >= len(frame_files):
+        num_links = len(particle_data) - 1
+        if num_links == 0:
+            particles_without_links += 1
             continue
         
-        try:
-            # Load the two frames
-            frame1 = cv2.imread(frame_files[frame1_idx])
-            frame2 = cv2.imread(frame_files[frame2_idx])
+        # Collect ALL links from this trajectory
+        for i in range(num_links):
+            curr = particle_data.iloc[i]
+            next_p = particle_data.iloc[i + 1]
             
-            if frame1 is None or frame2 is None:
+            # Calculate jump distance
+            dx = next_p['x'] - curr['x']
+            dy = next_p['y'] - curr['y']
+            jump_dist = np.sqrt(dx**2 + dy**2)
+            
+            # Calculate deviation from expected
+            deviation = max(0, jump_dist - search_range)
+            
+            # Frame gap
+            frame_gap = next_p['frame'] - curr['frame']
+            
+            # Score for this individual link
+            # Higher score = worse link (more deviation from expected parameters)
+            excess_gap = max(0, (frame_gap - 1) - memory) if frame_gap > 1 else 0
+            link_score = (jump_dist - search_range) * 10 + deviation + excess_gap * 5
+            
+            # Skip if link_score is NaN or invalid
+            if np.isnan(link_score) or not np.isfinite(link_score):
                 continue
             
-            # Get particle positions
-            x1, y1 = int(first_frame['x']), int(first_frame['y'])
-            x2, y2 = int(last_frame['x']), int(last_frame['y'])
+            # Add ALL links to the collection
+            link_info = {
+                'particle_id': particle_id,
+                'score': link_score,
+                'jump_dist': jump_dist,
+                'deviation': deviation,
+                'frame_gap': frame_gap,
+                'frame_i': int(curr['frame']),
+                'frame_i1': int(next_p['frame']),
+                'x_i': curr['x'],
+                'y_i': curr['y'],
+                'x_i1': next_p['x'],
+                'y_i1': next_p['y'],
+                'data': particle_data
+            }
+            all_links.append(link_info)
+        
+        particles_with_links += 1
+    
+    print(f"📊 Particles with links: {particles_with_links}")
+    print(f"📊 Particles skipped (no valid links): {particles_without_links}")
+    print(f"📊 Total links collected: {len(all_links)}")
+    
+    # Group links by frame pair (frame_i, frame_i1)
+    from collections import defaultdict
+    links_by_frame_pair = defaultdict(list)
+    for link in all_links:
+        frame_pair = (link['frame_i'], link['frame_i1'])
+        links_by_frame_pair[frame_pair].append(link)
+    
+    print(f"📊 Found {len(links_by_frame_pair)} unique frame pairs")
+    
+    # For each frame pair, get top N worst links
+    top_links = []
+    for frame_pair, links in links_by_frame_pair.items():
+        # Sort links by score (worst first)
+        links.sort(key=lambda x: x['score'], reverse=True)
+        # Take top N worst links for this frame pair
+        top_links_for_pair = links[:max_displays]
+        top_links.extend(top_links_for_pair)
+        print(f"  Frame pair {frame_pair[0]}->{frame_pair[1]}: {len(links)} total links, selected top {len(top_links_for_pair)} worst")
+    
+    # Sort all selected links by score for consistent ordering
+    top_links.sort(key=lambda x: x['score'], reverse=True)
+    
+    print(f"📊 Total links selected across all frame pairs: {len(top_links)}")
+    if len(top_links) == 0:
+        print("   ⚠️  WARNING: No links found! Check if trajectories have at least 2 frames each.")
+    
+    crop_size = 200  # Size of the crop around each particle (increased for better context)
+    
+    # Create RB overlay for each worst link showing the actual problem frames
+    print(f"🖼️  Creating RB overlay images for {len(top_links)} links...")
+    for idx, link_info in enumerate(top_links):
+        particle_id = link_info['particle_id']
+        frame_i = link_info['frame_i']
+        frame_i1 = link_info['frame_i1']
+        
+        print(f"  [{idx+1}/{len(top_links)}] Processing particle {particle_id}, frames {frame_i}->{frame_i1}...")
+        
+        # Load the two frames where the bad link occurred
+        # Construct filenames from frame numbers (not array indices)
+        frame1_filename = os.path.join(frames_folder, f"frame_{frame_i:05d}.jpg")
+        frame2_filename = os.path.join(frames_folder, f"frame_{frame_i1:05d}.jpg")
+        
+        try:
+            frame1 = cv2.imread(frame1_filename)
+            frame2 = cv2.imread(frame2_filename)
+            
+            if frame1 is None or frame2 is None:
+                print(f"    ⚠️  Warning: Could not load frames {frame_i} or {frame_i1}")
+                print(f"       Frame1 path: {frame1_filename} (exists: {os.path.exists(frame1_filename)})")
+                print(f"       Frame2 path: {frame2_filename} (exists: {os.path.exists(frame2_filename)})")
+                continue
+            
+            # Get particle positions at the problematic link
+            x1, y1 = int(link_info['x_i']), int(link_info['y_i'])
+            x2, y2 = int(link_info['x_i1']), int(link_info['y_i1'])
             
             # Calculate crop boundaries for frame1
             x1_min = max(0, x1 - crop_size // 2)
@@ -497,46 +826,87 @@ def create_rb_gallery(trajectories_file, original_frames_folder, output_folder=N
             crop1 = frame1[y1_min:y1_max, x1_min:x1_max]
             crop2 = frame2[y2_min:y2_max, x2_min:x2_max]
             
-            # Resize crops to same size if needed
+            # Resize crops to same size
             target_size = (crop_size, crop_size)
             crop1 = cv2.resize(crop1, target_size)
             crop2 = cv2.resize(crop2, target_size)
             
-            # Create red and blue overlay at 50% opacity each
-            # Convert to grayscale for better color overlay effect
-            gray1 = cv2.cvtColor(crop1, cv2.COLOR_BGR2GRAY)
-            gray2 = cv2.cvtColor(crop2, cv2.COLOR_BGR2GRAY)
+            # Generate RB overlay image (default threshold 50% for initial creation)
+            rb_overlay = create_rb_overlay_image(
+                crop1, crop2, 
+                x1 - x1_min, y1 - y1_min,  # Relative positions in crop
+                x2 - x2_min, y2 - y2_min,
+                threshold_percent=50  # Default 50% for initial creation
+            )
             
-            # Create RGB overlay with better color separation
-            rb_overlay = np.zeros((crop_size, crop_size, 3), dtype=np.uint8)
+            # Save the RB overlay image (convert RGB back to BGR for OpenCV save)
+            base_filename = f"particle_{particle_id}_link_{frame_i}_to_{frame_i1}"
+            output_filename = os.path.join(output_folder, f"{base_filename}_rb_overlay.png")
+            rb_overlay_bgr = cv2.cvtColor(rb_overlay, cv2.COLOR_RGB2BGR)
+            success = cv2.imwrite(output_filename, rb_overlay_bgr)
+            if success:
+                print(f"    ✅ Saved RB overlay: {output_filename}")
+            else:
+                print(f"    ❌ Failed to save RB overlay: {output_filename}")
             
-            # Red channel: frame1 grayscale (will appear red)
-            rb_overlay[:, :, 0] = gray1
+            # Determine why this link is bad
+            issues = []
+            if link_info['jump_dist'] > search_range:
+                excess = link_info['jump_dist'] - search_range
+                issues.append(f"Jump distance ({link_info['jump_dist']:.2f} px) exceeds search_range ({search_range} px) by {excess:.2f} px")
+            else:
+                issues.append(f"Jump distance ({link_info['jump_dist']:.2f} px) is within search_range ({search_range} px)")
             
-            # Green channel: minimal to avoid washing out colors
-            rb_overlay[:, :, 1] = np.minimum(gray1, gray2) // 4  # Very low green
+            if link_info['frame_gap'] > 1:
+                gap_violations = link_info['frame_gap'] - 1  # Frames the particle disappeared
+                if gap_violations > memory:
+                    excess_gap = gap_violations - memory
+                    issues.append(f"Frame gap ({link_info['frame_gap']} frames, {gap_violations} disappearances) exceeds memory ({memory} frames) by {excess_gap} frames")
+                else:
+                    issues.append(f"Frame gap ({link_info['frame_gap']} frames, {gap_violations} disappearances) is within memory ({memory} frames)")
+            else:
+                issues.append(f"No frame gap (consecutive frames)")
             
-            # Blue channel: frame2 grayscale (will appear blue)
-            rb_overlay[:, :, 2] = gray2
+            # Save metadata with detailed information (including positions for regeneration)
+            metadata_text = f"""PARTICLE ID: {link_info['particle_id']}
+FRAME TRANSITION: {frame_i} → {frame_i+1}
+
+POSITION (Frame {frame_i}): x={link_info['x_i']:.2f}, y={link_info['y_i']:.2f}
+POSITION (Frame {frame_i1}): x={link_info['x_i1']:.2f}, y={link_info['y_i1']:.2f}
+
+PARAMETER VIOLATIONS:
+{chr(10).join(issues)}
+
+METRICS:
+Jump Distance: {link_info['jump_dist']:.2f} pixels
+Search Range: {search_range} pixels
+Deviation: {link_info['deviation']:.2f} pixels (jump_distance - search_range)
+Frame Gap: {link_info['frame_gap']} frames
+Memory: {memory} frames
+Link Score: {link_info['score']:.2f} (higher = worse)"""
             
-            # Draw particle centers
-            center = crop_size // 2
-            cv2.circle(rb_overlay, (center, center), 3, (255, 255, 255), -1)  # White center dot
-            
-            # Add frame information text
-            cv2.putText(rb_overlay, f'F{frame1_idx}', (5, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 255), 1)  # Red text
-            cv2.putText(rb_overlay, f'F{frame2_idx}', (5, crop_size - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 0, 0), 1)  # Blue text
-            
-            # Save the RB overlay image
-            output_filename = os.path.join(output_folder, f'particle_{particle_id}_rb_overlay.png')
-            cv2.imwrite(output_filename, rb_overlay)
+            # Save .txt file
+            metadata_filename = os.path.join(output_folder, f"{base_filename}.txt")
+            try:
+                with open(metadata_filename, 'w') as f:
+                    f.write(metadata_text)
+                print(f"    ✅ Saved metadata: {metadata_filename}")
+            except Exception as e:
+                print(f"    ❌ Failed to save metadata: {e}")
             
         except Exception as e:
-            print(f"Error processing particle {particle_id}: {e}")
+            import traceback
+            print(f"    ❌ Error processing particle {particle_id} link: {e}")
+            traceback.print_exc()
             continue
     
-    print(f"RB gallery created in: {output_folder}")
-    print(f"Processed {len(unique_particles)} particles")
+    print(f"✅ RB gallery created in: {output_folder}")
+    print(f"✅ Processed {len(top_links)} worst trajectory links")
+    if len(top_links) == 0:
+        print(f"⚠️  No trajectory links found (need at least 2 frames per particle)")
+    else:
+        print(f"✅ Created {len(top_links)} RB overlay images with metadata files")
+        print(f"   Showing the {len(top_links)} worst links ranked by deviation score")
 
 
 def annotate_frame(frame_number, particle_data_df, feature_size, highlighted_particle_index=None):

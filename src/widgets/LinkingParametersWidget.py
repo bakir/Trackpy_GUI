@@ -310,24 +310,43 @@ class LinkingParametersWidget(QWidget):
     def create_rb_gallery(self, trajectories_file, data_folder):
         """Create RB gallery using particle_processing function."""
         try:
+            print(f"🔵 Starting RB gallery creation...")
+            print(f"🔵 Trajectories file: {trajectories_file}")
+            
             if self.file_controller:
                 original_frames_folder = self.file_controller.original_frames_folder
                 rb_gallery_folder = self.file_controller.rb_gallery_folder
+                print(f"🔵 Using file_controller paths:")
+                print(f"   Frames folder: {original_frames_folder}")
+                print(f"   RB gallery folder: {rb_gallery_folder}")
             else:
                 from ..config_parser import get_config
                 config = get_config()
                 original_frames_folder = config.get('original_frames_folder', 'original_frames/')
                 rb_gallery_folder = config.get('rb_gallery_folder', 'rb_gallery')
+                print(f"⚠️  No file_controller, using config paths:")
+                print(f"   Frames folder: {original_frames_folder}")
+                print(f"   RB gallery folder: {rb_gallery_folder}")
+            
+            # Verify trajectories file exists
+            if not os.path.exists(trajectories_file):
+                print(f"❌ ERROR: Trajectories file does not exist: {trajectories_file}")
+                return
             
             # Call the RB gallery creation function
+            print(f"🔵 Calling particle_processing.create_rb_gallery...")
             particle_processing.create_rb_gallery(
                 trajectories_file=trajectories_file,
                 frames_folder=original_frames_folder,
                 output_folder=rb_gallery_folder
             )
+            print(f"✅ RB gallery creation completed")
             
         except Exception as e:
-            print(f"Error creating RB gallery: {e}")
+            import traceback
+            print(f"❌ Error creating RB gallery: {e}")
+            print(f"❌ Traceback:")
+            traceback.print_exc()
 
     def go_back(self):
         """Emit signal to go back to particle detection window."""
