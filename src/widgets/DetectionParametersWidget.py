@@ -17,7 +17,6 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Signal, QThread
 import trackpy as tp
-import matplotlib.pyplot as plt
 import sys
 import os
 

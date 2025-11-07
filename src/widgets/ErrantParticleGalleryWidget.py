@@ -5,34 +5,18 @@ Description: Widget displaying errant particles to inform user if particle track
              Generated boiler plate code using Cursor AI.
 """
 
-from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout
 import os
-import sys
-import cv2
 
-from PySide6.QtCore import QUrl, Qt, Signal
-from PySide6.QtGui import QAction, QPixmap
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
-    QApplication,
-    QMainWindow,
-    QFileDialog,
-    QWidget,
-    QVBoxLayout,
-    QGridLayout,
-    QFormLayout,
-    QPushButton,
-    QSlider,
-    QLabel,
-    QSplitter,
     QHBoxLayout,
-    QFrame,
-    QSizePolicy,
+    QLabel,
     QLineEdit,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
 )
-from PySide6 import QtWidgets
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_qtagg import FigureCanvas
-from matplotlib.figure import Figure
 
 
 class ErrantParticleGalleryWidget(QWidget):
