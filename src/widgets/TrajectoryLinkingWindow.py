@@ -78,6 +78,14 @@ class TrajectoryLinkingWindow(QMainWindow):
             self.frame_player.set_file_controller(file_controller)
         if hasattr(self, "errant_particle_gallery"):
             self.errant_particle_gallery.set_file_controller(file_controller)
+        self.load_initial_overlay()
+
+    def load_initial_overlay(self):
+        """Ensure the RB overlay preview is ready when the window opens."""
+        if hasattr(self, "frame_player") and self.frame_player:
+            self.frame_player.load_initial_overlay()
+        if hasattr(self, "errant_particle_gallery") and self.errant_particle_gallery:
+            self.errant_particle_gallery.refresh_rb_gallery()
 
     def setup_ui(self):
         # Main Widget

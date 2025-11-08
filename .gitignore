@@ -3,4 +3,6 @@ processed_frames
 particles
 videos
 __pycache__
+.vscode
+build
 *.pyc

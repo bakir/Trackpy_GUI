@@ -98,6 +98,16 @@ class TrajectoryPlayerWidget(QWidget):
             # Load total frames count
             self._load_total_frames()
 
+    def load_initial_overlay(self):
+        """Load the first available RB overlay immediately."""
+        self._load_total_frames()
+        if self.total_frames > 1:
+            self.display_overlay(0)
+        elif self.total_frames == 1:
+            self.photo_label.setText("Need at least 2 frames for overlay")
+        else:
+            self.photo_label.setText("No frames available")
+
     def set_threshold_slider(self, slider):
         """Connect to threshold slider from ErrantTrajectoryGalleryWidget."""
         self.threshold_slider = slider
