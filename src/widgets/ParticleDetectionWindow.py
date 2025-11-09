@@ -176,6 +176,7 @@ class ParticleDetectionWindow(QMainWindow):
         self.frame_player.frame_changed.connect(
             self.errant_particle_gallery.set_current_frame
         )
+        self.frame_player.import_video_requested.connect(self.import_video)
 
     def on_particles_updated(self, particle_data):
         if self.frame_player:
