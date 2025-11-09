@@ -36,7 +36,7 @@ from matplotlib.figure import Figure
 
 from .ErrantParticleGalleryWidget import *
 from .FramePlayerWidget import *
-from .GraphingPanelWidget import *
+from .DetectionPlottingWidget import *
 from .DetectionParametersWidget import *
 from .TrajectoryLinkingWindow import *
 
@@ -127,7 +127,7 @@ class ParticleDetectionWindow(QMainWindow):
         options_menu.addAction(stream_action)
 
         # Left Panel
-        self.main_layout.left_panel = GraphingPanelWidget()
+        self.main_layout.left_panel = DectectionPlottingWidget()
         self.main_layout.addWidget(self.main_layout.left_panel)
 
         # Middle Panel
