@@ -28,7 +28,7 @@ from ..config_parser import *
 import os
 from copy import copy
 
-from .Graphing import *
+from .GraphingUtils import *
 
 class TrajectoryPlottingWidget(GraphingPanelWidget):
     def __init__(self, parent=None):
