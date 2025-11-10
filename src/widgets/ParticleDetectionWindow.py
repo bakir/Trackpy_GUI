@@ -48,7 +48,6 @@ sys.path.append(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 )
 from .. import particle_processing
-from ..config_parser import get_config
 
 
 class ParticleDetectionWindow(QMainWindow):
@@ -198,6 +197,8 @@ class ParticleDetectionWindow(QMainWindow):
             if frame_count > 0:
                 self.main_layout.right_panel.set_total_frames(frame_count)
             self.main_layout.right_panel.refresh_from_disk()
+            # Reload parameters from config file
+            self.main_layout.right_panel.load_params()
 
         if self.errant_particle_gallery:
             self.errant_particle_gallery.reset_state()

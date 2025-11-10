@@ -24,7 +24,6 @@ sys.path.append(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 )
 from .. import particle_processing
-from ..config_parser import *
 import os
 from copy import copy
 

@@ -24,7 +24,6 @@ import os
 sys.path.append(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 )
-from ..config_parser import *
 import cv2
 from .. import particle_processing
 
@@ -80,12 +79,9 @@ class DetectAllFramesThread(QThread):
                     )
                     data_folder = self.config_manager.get_path("data_folder")
                 else:
-                    # Fall back to global config
-                    config = get_config()
-                    annotated_frames_folder = config.get(
-                        "annotated_frames_folder", "annotated_frames/"
-                    )
-                    data_folder = config.get("data_folder", "data/")
+                    # Fall back to default paths
+                    annotated_frames_folder = "annotated_frames/"
+                    data_folder = "data/"
 
             feature_size = int(self.params.get("feature_size", 15))
             min_mass = float(self.params.get("min_mass", 100.0))
@@ -183,10 +179,17 @@ class DetectionParametersWidget(QWidget):
         self.threshold_input.setSingleStep(1.0)
         self.threshold_input.setToolTip("Clip band-passed data below this value.")
 
+        self.scaling_input = QDoubleSpinBox()
+        self.scaling_input.setDecimals(6)
+        self.scaling_input.setRange(0.000001, 1000.0)
+        self.scaling_input.setSingleStep(0.1)
+        self.scaling_input.setToolTip("Microns per pixel (calibration).")
+
         self.form.addRow("Feature size", self.feature_size_input)
         self.form.addRow("Min mass", self.min_mass_input)
         self.form.addRow("Invert", self.invert_input)
         self.form.addRow("Threshold", self.threshold_input)
+        self.form.addRow("Scaling (μm/pixel)", self.scaling_input)
 
         self.layout.addLayout(self.form)
         self.layout.addStretch()
@@ -242,15 +245,19 @@ class DetectionParametersWidget(QWidget):
         self.feature_size_input.editingFinished.connect(self.save_params)
         self.min_mass_input.editingFinished.connect(self.save_params)
         self.threshold_input.editingFinished.connect(self.save_params)
+        self.scaling_input.editingFinished.connect(self.save_params)
         self.feature_size_input.lineEdit().returnPressed.connect(self.save_params)
         self.min_mass_input.lineEdit().returnPressed.connect(self.save_params)
         self.threshold_input.lineEdit().returnPressed.connect(self.save_params)
+        self.scaling_input.lineEdit().returnPressed.connect(self.save_params)
         self.invert_input.stateChanged.connect(lambda _state: self.save_params())
 
     def set_config_manager(self, config_manager):
         """Set the config manager for this widget."""
         self.config_manager = config_manager
         self._refresh_processed_frames()
+        # Reload parameters from config when config_manager is set
+        self.load_params()
 
     def set_file_controller(self, file_controller):
         """Set the file controller for this widget."""
@@ -292,7 +299,9 @@ class DetectionParametersWidget(QWidget):
         self.end_frame_input.setMinimum(self.start_frame_input.value())
 
     def load_params(self):
-        params = get_detection_params()
+        if not self.config_manager:
+            return
+        params = self.config_manager.get_detection_params()
         feature_size = int(params.get("feature_size", 15))
         if feature_size % 2 == 0:
             feature_size += 1
@@ -300,32 +309,39 @@ class DetectionParametersWidget(QWidget):
         self.min_mass_input.setValue(float(params.get("min_mass", 100.0)))
         self.invert_input.setChecked(bool(params.get("invert", False)))
         self.threshold_input.setValue(float(params.get("threshold", 0.0)))
+        self.scaling_input.setValue(float(params.get("scaling", 1.0)))
 
     def save_params(self):
+        if not self.config_manager:
+            return
         feature_size = int(self.feature_size_input.value())
         if feature_size % 2 == 0:
             feature_size += 1
-        existing = get_detection_params()
+        existing = self.config_manager.get_detection_params()
         existing_params = {
             "feature_size": int(existing.get("feature_size", 15)),
             "min_mass": float(existing.get("min_mass", 100.0)),
             "invert": bool(existing.get("invert", False)),
             "threshold": float(existing.get("threshold", 0.0)),
+            "scaling": float(existing.get("scaling", 1.0)),
         }
         params = {
             "feature_size": feature_size,
             "min_mass": float(self.min_mass_input.value()),
             "invert": bool(self.invert_input.isChecked()),
             "threshold": float(self.threshold_input.value()),
+            "scaling": float(self.scaling_input.value()),
         }
         if params == existing_params:
             return
-        save_detection_params(params)
+        self.config_manager.save_detection_params(params)
         self.parameter_changed.emit()  # Emit the signal here
 
     def find_particles(self):
         self.save_params()
-        params = get_detection_params()
+        if not self.config_manager:
+            return
+        params = self.config_manager.get_detection_params()
 
         # Use injected file controller if available
         if self.file_controller:
@@ -337,13 +353,8 @@ class DetectionParametersWidget(QWidget):
                     "original_frames_folder"
                 )
             else:
-                # Fall back to global config
-                from ..config_parser import get_config
-
-                config = get_config()
-                original_frames_folder = config.get(
-                    "original_frames_folder", "original_frames/"
-                )
+                # Fall back to default
+                original_frames_folder = "original_frames/"
 
         start = self.start_frame_input.value()
         end = self.end_frame_input.value()
@@ -388,7 +399,9 @@ class DetectionParametersWidget(QWidget):
             return
 
         # Get detection parameters
-        params = get_detection_params()
+        if not self.config_manager:
+            return
+        params = self.config_manager.get_detection_params()
 
         # Call the function to generate errant particles (it will use all particles from found_particles.csv)
         # We pass a dummy frame_number since the function now processes all frames
@@ -443,7 +456,9 @@ class DetectionParametersWidget(QWidget):
 
     def detect_all_frames(self):
         self.save_params()
-        params = get_detection_params()
+        if not self.config_manager:
+            return
+        params = self.config_manager.get_detection_params()
 
         # Use injected file controller if available
         if self.file_controller:
@@ -455,13 +470,8 @@ class DetectionParametersWidget(QWidget):
                     "original_frames_folder"
                 )
             else:
-                # Fall back to global config
-                from ..config_parser import get_config
-
-                config = get_config()
-                original_frames_folder = config.get(
-                    "original_frames_folder", "original_frames/"
-                )
+                # Fall back to default
+                original_frames_folder = "original_frames/"
 
         if not os.path.exists(original_frames_folder):
             print(f"Frames folder not found: {original_frames_folder}")
@@ -571,8 +581,7 @@ class DetectionParametersWidget(QWidget):
             return self.file_controller.data_folder
         if self.config_manager:
             return self.config_manager.get_path("data_folder")
-        config = get_config()
-        return config.get("data_folder", "data/")
+        return "data/"
 
     def _particles_file_path(self) -> str:
         data_folder = self._get_data_folder()
@@ -646,8 +655,7 @@ class DetectionParametersWidget(QWidget):
         elif self.config_manager:
             frames_folder = self.config_manager.get_path("original_frames_folder")
         else:
-            config = get_config()
-            frames_folder = config.get("original_frames_folder", "original_frames/")
+            frames_folder = "original_frames/"
 
         if not frames_folder or not os.path.exists(frames_folder):
             return set()

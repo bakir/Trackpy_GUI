@@ -27,7 +27,6 @@ import sys
 sys.path.append(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 )
-from ..config_parser import get_config
 
 
 class ErrantTrajectoryGalleryWidget(QWidget):
@@ -119,9 +118,8 @@ class ErrantTrajectoryGalleryWidget(QWidget):
         elif self.config_manager:
             self.rb_gallery_dir = self.config_manager.get_path("rb_gallery_folder")
         else:
-            # Fall back to global config
-            config = get_config()
-            self.rb_gallery_dir = config.get("rb_gallery_folder", "rb_gallery")
+            # Fall back to default
+            self.rb_gallery_dir = "rb_gallery/"
 
         # Reload gallery files if path is set
         if self.rb_gallery_dir:

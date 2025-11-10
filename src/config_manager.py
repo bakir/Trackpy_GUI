@@ -32,15 +32,8 @@ class ConfigManager:
             # Load project-specific config
             self.config.read(self.config_path)
         else:
-            # Load template config
-            template_path = os.path.join(
-                os.path.dirname(__file__), "..", "template_config.ini"
-            )
-            if os.path.exists(template_path):
-                self.config.read(template_path)
-            else:
-                # Create default config if template doesn't exist
-                self._create_default_config()
+            # Use default config (no template file needed)
+            self._create_default_config()
 
     def _create_default_config(self):
         """Create a default configuration."""
@@ -54,11 +47,12 @@ class ConfigManager:
         }
 
         self.config["Detection"] = {
-            "feature_size": "27",
-            "min_mass": "1300.0",
+            "feature_size": "15",
+            "min_mass": "100.0",
             "invert": "false",
             "threshold": "0.0",
             "frame_idx": "0",
+            "scaling": "1.0",
         }
 
         self.config["Linking"] = {
@@ -66,7 +60,6 @@ class ConfigManager:
             "memory": "10",
             "min_trajectory_length": "10",
             "fps": "30.0",
-            "scaling": "1.0",
             "max_speed": "100.0",
         }
 
@@ -181,6 +174,7 @@ class ConfigManager:
             "invert": self.get("Detection", "invert", "false").lower() == "true",
             "threshold": float(self.get("Detection", "threshold", 0.0)),
             "frame_idx": int(self.get("Detection", "frame_idx", 0)),
+            "scaling": float(self.get("Detection", "scaling", 1.0)),
         }
 
     def get_linking_params(self) -> Dict[str, Any]:
@@ -192,7 +186,6 @@ class ConfigManager:
                 self.get("Linking", "min_trajectory_length", 10)
             ),
             "fps": float(self.get("Linking", "fps", 30.0)),
-            "scaling": float(self.get("Linking", "scaling", 1.0)),
             "max_speed": float(self.get("Linking", "max_speed", 100.0)),
         }
 

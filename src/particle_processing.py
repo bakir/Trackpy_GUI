@@ -12,7 +12,6 @@ import pandas as pd
 import trackpy as tp
 import pims
 import matplotlib.pyplot as plt
-from .config_parser import get_config
 from .file_controller import FileController
 
 # Initialize file controller (will be set by main application)
@@ -96,7 +95,18 @@ def link_particles_to_trajectories(video_path, output_folder=None, params=None):
         - mass, size, ecc: particle properties
     """
     if params is None:
-        params = get_detection_params()
+        # Try to get params from file_controller's config_manager
+        if file_controller and hasattr(file_controller, 'config_manager') and file_controller.config_manager:
+            params = file_controller.config_manager.get_detection_params()
+        else:
+            # Fallback to defaults
+            params = {
+                "feature_size": 15,
+                "min_mass": 100.0,
+                "invert": False,
+                "threshold": 0.0,
+                "scaling": 1.0,
+            }
 
     if output_folder is None:
         output_folder = file_controller.data_folder
@@ -518,10 +528,11 @@ def create_full_frame_rb_overlay(frame1, frame2, threshold_percent=50):
     height, width = frame1.shape[:2]
 
     # Get invert setting from detection parameters
-    from .config_parser import get_detection_params
-
-    detection_params = get_detection_params()
-    invert = detection_params.get("invert", False)
+    if file_controller and hasattr(file_controller, 'config_manager') and file_controller.config_manager:
+        detection_params = file_controller.config_manager.get_detection_params()
+        invert = detection_params.get("invert", False)
+    else:
+        invert = False
 
     # Convert to grayscale for thresholding
     gray1 = cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY)
@@ -623,10 +634,11 @@ def create_rb_overlay_image(
         crop2 = cv2.resize(crop2, target_size)
 
     # Get invert setting from detection parameters
-    from .config_parser import get_detection_params
-
-    detection_params = get_detection_params()
-    invert = detection_params.get("invert", False)
+    if file_controller and hasattr(file_controller, 'config_manager') and file_controller.config_manager:
+        detection_params = file_controller.config_manager.get_detection_params()
+        invert = detection_params.get("invert", False)
+    else:
+        invert = False
 
     # Convert to grayscale for thresholding
     gray1 = cv2.cvtColor(crop1, cv2.COLOR_BGR2GRAY)
@@ -773,9 +785,18 @@ def create_rb_gallery(
         return
 
     # Get linking parameters if not provided
-    from .config_parser import get_linking_params
-
-    linking_params = get_linking_params()
+    if file_controller and hasattr(file_controller, 'config_manager') and file_controller.config_manager:
+        linking_params = file_controller.config_manager.get_linking_params()
+    else:
+        # Fallback to defaults
+        linking_params = {
+            "search_range": 10,
+            "memory": 10,
+            "min_trajectory_length": 10,
+            "fps": 30.0,
+            "max_speed": 100.0,
+            "max_displays": 5,
+        }
     if search_range is None:
         search_range = float(linking_params.get("search_range", 10))
     if memory is None:

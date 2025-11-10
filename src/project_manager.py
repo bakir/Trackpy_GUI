@@ -58,24 +58,11 @@ class ProjectManager:
                 folder_path = os.path.join(project_folder_path, folder)
                 os.makedirs(folder_path, exist_ok=True)
 
-            # Copy template config to project folder
-            template_config_path = os.path.join(
-                os.path.dirname(__file__), "..", "template_config.ini"
-            )
+            # Create default config for project
             project_config_path = os.path.join(project_folder_path, "config.ini")
-
-            if os.path.exists(template_config_path):
-                shutil.copy2(template_config_path, project_config_path)
-
-                # Update paths in project config to be relative to project folder
-                self._update_project_config_paths(
-                    project_config_path, project_folder_path
-                )
-            else:
-                # Create default config if template doesn't exist
-                self._create_default_project_config(
-                    project_config_path, project_folder_path
-                )
+            self._create_default_project_config(
+                project_config_path, project_folder_path
+            )
 
             # Create project info file
             self._create_project_info(project_folder_path, project_name)
@@ -211,6 +198,7 @@ class ProjectManager:
             "invert": "false",
             "threshold": "0.0",
             "frame_idx": "0",
+            "scaling": "1.0",
         }
 
         # Linking section
@@ -219,7 +207,6 @@ class ProjectManager:
             "memory": "10",
             "min_trajectory_length": "10",
             "fps": "30.0",
-            "scaling": "1.0",
             "max_speed": "100.0",
         }
 
