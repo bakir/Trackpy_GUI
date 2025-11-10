@@ -46,5 +46,4 @@ You can install the necessary dependencies using either `pip` (with a virtual en
     ```bash
     python run.py
     ```
-3. Follow usage diagram:
-![Usage Diagram](assets/usage_diagram.png)
+3. Follow usage diagram: ![Usage Diagram](assets/usage_diagram.png)
