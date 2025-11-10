@@ -12,7 +12,6 @@ import pandas as pd
 import trackpy as tp
 import pims
 import matplotlib.pyplot as plt
-from .config_parser import get_config
 from .file_controller import FileController
 
 # Initialize file controller (will be set by main application)
@@ -41,7 +40,9 @@ def grayscale(frame):
     return (1 / 3.0) * red + (1 / 3.0) * green + (1 / 3.0) * blue
 
 
-def locate_particles(frame, feature_size=15, min_mass=100, invert=False, threshold=0):
+def locate_particles(
+    frame, feature_size=15, min_mass=100, invert=False, threshold=0
+):
     """
     Locates bright spots (particles) in a single grayscale frame.
 
@@ -73,7 +74,9 @@ def locate_particles(frame, feature_size=15, min_mass=100, invert=False, thresho
     return located_features
 
 
-def link_particles_to_trajectories(video_path, output_folder=None, params=None):
+def link_particles_to_trajectories(
+    video_path, output_folder=None, params=None
+):
     """
     Main function to detect particles in all frames and link them into trajectories.
 
@@ -96,7 +99,22 @@ def link_particles_to_trajectories(video_path, output_folder=None, params=None):
         - mass, size, ecc: particle properties
     """
     if params is None:
-        params = get_detection_params()
+        # Try to get params from file_controller's config_manager
+        if (
+            file_controller
+            and hasattr(file_controller, "config_manager")
+            and file_controller.config_manager
+        ):
+            params = file_controller.config_manager.get_detection_params()
+        else:
+            # Fallback to defaults
+            params = {
+                "feature_size": 15,
+                "min_mass": 100.0,
+                "invert": False,
+                "threshold": 0.0,
+                "scaling": 1.0,
+            }
 
     if output_folder is None:
         output_folder = file_controller.data_folder
@@ -161,7 +179,9 @@ def link_particles_to_trajectories(video_path, output_folder=None, params=None):
     memory = 10
 
     try:
-        trajectories = tp.link_df(particles, search_range=search_range, memory=memory)
+        trajectories = tp.link_df(
+            particles, search_range=search_range, memory=memory
+        )
     except Exception as e:
         print(f"Error in trajectory linking: {e}")
         return None
@@ -170,9 +190,13 @@ def link_particles_to_trajectories(video_path, output_folder=None, params=None):
 
     # Step 3: Filter short trajectories
     min_trajectory_length = 10
-    print(f"Filtering trajectories shorter than {min_trajectory_length} frames...")
+    print(
+        f"Filtering trajectories shorter than {min_trajectory_length} frames..."
+    )
 
-    trajectories_filtered = tp.filter_stubs(trajectories, min_trajectory_length)
+    trajectories_filtered = tp.filter_stubs(
+        trajectories, min_trajectory_length
+    )
 
     print(
         f"After filtering: {trajectories_filtered['particle'].nunique()} trajectories"
@@ -195,7 +219,9 @@ def link_particles_to_trajectories(video_path, output_folder=None, params=None):
         trajectories_final = trajectories_filtered
 
     # Step 5: Save results using FileController
-    file_controller.save_trajectories_data(trajectories_final, "trajectories.csv")
+    file_controller.save_trajectories_data(
+        trajectories_final, "trajectories.csv"
+    )
 
     return trajectories_final
 
@@ -252,7 +278,9 @@ def analyze_trajectories(trajectories_df, scaling=1.0, fps=30):
     print(f"Analysis complete:")
     print(f"  - {results['num_trajectories']} trajectories")
     print(f"  - {results['num_frames']} frames")
-    print(f"  - Mean trajectory length: {results['mean_trajectory_length']:.1f} frames")
+    print(
+        f"  - Mean trajectory length: {results['mean_trajectory_length']:.1f} frames"
+    )
 
     return results
 
@@ -318,7 +346,9 @@ def find_and_save_particles(image_paths, params=None, progress_callback=None):
     combined_features = pd.concat(all_features, ignore_index=True)
 
     if not combined_features.empty:
-        file_controller.save_particles_data(combined_features, "found_particles.csv")
+        file_controller.save_particles_data(
+            combined_features, "found_particles.csv"
+        )
 
     if progress_callback:
         progress_callback.emit("Done.")
@@ -326,7 +356,9 @@ def find_and_save_particles(image_paths, params=None, progress_callback=None):
     return combined_features
 
 
-def save_errant_particle_crops_for_frame(frame_number, particle_data_for_frame, params):
+def save_errant_particle_crops_for_frame(
+    frame_number, particle_data_for_frame, params
+):
     """
     Saves cropped images of the 10 most errant particles across ALL frames.
     Finds 5 most errant based on mass and 5 most errant based on feature size.
@@ -356,7 +388,9 @@ def save_errant_particle_crops_for_frame(frame_number, particle_data_for_frame, 
     if top_5_mass_particles.empty and top_5_size_particles.empty:
         return
 
-    file_controller.delete_all_files_in_folder(file_controller.particles_folder)
+    file_controller.delete_all_files_in_folder(
+        file_controller.particles_folder
+    )
     file_controller.ensure_folder_exists(file_controller.particles_folder)
 
     # Combine and process all 10 particles
@@ -407,7 +441,9 @@ def save_errant_particle_crops_for_frame(frame_number, particle_data_for_frame, 
         )
 
         # Save with frame number in filename
-        base_filename = f"mass_particle_{particle_counter}_frame_{frame_num:05d}"
+        base_filename = (
+            f"mass_particle_{particle_counter}_frame_{frame_num:05d}"
+        )
         particle_filename = os.path.join(
             file_controller.particles_folder, f"{base_filename}.png"
         )
@@ -471,7 +507,9 @@ def save_errant_particle_crops_for_frame(frame_number, particle_data_for_frame, 
         )
 
         # Save with frame number in filename
-        base_filename = f"size_particle_{particle_counter}_frame_{frame_num:05d}"
+        base_filename = (
+            f"size_particle_{particle_counter}_frame_{frame_num:05d}"
+        )
         particle_filename = os.path.join(
             file_controller.particles_folder, f"{base_filename}.png"
         )
@@ -518,10 +556,17 @@ def create_full_frame_rb_overlay(frame1, frame2, threshold_percent=50):
     height, width = frame1.shape[:2]
 
     # Get invert setting from detection parameters
-    from .config_parser import get_detection_params
-
-    detection_params = get_detection_params()
-    invert = detection_params.get("invert", False)
+    if (
+        file_controller
+        and hasattr(file_controller, "config_manager")
+        and file_controller.config_manager
+    ):
+        detection_params = (
+            file_controller.config_manager.get_detection_params()
+        )
+        invert = detection_params.get("invert", False)
+    else:
+        invert = False
 
     # Convert to grayscale for thresholding
     gray1 = cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY)
@@ -538,12 +583,20 @@ def create_full_frame_rb_overlay(frame1, frame2, threshold_percent=50):
     # Apply thresholding
     if invert:
         # Particles are bright on dark background
-        _, thresh1 = cv2.threshold(gray1, threshold_val1, 255, cv2.THRESH_BINARY_INV)
-        _, thresh2 = cv2.threshold(gray2, threshold_val2, 255, cv2.THRESH_BINARY_INV)
+        _, thresh1 = cv2.threshold(
+            gray1, threshold_val1, 255, cv2.THRESH_BINARY_INV
+        )
+        _, thresh2 = cv2.threshold(
+            gray2, threshold_val2, 255, cv2.THRESH_BINARY_INV
+        )
     else:
         # Particles are dark on bright background
-        _, thresh1 = cv2.threshold(gray1, threshold_val1, 255, cv2.THRESH_BINARY_INV)
-        _, thresh2 = cv2.threshold(gray2, threshold_val2, 255, cv2.THRESH_BINARY_INV)
+        _, thresh1 = cv2.threshold(
+            gray1, threshold_val1, 255, cv2.THRESH_BINARY_INV
+        )
+        _, thresh2 = cv2.threshold(
+            gray2, threshold_val2, 255, cv2.THRESH_BINARY_INV
+        )
 
     # Ensure background is white (255) and particles are dark (0)
     white_pixels1 = np.sum(thresh1 == 255)
@@ -555,7 +608,9 @@ def create_full_frame_rb_overlay(frame1, frame2, threshold_percent=50):
         thresh2 = cv2.bitwise_not(thresh2)
 
     # Create white background RGB image
-    rb_overlay = np.ones((height, width, 3), dtype=np.uint8) * 255  # White background
+    rb_overlay = (
+        np.ones((height, width, 3), dtype=np.uint8) * 255
+    )  # White background
 
     # Create colored versions for overlay
     # Frame 1: Red particles
@@ -580,7 +635,9 @@ def create_full_frame_rb_overlay(frame1, frame2, threshold_percent=50):
     # Overlay at 50% opacity: blend red and blue
     # Formula: result = alpha * image1 + (1 - alpha) * image2
     alpha = 0.5
-    rb_overlay = (alpha * red_overlay + (1 - alpha) * blue_overlay).astype(np.uint8)
+    rb_overlay = (alpha * red_overlay + (1 - alpha) * blue_overlay).astype(
+        np.uint8
+    )
 
     # Convert BGR to RGB for return
     rb_overlay_rgb = cv2.cvtColor(rb_overlay, cv2.COLOR_BGR2RGB)
@@ -623,10 +680,17 @@ def create_rb_overlay_image(
         crop2 = cv2.resize(crop2, target_size)
 
     # Get invert setting from detection parameters
-    from .config_parser import get_detection_params
-
-    detection_params = get_detection_params()
-    invert = detection_params.get("invert", False)
+    if (
+        file_controller
+        and hasattr(file_controller, "config_manager")
+        and file_controller.config_manager
+    ):
+        detection_params = (
+            file_controller.config_manager.get_detection_params()
+        )
+        invert = detection_params.get("invert", False)
+    else:
+        invert = False
 
     # Convert to grayscale for thresholding
     gray1 = cv2.cvtColor(crop1, cv2.COLOR_BGR2GRAY)
@@ -648,15 +712,23 @@ def create_rb_overlay_image(
     if invert:
         # Particles are bright on dark background
         # Top X% brightest pixels become dark (0), rest becomes white (255)
-        _, thresh1 = cv2.threshold(gray1, threshold_val1, 255, cv2.THRESH_BINARY_INV)
-        _, thresh2 = cv2.threshold(gray2, threshold_val2, 255, cv2.THRESH_BINARY_INV)
+        _, thresh1 = cv2.threshold(
+            gray1, threshold_val1, 255, cv2.THRESH_BINARY_INV
+        )
+        _, thresh2 = cv2.threshold(
+            gray2, threshold_val2, 255, cv2.THRESH_BINARY_INV
+        )
     else:
         # Particles are dark on bright background
         # Top X% brightest pixels become dark (0), rest becomes white (255)
         # We want to threshold so that pixels BRIGHTER than threshold become dark
         # This means: values > threshold become dark (0), rest becomes white (255)
-        _, thresh1 = cv2.threshold(gray1, threshold_val1, 255, cv2.THRESH_BINARY_INV)
-        _, thresh2 = cv2.threshold(gray2, threshold_val2, 255, cv2.THRESH_BINARY_INV)
+        _, thresh1 = cv2.threshold(
+            gray1, threshold_val1, 255, cv2.THRESH_BINARY_INV
+        )
+        _, thresh2 = cv2.threshold(
+            gray2, threshold_val2, 255, cv2.THRESH_BINARY_INV
+        )
 
     # Ensure background is white (255) and particles are dark (0)
     # Check if we need to invert based on which is more common (white background should be majority)
@@ -697,7 +769,9 @@ def create_rb_overlay_image(
     # Overlay at 50% opacity: blend blue and red
     # Formula: result = alpha * image1 + (1 - alpha) * image2
     alpha = 0.5
-    rb_overlay = (alpha * blue_overlay + (1 - alpha) * red_overlay).astype(np.uint8)
+    rb_overlay = (alpha * blue_overlay + (1 - alpha) * red_overlay).astype(
+        np.uint8
+    )
 
     # Convert BGR to RGB for return
     rb_overlay_rgb = cv2.cvtColor(rb_overlay, cv2.COLOR_BGR2RGB)
@@ -743,8 +817,12 @@ def create_rb_gallery(
     """
     # Check if file_controller is available
     if file_controller is None:
-        print("❌ ERROR: file_controller is not set! Cannot create RB gallery.")
-        print("   Make sure particle_processing.set_file_controller() was called.")
+        print(
+            "❌ ERROR: file_controller is not set! Cannot create RB gallery."
+        )
+        print(
+            "   Make sure particle_processing.set_file_controller() was called."
+        )
         return
 
     if output_folder is None:
@@ -773,9 +851,22 @@ def create_rb_gallery(
         return
 
     # Get linking parameters if not provided
-    from .config_parser import get_linking_params
-
-    linking_params = get_linking_params()
+    if (
+        file_controller
+        and hasattr(file_controller, "config_manager")
+        and file_controller.config_manager
+    ):
+        linking_params = file_controller.config_manager.get_linking_params()
+    else:
+        # Fallback to defaults
+        linking_params = {
+            "search_range": 10,
+            "memory": 10,
+            "min_trajectory_length": 10,
+            "fps": 30.0,
+            "max_speed": 100.0,
+            "max_displays": 5,
+        }
     if search_range is None:
         search_range = float(linking_params.get("search_range", 10))
     if memory is None:
@@ -784,7 +875,9 @@ def create_rb_gallery(
     if max_displays is None:
         max_displays = int(linking_params.get("max_displays", 5))
 
-    print(f"📊 Creating RB gallery with search_range={search_range}, memory={memory}")
+    print(
+        f"📊 Creating RB gallery with search_range={search_range}, memory={memory}"
+    )
     print(f"📊 Showing top {max_displays} worst links per frame pair")
     print(f"📊 Total trajectories: {trajectories['particle'].nunique()}")
     print(f"📊 Total trajectory points: {len(trajectories)}")
@@ -829,8 +922,12 @@ def create_rb_gallery(
 
             # Score for this individual link
             # Higher score = worse link (more deviation from expected parameters)
-            excess_gap = max(0, (frame_gap - 1) - memory) if frame_gap > 1 else 0
-            link_score = (jump_dist - search_range) * 10 + deviation + excess_gap * 5
+            excess_gap = (
+                max(0, (frame_gap - 1) - memory) if frame_gap > 1 else 0
+            )
+            link_score = (
+                (jump_dist - search_range) * 10 + deviation + excess_gap * 5
+            )
 
             # Skip if link_score is NaN or invalid
             if np.isnan(link_score) or not np.isfinite(link_score):
@@ -890,9 +987,7 @@ def create_rb_gallery(
             "   ⚠️  WARNING: No links found! Check if trajectories have at least 2 frames each."
         )
 
-    crop_size = (
-        200  # Size of the crop around each particle (increased for better context)
-    )
+    crop_size = 200  # Size of the crop around each particle (increased for better context)
 
     # Create RB overlay for each worst link showing the actual problem frames
     print(f"🖼️  Creating RB overlay images for {len(top_links)} links...")
@@ -907,15 +1002,21 @@ def create_rb_gallery(
 
         # Load the two frames where the bad link occurred
         # Construct filenames from frame numbers (not array indices)
-        frame1_filename = os.path.join(frames_folder, f"frame_{frame_i:05d}.jpg")
-        frame2_filename = os.path.join(frames_folder, f"frame_{frame_i1:05d}.jpg")
+        frame1_filename = os.path.join(
+            frames_folder, f"frame_{frame_i:05d}.jpg"
+        )
+        frame2_filename = os.path.join(
+            frames_folder, f"frame_{frame_i1:05d}.jpg"
+        )
 
         try:
             frame1 = cv2.imread(frame1_filename)
             frame2 = cv2.imread(frame2_filename)
 
             if frame1 is None or frame2 is None:
-                print(f"    ⚠️  Warning: Could not load frames {frame_i} or {frame_i1}")
+                print(
+                    f"    ⚠️  Warning: Could not load frames {frame_i} or {frame_i1}"
+                )
                 print(
                     f"       Frame1 path: {frame1_filename} (exists: {os.path.exists(frame1_filename)})"
                 )
@@ -961,7 +1062,9 @@ def create_rb_gallery(
             )
 
             # Save the RB overlay image (convert RGB back to BGR for OpenCV save)
-            base_filename = f"particle_{particle_id}_link_{frame_i}_to_{frame_i1}"
+            base_filename = (
+                f"particle_{particle_id}_link_{frame_i}_to_{frame_i1}"
+            )
             output_filename = os.path.join(
                 output_folder, f"{base_filename}_rb_overlay.png"
             )
@@ -1019,7 +1122,9 @@ Memory: {memory} frames
 Link Score: {link_info['score']:.2f} (higher = worse)"""
 
             # Save .txt file
-            metadata_filename = os.path.join(output_folder, f"{base_filename}.txt")
+            metadata_filename = os.path.join(
+                output_folder, f"{base_filename}.txt"
+            )
             try:
                 with open(metadata_filename, "w") as f:
                     f.write(metadata_text)
@@ -1037,14 +1142,23 @@ Link Score: {link_info['score']:.2f} (higher = worse)"""
     print(f"✅ RB gallery created in: {output_folder}")
     print(f"✅ Processed {len(top_links)} worst trajectory links")
     if len(top_links) == 0:
-        print(f"⚠️  No trajectory links found (need at least 2 frames per particle)")
+        print(
+            f"⚠️  No trajectory links found (need at least 2 frames per particle)"
+        )
     else:
-        print(f"✅ Created {len(top_links)} RB overlay images with metadata files")
-        print(f"   Showing the {len(top_links)} worst links ranked by deviation score")
+        print(
+            f"✅ Created {len(top_links)} RB overlay images with metadata files"
+        )
+        print(
+            f"   Showing the {len(top_links)} worst links ranked by deviation score"
+        )
 
 
 def annotate_frame(
-    frame_number, particle_data_df, feature_size, highlighted_particle_index=None
+    frame_number,
+    particle_data_df,
+    feature_size,
+    highlighted_particle_index=None,
 ):
     """
     Annotates a single frame using pre-existing particle data and saves it.
@@ -1074,14 +1188,19 @@ def annotate_frame(
         file_controller.original_frames_folder, f"frame_{frame_number:05d}.jpg"
     )
     annotated_frame_path = os.path.join(
-        file_controller.annotated_frames_folder, f"frame_{frame_number:05d}.jpg"
+        file_controller.annotated_frames_folder,
+        f"frame_{frame_number:05d}.jpg",
     )
 
     # Ensure annotated frames folder exists
-    file_controller.ensure_folder_exists(file_controller.annotated_frames_folder)
+    file_controller.ensure_folder_exists(
+        file_controller.annotated_frames_folder
+    )
 
     # Filter particles for the current frame
-    frame_particles = particle_data_df[particle_data_df["frame"] == frame_number]
+    frame_particles = particle_data_df[
+        particle_data_df["frame"] == frame_number
+    ]
 
     # If particles are found for this frame, create and save the annotated image
     if not frame_particles.empty:
@@ -1108,15 +1227,3 @@ def annotate_frame(
         os.remove(annotated_frame_path)
 
     return None
-
-
-if __name__ == "__main__":
-    # Example usage
-    video_path = "path/to/your/video.avi"
-    trajectories = link_particles_to_trajectories(video_path)
-
-    if trajectories is not None:
-        analysis = analyze_trajectories(trajectories)
-        print("Trajectory linking and analysis complete!")
-    else:
-        print("Trajectory linking failed!")

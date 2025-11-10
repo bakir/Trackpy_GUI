@@ -1,9 +1,29 @@
+"""
+Export Helper Module
+
+Description: Utility functions for exporting data files (CSV, pickle).
+"""
+
 import os
 import pandas as pd
 from PySide6.QtWidgets import QFileDialog, QMessageBox
 
 
 def export_data(parent, file_controller, source_filename, target_format):
+    """
+    Export data file to user-specified location.
+
+    Parameters
+    ----------
+    parent : QWidget
+        Parent widget for dialogs
+    file_controller : FileController
+        File controller instance
+    source_filename : str
+        Name of source file in data folder
+    target_format : str
+        Export format ('csv' or 'pkl')
+    """
     if not file_controller:
         QMessageBox.warning(parent, "Error", "File controller not set.")
         return
@@ -13,7 +33,9 @@ def export_data(parent, file_controller, source_filename, target_format):
 
     if not os.path.exists(source_file_path):
         QMessageBox.warning(
-            parent, "Error", f"Could not find selected data file: {source_filename}"
+            parent,
+            "Error",
+            f"Could not find selected data file: {source_filename}",
         )
         return
 
@@ -27,7 +49,9 @@ def export_data(parent, file_controller, source_filename, target_format):
         )
         return
 
-    default_name = f"{os.path.splitext(source_filename)[0]}_export.{target_format}"
+    default_name = (
+        f"{os.path.splitext(source_filename)[0]}_export.{target_format}"
+    )
     save_path, _ = QFileDialog.getSaveFileName(
         parent,
         f"Export {target_format.upper()} Data",

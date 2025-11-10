@@ -47,7 +47,9 @@ class ErrantParticleGalleryWidget(QWidget):
         self.particle_frames = {}  # index -> frame_number
         self.particle_positions = {}  # index -> (x, y)
         self.current_frame_number = -1
-        self.highlighted_frame = -1  # Frame that was highlighted via button press
+        self.highlighted_frame = (
+            -1
+        )  # Frame that was highlighted via button press
 
         # info
         self.info_label = QLabel("Info")
@@ -64,15 +66,21 @@ class ErrantParticleGalleryWidget(QWidget):
         self.next_frame_button = QPushButton("->")
         self.prev_frame_button.clicked.connect(self.prev_particle)
         self.next_frame_button.clicked.connect(self.next_particle)
-        self.frame_number_display.returnPressed.connect(self._jump_to_input_particle)
-        self.frame_number_display.editingFinished.connect(self._jump_to_input_particle)
+        self.frame_number_display.returnPressed.connect(
+            self._jump_to_input_particle
+        )
+        self.frame_number_display.editingFinished.connect(
+            self._jump_to_input_particle
+        )
         self.frame_nav_layout.addWidget(self.prev_frame_button)
         self.frame_nav_layout.addWidget(self.frame_number_display)
         self.frame_nav_layout.addWidget(self.next_frame_button)
 
         # Add "Show particle on frame" button
         self.show_particle_button = QPushButton("Show particle on frame")
-        self.show_particle_button.clicked.connect(self._on_show_particle_clicked)
+        self.show_particle_button.clicked.connect(
+            self._on_show_particle_clicked
+        )
         self.frame_nav_layout.addWidget(self.show_particle_button)
 
         self.layout.addLayout(self.frame_nav_layout)
@@ -114,7 +122,9 @@ class ErrantParticleGalleryWidget(QWidget):
         """Clears all displayed errant particles and deletes the corresponding files."""
         if self.file_controller:
             try:
-                self.file_controller.delete_all_files_in_folder(self.particles_dir)
+                self.file_controller.delete_all_files_in_folder(
+                    self.particles_dir
+                )
                 self.particle_files = []
                 self.curr_particle_idx = 0
                 self._display_particle(self.curr_particle_idx)
@@ -215,7 +225,9 @@ class ErrantParticleGalleryWidget(QWidget):
                                 pass
                         elif line.startswith("feature_size:"):
                             try:
-                                feature_size = float(line.split(":")[1].strip())
+                                feature_size = float(
+                                    line.split(":")[1].strip()
+                                )
                             except (ValueError, IndexError):
                                 pass
                         elif line.startswith("parameter_feature_size:"):
@@ -228,9 +240,12 @@ class ErrantParticleGalleryWidget(QWidget):
 
                     # Build display text - only show mass/min_mass or feature_size/parameter_feature_size
                     if mass is not None and min_mass is not None:
-                        display_text = f"mass: {mass:.2f}\nmin_mass: {min_mass:.2f}"
+                        display_text = (
+                            f"mass: {mass:.2f}\nmin_mass: {min_mass:.2f}"
+                        )
                     elif (
-                        feature_size is not None and parameter_feature_size is not None
+                        feature_size is not None
+                        and parameter_feature_size is not None
                     ):
                         display_text = f"feature_size: {feature_size:.2f}\nparameter_feature_size: {parameter_feature_size:.2f}"
 
@@ -259,12 +274,16 @@ class ErrantParticleGalleryWidget(QWidget):
         """Handle click on 'Show particle on frame' button."""
         if 0 <= self.curr_particle_idx < len(self.particle_files):
             frame_num = self.particle_frames.get(self.curr_particle_idx, -1)
-            position = self.particle_positions.get(self.curr_particle_idx, None)
+            position = self.particle_positions.get(
+                self.curr_particle_idx, None
+            )
             if frame_num >= 0 and position is not None:
                 particle_x, particle_y = position
                 # Set the highlighted frame to trigger background color change
                 self.highlighted_frame = frame_num
-                self.show_particle_on_frame.emit(frame_num, particle_x, particle_y)
+                self.show_particle_on_frame.emit(
+                    frame_num, particle_x, particle_y
+                )
                 # Update background highlighting
                 self._update_background_highlighting()
 
@@ -274,7 +293,10 @@ class ErrantParticleGalleryWidget(QWidget):
         self.current_frame_number = frame_number
 
         # If frame changed (and it wasn't changed by the button), clear highlighted frame
-        if old_frame != frame_number and frame_number != self.highlighted_frame:
+        if (
+            old_frame != frame_number
+            and frame_number != self.highlighted_frame
+        ):
             self.highlighted_frame = -1
 
         self._update_background_highlighting()
@@ -290,7 +312,9 @@ class ErrantParticleGalleryWidget(QWidget):
             and self.current_frame_number == self.highlighted_frame
             and 0 <= self.curr_particle_idx < len(self.particle_files)
         ):
-            particle_frame = self.particle_frames.get(self.curr_particle_idx, -1)
+            particle_frame = self.particle_frames.get(
+                self.curr_particle_idx, -1
+            )
             if particle_frame == self.highlighted_frame:
                 # Current frame has this errant particle and was highlighted - blue background
                 self.photo_label.setStyleSheet(
@@ -310,7 +334,10 @@ class ErrantParticleGalleryWidget(QWidget):
     def resizeEvent(self, event):
         """Ensure the currently shown image keeps aspect ratio on resize."""
         super().resizeEvent(event)
-        if self.current_pixmap is not None and not self.current_pixmap.isNull():
+        if (
+            self.current_pixmap is not None
+            and not self.current_pixmap.isNull()
+        ):
             # Fixed 200x200 size
             scaled = self.current_pixmap.scaled(
                 200,

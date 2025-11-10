@@ -15,7 +15,9 @@ from .config_manager import ConfigManager
 class FileController:
     """Centralized controller for all file and folder operations."""
 
-    def __init__(self, config_manager: ConfigManager, project_path: str = None):
+    def __init__(
+        self, config_manager: ConfigManager, project_path: str = None
+    ):
         """
         Initialize the file controller with configuration.
 
@@ -75,7 +77,9 @@ class FileController:
         except Exception as e:
             print(f"Error cleaning folder {folder_path}: {e}")
 
-    def cleanup_temp_folders(self, include_errant_particles: bool = False) -> None:
+    def cleanup_temp_folders(
+        self, include_errant_particles: bool = False
+    ) -> None:
         """Clean up temporary folders.
 
         Parameters
@@ -103,7 +107,11 @@ class FileController:
                         ]
                     )
                     dir_count = len(
-                        [d for d in all_items if os.path.isdir(os.path.join(folder, d))]
+                        [
+                            d
+                            for d in all_items
+                            if os.path.isdir(os.path.join(folder, d))
+                        ]
                     )
                     print(
                         f"Found {file_count} files and {dir_count} directories in {folder}"
@@ -120,7 +128,9 @@ class FileController:
                                 shutil.rmtree(item_path)
                                 print(f"Removed directory: {item_path}")
                             except Exception as e:
-                                print(f"Error removing directory {item_path}: {e}")
+                                print(
+                                    f"Error removing directory {item_path}: {e}"
+                                )
 
                     print(f"Successfully cleaned up {folder}")
                 else:
@@ -159,7 +169,9 @@ class FileController:
         print(f"Saved trajectories data to: {file_path}")
         return file_path
 
-    def load_particles_data(self, filename: str = "all_particles.csv") -> pd.DataFrame:
+    def load_particles_data(
+        self, filename: str = "all_particles.csv"
+    ) -> pd.DataFrame:
         """Load particles data from the data folder."""
         file_path = os.path.join(self.data_folder, filename)
         if os.path.exists(file_path):
@@ -179,14 +191,6 @@ class FileController:
             print(f"Trajectories file not found: {file_path}")
             return pd.DataFrame()
 
-    def save_errant_particle_image(self, image_data, filename: str) -> str:
-        """Save an errant particle image to the particles folder."""
-        self.ensure_folder_exists(self.particles_folder)
-        file_path = os.path.join(self.particles_folder, filename)
-        # This would need to be implemented based on the image data format
-        # For now, just return the path
-        return file_path
-
     def create_rb_gallery_folder(self) -> str:
         """Create and return the RB gallery folder path."""
         self.ensure_folder_exists(self.rb_gallery_folder)
@@ -194,7 +198,9 @@ class FileController:
 
     def get_frame_path(self, frame_index: int) -> str:
         """Get the path for a specific frame."""
-        return os.path.join(self.original_frames_folder, f"frame_{frame_index:05d}.jpg")
+        return os.path.join(
+            self.original_frames_folder, f"frame_{frame_index:05d}.jpg"
+        )
 
     def get_annotated_frame_path(self, frame_index: int) -> str:
         """Get the path for a specific annotated frame."""

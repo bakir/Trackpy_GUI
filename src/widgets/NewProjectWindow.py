@@ -78,7 +78,9 @@ class NewProjectWindow(QDialog):
         # Project folder selection
         folder_layout = QHBoxLayout()
         self.folder_path_edit = QLineEdit()
-        self.folder_path_edit.setPlaceholderText("Select parent folder for project...")
+        self.folder_path_edit.setPlaceholderText(
+            "Select parent folder for project..."
+        )
         self.folder_path_edit.setReadOnly(True)
         self.folder_path_edit.setStyleSheet(
             """
@@ -233,11 +235,15 @@ class NewProjectWindow(QDialog):
 
         # Validate inputs
         if not project_name:
-            QMessageBox.warning(self, "Invalid Input", "Please enter a project name.")
+            QMessageBox.warning(
+                self, "Invalid Input", "Please enter a project name."
+            )
             return
 
         if not parent_folder:
-            QMessageBox.warning(self, "Invalid Input", "Please select a parent folder.")
+            QMessageBox.warning(
+                self, "Invalid Input", "Please select a parent folder."
+            )
             return
 
         # Check if parent folder exists and is writable

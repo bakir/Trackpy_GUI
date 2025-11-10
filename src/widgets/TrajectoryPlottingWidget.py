@@ -7,28 +7,22 @@ Description: GUI widget for displaying trajectory plots, filtering plots, and
 """
 
 from PySide6.QtWidgets import (
-    QWidget, 
-    QLabel, 
-    QVBoxLayout, 
-    QHBoxLayout, 
-    QPushButton
+    QWidget,
+    QLabel,
+    QVBoxLayout,
+    QHBoxLayout,
+    QPushButton,
 )
 from PySide6.QtCore import Qt
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qtagg import FigureCanvas
 from matplotlib.figure import Figure
-import sys
-import os
-
-sys.path.append(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-)
-from .. import particle_processing
-from ..config_parser import *
 import os
 from copy import copy
+from .. import particle_processing
 
 from .GraphingUtils import *
+
 
 class TrajectoryPlottingWidget(GraphingPanelWidget):
     def __init__(self, parent=None):
@@ -44,13 +38,21 @@ class TrajectoryPlottingWidget(GraphingPanelWidget):
         self.trajectories = QWidget()
         self.trajectory_layout = QVBoxLayout(self.trajectories)
         self.trajectory_label = QLabel("Trajectories")
-        self.trajectory_layout.addWidget(self.trajectory_label, alignment=Qt.AlignTop)
+        self.trajectory_layout.addWidget(
+            self.trajectory_label, alignment=Qt.AlignTop
+        )
 
         self.trajectory_button = GraphingButton(
             text="Plot Trajectories", parent=self
         )
-        self.trajectory_button.clicked.connect(lambda: self.self_plot(self.get_trajectories, self.trajectory_button))
-        self.trajectory_layout.addWidget(self.trajectory_button, alignment=Qt.AlignTop)
+        self.trajectory_button.clicked.connect(
+            lambda: self.self_plot(
+                self.get_trajectories, self.trajectory_button
+            )
+        )
+        self.trajectory_layout.addWidget(
+            self.trajectory_button, alignment=Qt.AlignTop
+        )
 
         self.button_layout.addWidget(self.trajectories)
         self.trajectory_layout.addStretch(1)
@@ -64,10 +66,10 @@ class TrajectoryPlottingWidget(GraphingPanelWidget):
         self.drift_label = QLabel("Drift")
         self.drift_layout.addWidget(self.drift_label, alignment=Qt.AlignTop)
 
-        self.drift_button = GraphingButton(
-            text="Plot Drift", parent=self
+        self.drift_button = GraphingButton(text="Plot Drift", parent=self)
+        self.drift_button.clicked.connect(
+            lambda: self.self_plot(self.get_drift, self.drift_button)
         )
-        self.drift_button.clicked.connect(lambda: self.self_plot(self.get_drift, self.drift_button))
         self.drift_layout.addWidget(self.drift_button, alignment=Qt.AlignTop)
 
         self.button_layout.addWidget(self.drift)

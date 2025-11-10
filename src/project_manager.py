@@ -58,24 +58,13 @@ class ProjectManager:
                 folder_path = os.path.join(project_folder_path, folder)
                 os.makedirs(folder_path, exist_ok=True)
 
-            # Copy template config to project folder
-            template_config_path = os.path.join(
-                os.path.dirname(__file__), "..", "template_config.ini"
+            # Create default config for project
+            project_config_path = os.path.join(
+                project_folder_path, "config.ini"
             )
-            project_config_path = os.path.join(project_folder_path, "config.ini")
-
-            if os.path.exists(template_config_path):
-                shutil.copy2(template_config_path, project_config_path)
-
-                # Update paths in project config to be relative to project folder
-                self._update_project_config_paths(
-                    project_config_path, project_folder_path
-                )
-            else:
-                # Create default config if template doesn't exist
-                self._create_default_project_config(
-                    project_config_path, project_folder_path
-                )
+            self._create_default_project_config(
+                project_config_path, project_folder_path
+            )
 
             # Create project info file
             self._create_project_info(project_folder_path, project_name)
@@ -108,7 +97,9 @@ class ProjectManager:
                 print(f"Project folder does not exist: {project_folder_path}")
                 return False
 
-            project_config_path = os.path.join(project_folder_path, "config.ini")
+            project_config_path = os.path.join(
+                project_folder_path, "config.ini"
+            )
             if not os.path.exists(project_config_path):
                 print(f"Project config file not found: {project_config_path}")
                 return False
@@ -144,12 +135,16 @@ class ProjectManager:
             "annotated_frames": os.path.join(
                 self.current_project_path, "annotated_frames"
             ),
-            "rb_gallery": os.path.join(self.current_project_path, "rb_gallery"),
+            "rb_gallery": os.path.join(
+                self.current_project_path, "rb_gallery"
+            ),
             "data": os.path.join(self.current_project_path, "data"),
             "videos": os.path.join(self.current_project_path, "videos"),
         }
 
-    def _update_project_config_paths(self, config_path: str, project_path: str):
+    def _update_project_config_paths(
+        self, config_path: str, project_path: str
+    ):
         """Update config file paths to be absolute paths relative to project folder."""
         import configparser
 
@@ -180,7 +175,9 @@ class ProjectManager:
         with open(config_path, "w") as f:
             config.write(f)
 
-    def _create_default_project_config(self, config_path: str, project_path: str):
+    def _create_default_project_config(
+        self, config_path: str, project_path: str
+    ):
         """Create a default config file for the project with absolute paths."""
         import configparser
 
@@ -201,16 +198,19 @@ class ProjectManager:
                 os.path.join(project_path, "rb_gallery")
             ),
             "data_folder": os.path.abspath(os.path.join(project_path, "data")),
-            "videos_folder": os.path.abspath(os.path.join(project_path, "videos")),
+            "videos_folder": os.path.abspath(
+                os.path.join(project_path, "videos")
+            ),
         }
 
         # Detection section
         config["Detection"] = {
-            "feature_size": "27",
-            "min_mass": "1300.0",
+            "feature_size": "15",
+            "min_mass": "100.0",
             "invert": "false",
             "threshold": "0.0",
             "frame_idx": "0",
+            "scaling": "1.0",
         }
 
         # Linking section
@@ -219,7 +219,6 @@ class ProjectManager:
             "memory": "10",
             "min_trajectory_length": "10",
             "fps": "30.0",
-            "scaling": "1.0",
             "max_speed": "100.0",
         }
 
@@ -246,15 +245,3 @@ Path: {project_path}
         info_path = os.path.join(project_path, "README.md")
         with open(info_path, "w") as f:
             f.write(info_content)
-
-    def list_recent_projects(self, max_projects: int = 5) -> list:
-        """List recent projects (placeholder for future implementation)."""
-        # This could be implemented to track recent projects
-        # For now, return empty list
-        return []
-
-    def close_project(self):
-        """Close the current project."""
-        self.current_project_path = None
-        self.current_project_config = None
-        print("Project closed")

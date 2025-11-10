@@ -16,16 +16,10 @@ from PySide6.QtWidgets import (
     QSpinBox,
     QDoubleSpinBox,
     QPushButton,
-    QCheckBox
+    QCheckBox,
 )
 from PySide6.QtCore import Qt, Signal
-import sys
 import os
-
-sys.path.append(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-)
-from ..config_parser import *
 from .. import particle_processing
 import pandas as pd
 
@@ -80,12 +74,6 @@ class LinkingParametersWidget(QWidget):
         self.fps_input.setSingleStep(1.0)
         self.fps_input.setToolTip("Frames per second of the video.")
 
-        self.scaling_input = QDoubleSpinBox()
-        self.scaling_input.setDecimals(6)
-        self.scaling_input.setRange(0.000001, 1000.0)
-        self.scaling_input.setSingleStep(0.1)
-        self.scaling_input.setToolTip("Microns per pixel (calibration).")
-
         self.max_speed_input = QDoubleSpinBox()
         self.max_speed_input.setDecimals(2)
         self.max_speed_input.setRange(0.1, 10000.0)
@@ -98,9 +86,10 @@ class LinkingParametersWidget(QWidget):
 
         self.form.addRow("Search range", self.search_range_input)
         self.form.addRow("Memory", self.memory_input)
-        self.form.addRow("Min trajectory length", self.min_trajectory_length_input)
+        self.form.addRow(
+            "Min trajectory length", self.min_trajectory_length_input
+        )
         self.form.addRow("FPS", self.fps_input)
-        self.form.addRow("Scaling (μm/pixel)", self.scaling_input)
         self.form.addRow("Max speed (μm/s)", self.max_speed_input)
         self.form.addRow("Subtract Drift", self.sub_drift)
 
@@ -117,7 +106,9 @@ class LinkingParametersWidget(QWidget):
 
         self.back_button = QPushButton("Back")
         self.back_button.clicked.connect(self.go_back)
-        self.buttons_layout.addWidget(self.back_button, alignment=Qt.AlignRight)
+        self.buttons_layout.addWidget(
+            self.back_button, alignment=Qt.AlignRight
+        )
 
         self.layout.addLayout(self.buttons_layout)
 
@@ -127,49 +118,57 @@ class LinkingParametersWidget(QWidget):
         # Save on Enter / editing finished
         self.search_range_input.editingFinished.connect(self.save_params)
         self.memory_input.editingFinished.connect(self.save_params)
-        self.min_trajectory_length_input.editingFinished.connect(self.save_params)
+        self.min_trajectory_length_input.editingFinished.connect(
+            self.save_params
+        )
         self.fps_input.editingFinished.connect(self.save_params)
-        self.scaling_input.editingFinished.connect(self.save_params)
         self.max_speed_input.editingFinished.connect(self.save_params)
         # Also catch Return in the embedded line edits
-        self.search_range_input.lineEdit().returnPressed.connect(self.save_params)
+        self.search_range_input.lineEdit().returnPressed.connect(
+            self.save_params
+        )
         self.memory_input.lineEdit().returnPressed.connect(self.save_params)
         self.min_trajectory_length_input.lineEdit().returnPressed.connect(
             self.save_params
         )
         self.fps_input.lineEdit().returnPressed.connect(self.save_params)
-        self.scaling_input.lineEdit().returnPressed.connect(self.save_params)
         self.max_speed_input.lineEdit().returnPressed.connect(self.save_params)
 
     def set_config_manager(self, config_manager):
         """Set the config manager for this widget."""
         self.config_manager = config_manager
+        # Reload parameters from config when config_manager is set
+        self.load_params()
 
     def set_file_controller(self, file_controller):
         """Set the file controller for this widget."""
         self.file_controller = file_controller
 
     def load_params(self):
-        params = get_linking_params()
+        if not self.config_manager:
+            return
+        params = self.config_manager.get_linking_params()
         self.search_range_input.setValue(int(params.get("search_range", 10)))
         self.memory_input.setValue(int(params.get("memory", 10)))
         self.min_trajectory_length_input.setValue(
             int(params.get("min_trajectory_length", 10))
         )
         self.fps_input.setValue(float(params.get("fps", 30.0)))
-        self.scaling_input.setValue(float(params.get("scaling", 1.0)))
         self.max_speed_input.setValue(float(params.get("max_speed", 100.0)))
 
     def save_params(self):
+        if not self.config_manager:
+            return
         params = {
             "search_range": int(self.search_range_input.value()),
             "memory": int(self.memory_input.value()),
-            "min_trajectory_length": int(self.min_trajectory_length_input.value()),
+            "min_trajectory_length": int(
+                self.min_trajectory_length_input.value()
+            ),
             "fps": float(self.fps_input.value()),
-            "scaling": float(self.scaling_input.value()),
             "max_speed": float(self.max_speed_input.value()),
         }
-        save_linking_params(params)
+        self.config_manager.save_linking_params(params)
 
     def find_trajectories(self):
         """Load detected particles and link them into trajectories."""
@@ -177,7 +176,9 @@ class LinkingParametersWidget(QWidget):
         self.save_params()
 
         # Get linking parameters
-        linking_params = get_linking_params()
+        if not self.config_manager:
+            return
+        linking_params = self.config_manager.get_linking_params()
 
         # Use injected file controller if available
         if self.file_controller:
@@ -187,11 +188,8 @@ class LinkingParametersWidget(QWidget):
             if self.config_manager:
                 data_folder = self.config_manager.get_path("data_folder")
             else:
-                # Fall back to global config
-                from ..config_parser import get_config
-
-                config = get_config()
-                data_folder = config.get("data_folder", "data/")
+                # Fall back to default
+                data_folder = "data/"
 
         # Check if particles file exists
         particles_file = os.path.join(data_folder, "all_particles.csv")
@@ -214,7 +212,9 @@ class LinkingParametersWidget(QWidget):
             # Get linking parameters
             search_range = int(linking_params.get("search_range", 10))
             memory = int(linking_params.get("memory", 10))
-            min_trajectory_length = int(linking_params.get("min_trajectory_length", 10))
+            min_trajectory_length = int(
+                linking_params.get("min_trajectory_length", 10)
+            )
 
             print(
                 f"Linking particles with search_range={search_range}, memory={memory}"
@@ -222,7 +222,9 @@ class LinkingParametersWidget(QWidget):
 
             # Link particles into trajectories
             trajectories = tp.link_df(
-                self.detected_particles, search_range=search_range, memory=memory
+                self.detected_particles,
+                search_range=search_range,
+                memory=memory,
             )
 
             print(f"Created {trajectories['particle'].nunique()} trajectories")
@@ -231,7 +233,9 @@ class LinkingParametersWidget(QWidget):
             print(
                 f"Filtering trajectories shorter than {min_trajectory_length} frames..."
             )
-            trajectories_filtered = tp.filter_stubs(trajectories, min_trajectory_length)
+            trajectories_filtered = tp.filter_stubs(
+                trajectories, min_trajectory_length
+            )
 
             print(
                 f"After filtering: {trajectories_filtered['particle'].nunique()} trajectories"
@@ -240,16 +244,22 @@ class LinkingParametersWidget(QWidget):
             if self.sub_drift.isChecked():
                 # Remove drift
                 drift = tp.compute_drift(trajectories_filtered)
-                drift_subtracted = tp.subtract_drift(trajectories_filtered.copy(), drift)
+                drift_subtracted = tp.subtract_drift(
+                    trajectories_filtered.copy(), drift
+                )
 
                 # Fix dataframe index level groupings that tp.subtract_drift creates
-                if 'particle' in drift_subtracted.columns:
-                    drift_subtracted = drift_subtracted.drop(columns=['particle']) 
+                if "particle" in drift_subtracted.columns:
+                    drift_subtracted = drift_subtracted.drop(
+                        columns=["particle"]
+                    )
 
-                if 'frame' in drift_subtracted.columns:
-                    drift_subtracted = drift_subtracted.drop(columns=['frame'])
-                    
-                trajectories_filtered = drift_subtracted.reset_index(drop=False)
+                if "frame" in drift_subtracted.columns:
+                    drift_subtracted = drift_subtracted.drop(columns=["frame"])
+
+                trajectories_filtered = drift_subtracted.reset_index(
+                    drop=False
+                )
 
             # Store the linked trajectories
             self.linked_trajectories = trajectories_filtered
@@ -260,7 +270,9 @@ class LinkingParametersWidget(QWidget):
             print(f"Saved trajectories to: {trajectories_file}")
 
             # Create trajectory visualization
-            self.create_trajectory_visualization(trajectories_filtered, data_folder)
+            self.create_trajectory_visualization(
+                trajectories_filtered, data_folder
+            )
 
             # Create RB gallery for trajectory validation
             self.create_rb_gallery(trajectories_file, data_folder)
@@ -270,7 +282,9 @@ class LinkingParametersWidget(QWidget):
             self.rbGalleryCreated.emit()
 
             # Pass linked patricle data to plotting widget
-            self.trajectory_plotting.get_linked_particles(self.linked_trajectories)
+            self.trajectory_plotting.get_linked_particles(
+                self.linked_trajectories
+            )
 
         except Exception as e:
             print(f"Error linking trajectories: {e}")
@@ -287,21 +301,25 @@ class LinkingParametersWidget(QWidget):
 
             # Get image dimensions from first frame
             if self.file_controller:
-                original_frames_folder = self.file_controller.original_frames_folder
-            else:
-                from ..config_parser import get_config
-
-                config = get_config()
-                original_frames_folder = config.get(
-                    "original_frames_folder", "original_frames/"
+                original_frames_folder = (
+                    self.file_controller.original_frames_folder
                 )
+            else:
+                if self.config_manager:
+                    original_frames_folder = self.config_manager.get_path(
+                        "original_frames_folder"
+                    )
+                else:
+                    original_frames_folder = "original_frames/"
 
             frame_files = []
             for filename in sorted(os.listdir(original_frames_folder)):
                 if filename.lower().endswith(
                     (".jpg", ".jpeg", ".png", ".tif", ".tiff")
                 ):
-                    frame_files.append(os.path.join(original_frames_folder, filename))
+                    frame_files.append(
+                        os.path.join(original_frames_folder, filename)
+                    )
                     break  # Just need first frame for dimensions
 
             if frame_files:
@@ -316,7 +334,9 @@ class LinkingParametersWidget(QWidget):
                 height, width = 800, 600  # Default dimensions
 
             # Create figure with white background
-            fig, ax = plt.subplots(figsize=(width / 100, height / 100), dpi=100)
+            fig, ax = plt.subplots(
+                figsize=(width / 100, height / 100), dpi=100
+            )
             ax.set_facecolor("white")
             fig.patch.set_facecolor("white")
 
@@ -378,7 +398,9 @@ class LinkingParametersWidget(QWidget):
             )
             plt.close(fig)
 
-            print(f"Trajectory visualization saved to: {trajectory_image_path}")
+            print(
+                f"Trajectory visualization saved to: {trajectory_image_path}"
+            )
 
             # Emit signal with image path for display
             self.trajectoryVisualizationCreated.emit(trajectory_image_path)
@@ -393,19 +415,24 @@ class LinkingParametersWidget(QWidget):
             print(f"🔵 Trajectories file: {trajectories_file}")
 
             if self.file_controller:
-                original_frames_folder = self.file_controller.original_frames_folder
+                original_frames_folder = (
+                    self.file_controller.original_frames_folder
+                )
                 rb_gallery_folder = self.file_controller.rb_gallery_folder
                 print(f"🔵 Using file_controller paths:")
                 print(f"   Frames folder: {original_frames_folder}")
                 print(f"   RB gallery folder: {rb_gallery_folder}")
             else:
-                from ..config_parser import get_config
-
-                config = get_config()
-                original_frames_folder = config.get(
-                    "original_frames_folder", "original_frames/"
-                )
-                rb_gallery_folder = config.get("rb_gallery_folder", "rb_gallery")
+                if self.config_manager:
+                    original_frames_folder = self.config_manager.get_path(
+                        "original_frames_folder"
+                    )
+                    rb_gallery_folder = self.config_manager.get_path(
+                        "rb_gallery_folder"
+                    )
+                else:
+                    original_frames_folder = "original_frames/"
+                    rb_gallery_folder = "rb_gallery/"
                 print(f"⚠️  No file_controller, using config paths:")
                 print(f"   Frames folder: {original_frames_folder}")
                 print(f"   RB gallery folder: {rb_gallery_folder}")
