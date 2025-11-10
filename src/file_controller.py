@@ -75,9 +75,18 @@ class FileController:
         except Exception as e:
             print(f"Error cleaning folder {folder_path}: {e}")
 
-    def cleanup_temp_folders(self) -> None:
-        """Clean up all temporary folders."""
-        temp_folders = [self.particles_folder, self.rb_gallery_folder]
+    def cleanup_temp_folders(self, include_errant_particles: bool = False) -> None:
+        """Clean up temporary folders.
+
+        Parameters
+        ----------
+        include_errant_particles : bool, optional
+            When True, also clears the errant particle gallery folder. Defaults to False.
+        """
+        temp_folders = [self.rb_gallery_folder]
+
+        if include_errant_particles:
+            temp_folders.append(self.particles_folder)
 
         print("Starting cleanup of temporary folders...")
 

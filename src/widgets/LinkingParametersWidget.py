@@ -2,7 +2,7 @@
 Linking Parameters Widget
 
 Description: GUI widget for configuring trajectory linking parameters.
-             Boiler plate code generated wit Cursor.
+             Boiler plate code generated with Cursor.
 
 This widget provides user interface controls for adjusting trackpy linking
 parameters and managing the trajectory linking and visualization workflow.
@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QSpinBox,
     QDoubleSpinBox,
     QPushButton,
+    QCheckBox
 )
 from PySide6.QtCore import Qt, Signal
 import sys
@@ -92,12 +93,15 @@ class LinkingParametersWidget(QWidget):
             "Maximum expected particle speed (microns/second)."
         )
 
+        self.sub_drift = QCheckBox()
+
         self.form.addRow("Search range", self.search_range_input)
         self.form.addRow("Memory", self.memory_input)
         self.form.addRow("Min trajectory length", self.min_trajectory_length_input)
         self.form.addRow("FPS", self.fps_input)
         self.form.addRow("Scaling (μm/pixel)", self.scaling_input)
         self.form.addRow("Max speed (μm/s)", self.max_speed_input)
+        self.form.addRow("Subtract Drift", self.sub_drift)
 
         self.layout.addLayout(self.form)
 
@@ -231,6 +235,20 @@ class LinkingParametersWidget(QWidget):
             print(
                 f"After filtering: {trajectories_filtered['particle'].nunique()} trajectories"
             )
+
+            if self.sub_drift.isChecked():
+                # Remove drift
+                drift = tp.compute_drift(trajectories_filtered)
+                drift_subtracted = tp.subtract_drift(trajectories_filtered.copy(), drift)
+
+                # Fix dataframe index level groupings that tp.subtract_drift creates
+                if 'particle' in drift_subtracted.columns:
+                    drift_subtracted = drift_subtracted.drop(columns=['particle']) 
+
+                if 'frame' in drift_subtracted.columns:
+                    drift_subtracted = drift_subtracted.drop(columns=['frame'])
+                    
+                trajectories_filtered = drift_subtracted.reset_index(drop=False)
 
             # Store the linked trajectories
             self.linked_trajectories = trajectories_filtered

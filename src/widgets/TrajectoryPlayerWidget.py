@@ -82,6 +82,19 @@ class TrajectoryPlayerWidget(QWidget):
             None  # Will be connected from ErrantTrajectoryGalleryWidget
         )
 
+    def reset_state(self):
+        """Reload frames and show the first overlay."""
+        self.current_pixmap = None
+        self.current_overlay_idx = 0
+        self._load_total_frames()
+        if self.total_frames > 1:
+            self.display_overlay(0)
+        elif self.total_frames == 1:
+            self.photo_label.setText("Need at least 2 frames for overlay")
+        else:
+            self.photo_label.setText("No frames available")
+        self.update_overlay_display()
+
     def set_config_manager(self, config_manager):
         """Set the config manager for this widget."""
         self.config_manager = config_manager
@@ -97,6 +110,16 @@ class TrajectoryPlayerWidget(QWidget):
             self.original_frames_folder = file_controller.original_frames_folder
             # Load total frames count
             self._load_total_frames()
+
+    def load_initial_overlay(self):
+        """Load the first available RB overlay immediately."""
+        self._load_total_frames()
+        if self.total_frames > 1:
+            self.display_overlay(0)
+        elif self.total_frames == 1:
+            self.photo_label.setText("Need at least 2 frames for overlay")
+        else:
+            self.photo_label.setText("No frames available")
 
     def set_threshold_slider(self, slider):
         """Connect to threshold slider from ErrantTrajectoryGalleryWidget."""

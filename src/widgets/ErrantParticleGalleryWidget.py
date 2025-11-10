@@ -124,6 +124,15 @@ class ErrantParticleGalleryWidget(QWidget):
             except Exception as e:
                 print(f"Error clearing errant particle gallery: {e}")
 
+    def reset_state(self):
+        """Reset gallery state and reload particles from disk."""
+        self.current_frame_number = -1
+        self.highlighted_frame = -1
+        self.curr_particle_idx = 0
+        self.particle_frames.clear()
+        self.particle_positions.clear()
+        self.refresh_particles()
+
     def _load_particle_files(self, directory_path):
         """Return a sorted list of image file paths in the particles directory."""
         if not os.path.isdir(directory_path):

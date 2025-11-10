@@ -284,6 +284,12 @@ class ErrantTrajectoryGalleryWidget(QWidget):
         # Regenerate current image with new threshold
         self._display_trajectory(self.curr_trajectory_idx)
 
+    def reset_state(self):
+        """Reload gallery files when returning to the linking screen."""
+        self.curr_trajectory_idx = 0
+        self._update_rb_gallery_path()
+        self._display_trajectory(self.curr_trajectory_idx)
+
     def _filter_by_frame_pair(self, frame_pair):
         """
         Filter gallery files by frame pair.

@@ -340,9 +340,6 @@ def save_errant_particle_crops_for_frame(frame_number, particle_data_for_frame, 
     if all_particles.empty:
         return
 
-    file_controller.delete_all_files_in_folder(file_controller.particles_folder)
-    file_controller.ensure_folder_exists(file_controller.particles_folder)
-
     feature_size = int(params.get("feature_size", 15))
     min_mass = float(params.get("min_mass", 100.0))
 
@@ -355,6 +352,12 @@ def save_errant_particle_crops_for_frame(frame_number, particle_data_for_frame, 
 
     # Get top 5 most errant by size (largest size_diff)
     top_5_size_particles = all_particles.nlargest(5, "size_diff")
+
+    if top_5_mass_particles.empty and top_5_size_particles.empty:
+        return
+
+    file_controller.delete_all_files_in_folder(file_controller.particles_folder)
+    file_controller.ensure_folder_exists(file_controller.particles_folder)
 
     # Combine and process all 10 particles
     particle_counter = 0

@@ -36,7 +36,7 @@ from matplotlib.figure import Figure
 
 from .ErrantParticleGalleryWidget import *
 from .FramePlayerWidget import *
-from .GraphingPanelWidget import *
+from .DetectionPlottingWidget import *
 from .DetectionParametersWidget import *
 from .TrajectoryLinkingWindow import *
 
@@ -127,7 +127,7 @@ class ParticleDetectionWindow(QMainWindow):
         options_menu.addAction(stream_action)
 
         # Left Panel
-        self.main_layout.left_panel = GraphingPanelWidget()
+        self.main_layout.left_panel = DectectionPlottingWidget()
         self.main_layout.addWidget(self.main_layout.left_panel)
 
         # Middle Panel
@@ -176,6 +176,7 @@ class ParticleDetectionWindow(QMainWindow):
         self.frame_player.frame_changed.connect(
             self.errant_particle_gallery.set_current_frame
         )
+        self.frame_player.import_video_requested.connect(self.import_video)
 
     def on_particles_updated(self, particle_data):
         if self.frame_player:
@@ -185,15 +186,40 @@ class ParticleDetectionWindow(QMainWindow):
             self.errant_particle_gallery.refresh_particles()
 
     def load_particle_data(self):
-        if self.file_controller:
-            particles_file = os.path.join(
-                self.file_controller.data_folder, "all_particles.csv"
-            )
-            if os.path.exists(particles_file):
-                try:
-                    particle_df = pd.read_csv(particles_file)
-                except Exception as e:
-                    print(f"Error loading particle data: {e}")
+        if not self.file_controller:
+            return
+
+        # Reload frames into the frame player
+        frame_count = 0
+        if self.frame_player:
+            frame_count = self.frame_player.reload_from_disk()
+
+        if self.main_layout.right_panel:
+            if frame_count > 0:
+                self.main_layout.right_panel.set_total_frames(frame_count)
+            self.main_layout.right_panel.refresh_from_disk()
+
+        if self.errant_particle_gallery:
+            self.errant_particle_gallery.reset_state()
+
+        particles_df = pd.DataFrame()
+        particles_file = os.path.join(
+            self.file_controller.data_folder, "all_particles.csv"
+        )
+        if os.path.exists(particles_file):
+            try:
+                particles_df = pd.read_csv(particles_file)
+            except Exception as e:
+                print(f"Error loading particle data: {e}")
+                particles_df = pd.DataFrame()
+
+        if not particles_df.empty and self.main_layout.left_panel:
+            self.main_layout.left_panel.set_particles(particles_df)
+        elif self.main_layout.left_panel:
+            self.main_layout.left_panel.blank_plot()
+
+        # Update frame/errant displays as if particles were just detected
+        self.on_particles_updated(particles_df)
 
     def clear_processed_data(self):
         print("Particle detection parameters changed. Clearing processed data...")

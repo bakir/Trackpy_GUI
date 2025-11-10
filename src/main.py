@@ -85,7 +85,7 @@ class ParticleTrackingAppController(QMainWindow):
     def show_particle_detection_window(self):
         """Show the particle detection window and hide others."""
         # Clean up any existing windows
-        self.cleanup_windows()
+        self.cleanup_windows(clear_rb_gallery=False)
 
         # Create particle detection window
         self.particle_detection_window = ParticleDetectionWindow()
@@ -107,7 +107,7 @@ class ParticleTrackingAppController(QMainWindow):
     def show_trajectory_linking_window(self):
         """Show the trajectory linking window and hide others."""
         # Clean up any existing windows
-        self.cleanup_windows()
+        self.cleanup_windows(clear_rb_gallery=False)
 
         # Create trajectory linking window
         self.trajectory_linking_window = TrajectoryLinkingWindow()
@@ -136,10 +136,10 @@ class ParticleTrackingAppController(QMainWindow):
         """Handle signal to switch from trajectory linking back to particle detection."""
         self.show_particle_detection_window()
 
-    def cleanup_windows(self):
-        """Clean up existing windows and RB gallery."""
-        # Clean up RB gallery
-        self.cleanup_rb_gallery()
+    def cleanup_windows(self, clear_rb_gallery: bool = True):
+        """Clean up existing windows and optionally RB gallery."""
+        if clear_rb_gallery:
+            self.cleanup_rb_gallery()
 
         # Close existing windows
         if self.particle_detection_window:
@@ -157,18 +157,14 @@ class ParticleTrackingAppController(QMainWindow):
 
     def closeEvent(self, event):
         """Handle application close event."""
-        # Clean up all windows and folders
-        self.cleanup_windows()
-
-        # Clean up all temp folders
-        self.cleanup_all_temp_folders()
-
+        # Close any open windows but keep generated data on disk
+        self.cleanup_windows(clear_rb_gallery=False)
         super().closeEvent(event)
 
     def cleanup_all_temp_folders(self):
         """Delete all files in temporary folders."""
         if self.file_controller:
-            self.file_controller.cleanup_temp_folders()
+            self.file_controller.cleanup_temp_folders(include_errant_particles=True)
 
     def get_project_manager(self):
         """Get the project manager instance."""
