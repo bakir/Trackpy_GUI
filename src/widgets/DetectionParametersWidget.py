@@ -16,15 +16,10 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
 )
 from PySide6.QtCore import Qt, Signal, QThread
-import trackpy as tp
 import pandas as pd
-import sys
 import os
-
-sys.path.append(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-)
 import cv2
+import trackpy as tp
 from .. import particle_processing
 
 
@@ -65,8 +60,6 @@ class DetectAllFramesThread(QThread):
         self.combined_particles = pd.DataFrame()
         self.processed_frame_numbers = set()
         try:
-            import cv2
-
             # Use injected file controller if available
             if self.file_controller:
                 annotated_frames_folder = self.file_controller.annotated_frames_folder

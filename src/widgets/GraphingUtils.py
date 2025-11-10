@@ -22,15 +22,9 @@ from PySide6.QtCore import Qt
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qtagg import FigureCanvas
 from matplotlib.figure import Figure
-import sys
-import os
-
-sys.path.append(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-)
-from .. import particle_processing
 import os
 from copy import copy
+from .. import particle_processing
 
 TARGET_WIDTH_PX = 500
 TARGET_HEIGHT_PX = 400

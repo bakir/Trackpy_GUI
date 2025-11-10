@@ -233,6 +233,3 @@ class StartScreen(QWidget):
                     "The selected folder does not appear to be a valid project folder.\n\nA project folder should contain a 'config.ini' file.",
                 )
 
-    def get_project_manager(self):
-        """Get the project manager instance."""
-        return self.project_manager

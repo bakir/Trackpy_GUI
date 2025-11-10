@@ -193,8 +193,8 @@ class ProjectManager:
 
         # Detection section
         config["Detection"] = {
-            "feature_size": "27",
-            "min_mass": "1300.0",
+            "feature_size": "15",
+            "min_mass": "100.0",
             "invert": "false",
             "threshold": "0.0",
             "frame_idx": "0",
@@ -234,14 +234,4 @@ Path: {project_path}
         with open(info_path, "w") as f:
             f.write(info_content)
 
-    def list_recent_projects(self, max_projects: int = 5) -> list:
-        """List recent projects (placeholder for future implementation)."""
-        # This could be implemented to track recent projects
-        # For now, return empty list
-        return []
 
-    def close_project(self):
-        """Close the current project."""
-        self.current_project_path = None
-        self.current_project_config = None
-        print("Project closed")

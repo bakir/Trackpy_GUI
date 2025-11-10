@@ -179,13 +179,6 @@ class FileController:
             print(f"Trajectories file not found: {file_path}")
             return pd.DataFrame()
 
-    def save_errant_particle_image(self, image_data, filename: str) -> str:
-        """Save an errant particle image to the particles folder."""
-        self.ensure_folder_exists(self.particles_folder)
-        file_path = os.path.join(self.particles_folder, filename)
-        # This would need to be implemented based on the image data format
-        # For now, just return the path
-        return file_path
 
     def create_rb_gallery_folder(self) -> str:
         """Create and return the RB gallery folder path."""

@@ -5,14 +5,11 @@ Description: Widget displaying frames of the video with frame controls. Shows th
              Generated boiler plate code using Cursor.
 """
 
-import sys
 import cv2
 import os
 import pandas as pd
 from PySide6.QtCore import Qt, Signal, QThread
 from PySide6.QtWidgets import (
-    QApplication,
-    QMainWindow,
     QFileDialog,
     QWidget,
     QVBoxLayout,
@@ -22,7 +19,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLineEdit,
     QCheckBox,
-    QGridLayout, # Added QGridLayout
+    QGridLayout,
 )
 from PySide6.QtGui import QPixmap, QImage
 

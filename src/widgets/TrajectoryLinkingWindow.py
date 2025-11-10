@@ -6,47 +6,20 @@ Description: Main window for Trajectory Linkning. Imports trajectory linking wid
 """
 
 import os
-import sys
-import cv2
-
-from PySide6.QtCore import QUrl, Qt
-from PySide6.QtGui import QAction, QPixmap
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
-    QApplication,
     QMainWindow,
     QFileDialog,
     QWidget,
     QVBoxLayout,
-    QGridLayout,
-    QFormLayout,
-    QPushButton,
-    QSlider,
-    QLabel,
     QSplitter,
     QHBoxLayout,
-    QFrame,
-    QSizePolicy,
-    QLineEdit,
 )
-from PySide6 import QtWidgets
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_qtagg import FigureCanvas
-from matplotlib.figure import Figure
-
 from .ErrantTrajectoryGalleryWidget import *
 from .TrajectoryPlayerWidget import *
 from .TrajectoryPlottingWidget import *
 from .LinkingParametersWidget import *
-from .ParticleDetectionWindow import *
-
-
-import sys
-import os
-
-sys.path.append(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-)
-from .. import particle_processing
 
 
 class TrajectoryLinkingWindow(QMainWindow):
@@ -121,9 +94,6 @@ class TrajectoryLinkingWindow(QMainWindow):
         )
 
         options_menu = menubar.addMenu("Options")
-        stream_action = QAction("Stream", self)
-        stream_action.triggered.connect(self.stream)
-        options_menu.addAction(stream_action)
 
         # Left Panel
         self.main_layout.left_panel = TrajectoryPlottingWidget()
@@ -239,8 +209,6 @@ class TrajectoryLinkingWindow(QMainWindow):
     def export_trajectories_pkl(self):
         self._export_data(source_filename="trajectories.csv", target_format="pkl")
 
-    def stream(self):
-        return
 
     def go_back_to_detection(self):
         """Emit signal to switch back to particle detection window."""

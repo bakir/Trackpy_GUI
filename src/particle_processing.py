@@ -1131,13 +1131,3 @@ def annotate_frame(
     return None
 
 
-if __name__ == "__main__":
-    # Example usage
-    video_path = "path/to/your/video.avi"
-    trajectories = link_particles_to_trajectories(video_path)
-
-    if trajectories is not None:
-        analysis = analyze_trajectories(trajectories)
-        print("Trajectory linking and analysis complete!")
-    else:
-        print("Trajectory linking failed!")

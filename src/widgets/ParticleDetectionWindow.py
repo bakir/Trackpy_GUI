@@ -6,48 +6,24 @@ Description: Main window for Particle detection. Imports particle detection widg
 """
 
 import os
-import sys
-import cv2
 import pandas as pd
 
-from PySide6.QtCore import QUrl, Qt
-from PySide6.QtGui import QAction, QPixmap
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
-    QApplication,
     QMainWindow,
     QFileDialog,
     QWidget,
     QVBoxLayout,
-    QGridLayout,
-    QFormLayout,
-    QPushButton,
-    QSlider,
-    QLabel,
     QSplitter,
     QHBoxLayout,
-    QFrame,
-    QSizePolicy,
-    QLineEdit,
 )
 from PySide6 import QtWidgets
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_qtagg import FigureCanvas
-from matplotlib.figure import Figure
 
 from .ErrantParticleGalleryWidget import *
 from .FramePlayerWidget import *
 from .DetectionPlottingWidget import *
 from .DetectionParametersWidget import *
-from .TrajectoryLinkingWindow import *
-
-
-import sys
-import os
-
-sys.path.append(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-)
-from .. import particle_processing
 
 
 class ParticleDetectionWindow(QMainWindow):
@@ -121,9 +97,6 @@ class ParticleDetectionWindow(QMainWindow):
         export_particle_data_pkl_action.triggered.connect(self.export_particles_pkl)
 
         options_menu = menubar.addMenu("Options")
-        stream_action = QAction("Stream", self)
-        stream_action.triggered.connect(self.stream)
-        options_menu.addAction(stream_action)
 
         # Left Panel
         self.main_layout.left_panel = DectectionPlottingWidget()
@@ -149,9 +122,6 @@ class ParticleDetectionWindow(QMainWindow):
 
         # Connect signals
         self.main_layout.right_panel.particlesUpdated.connect(self.on_particles_updated)
-        self.main_layout.right_panel.openTrajectoryLinking.connect(
-            self.open_trajectory_linking_window
-        )
         self.main_layout.right_panel.parameter_changed.connect(
             self.clear_processed_data
         )
@@ -323,10 +293,3 @@ class ParticleDetectionWindow(QMainWindow):
         """Exports the 'all_particles.csv' data as a user-selected pickle file."""
         self._export_data(source_filename="all_particles.csv", target_format="pkl")
 
-    def stream(self):
-        return
-
-    def open_trajectory_linking_window(self):
-        """Emit signal to switch to trajectory linking window."""
-        # The controller will handle the actual window switching
-        pass

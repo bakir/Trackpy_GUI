@@ -25,7 +25,6 @@ class ParticleTrackingAppController(QMainWindow):
         self.setWindowTitle("Particle Tracking GUI")
 
         # Initialize configuration and managers
-        self.template_config = ConfigManager()  # Template config for new projects
         self.project_config = None  # Will be set when project is loaded
         self.project_manager = ProjectManager()
         self.file_controller = None  # Will be initialized when project is loaded
@@ -161,18 +160,6 @@ class ParticleTrackingAppController(QMainWindow):
         self.cleanup_windows(clear_rb_gallery=False)
         super().closeEvent(event)
 
-    def cleanup_all_temp_folders(self):
-        """Delete all files in temporary folders."""
-        if self.file_controller:
-            self.file_controller.cleanup_temp_folders(include_errant_particles=True)
-
-    def get_project_manager(self):
-        """Get the project manager instance."""
-        return self.project_manager
-
-    def get_file_controller(self):
-        """Get the file controller instance."""
-        return self.file_controller
 
 
 def main():
@@ -186,12 +173,6 @@ def main():
     controller = ParticleTrackingAppController()
     controller.show()
 
-    # Connect app cleanup to ensure cleanup happens
-    def cleanup_on_quit():
-        print("Application quitting - cleaning up temp folders...")
-        controller.cleanup_all_temp_folders()
-
-    app.aboutToQuit.connect(cleanup_on_quit)
 
     # Run the application
     sys.exit(app.exec())
