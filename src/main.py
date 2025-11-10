@@ -27,7 +27,9 @@ class ParticleTrackingAppController(QMainWindow):
         # Initialize configuration and managers
         self.project_config = None  # Will be set when project is loaded
         self.project_manager = ProjectManager()
-        self.file_controller = None  # Will be initialized when project is loaded
+        self.file_controller = (
+            None  # Will be initialized when project is loaded
+        )
 
         # Initialize windows
         self.start_screen = None
@@ -64,7 +66,9 @@ class ParticleTrackingAppController(QMainWindow):
             # Initialize project-specific config and file controller
             project_config_path = os.path.join(project_path, "config.ini")
             self.project_config = ConfigManager(project_config_path)
-            self.file_controller = FileController(self.project_config, project_path)
+            self.file_controller = FileController(
+                self.project_config, project_path
+            )
 
             # Set file controller in particle processing module
             from src import particle_processing
@@ -89,7 +93,9 @@ class ParticleTrackingAppController(QMainWindow):
         # Create particle detection window
         self.particle_detection_window = ParticleDetectionWindow()
         self.particle_detection_window.set_config_manager(self.project_config)
-        self.particle_detection_window.set_file_controller(self.file_controller)
+        self.particle_detection_window.set_file_controller(
+            self.file_controller
+        )
 
         # Connect signals from particle detection window
         self.particle_detection_window.main_layout.right_panel.openTrajectoryLinking.connect(
@@ -111,7 +117,9 @@ class ParticleTrackingAppController(QMainWindow):
         # Create trajectory linking window
         self.trajectory_linking_window = TrajectoryLinkingWindow()
         self.trajectory_linking_window.set_config_manager(self.project_config)
-        self.trajectory_linking_window.set_file_controller(self.file_controller)
+        self.trajectory_linking_window.set_file_controller(
+            self.file_controller
+        )
 
         # Connect signals from trajectory linking window
         self.trajectory_linking_window.main_layout.right_panel.goBackToDetection.connect(
@@ -161,7 +169,6 @@ class ParticleTrackingAppController(QMainWindow):
         super().closeEvent(event)
 
 
-
 def main():
     """Main application entry point."""
     app = QApplication(sys.argv)
@@ -172,7 +179,6 @@ def main():
     # Create and show the main controller
     controller = ParticleTrackingAppController()
     controller.show()
-
 
     # Run the application
     sys.exit(app.exec())

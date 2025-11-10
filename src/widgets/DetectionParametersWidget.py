@@ -24,32 +24,70 @@ from .. import particle_processing
 
 
 class FindParticlesThread(QThread):
+    """Thread for finding particles in selected frames."""
+
     processing_frame = Signal(str)
     finished = Signal()
     particles_found = Signal(object)
 
     def __init__(self, frame_paths, params):
+        """Initialize particle finding thread.
+
+        Parameters
+        ----------
+        frame_paths : list
+            List of frame file paths
+        params : dict
+            Detection parameters
+        """
         super().__init__()
         self.frame_paths = frame_paths
         self.params = params
         self.particles = None
 
     def run(self):
+        """Run particle detection on frames."""
         self.particles = particle_processing.find_and_save_particles(
-            self.frame_paths, self.params, progress_callback=self.processing_frame
+            self.frame_paths,
+            self.params,
+            progress_callback=self.processing_frame,
         )
         self.particles_found.emit(self.particles)
         self.finished.emit()
 
     def get_particles(self):
+        """Get detected particles.
+
+        Returns
+        -------
+        DataFrame
+            Detected particles
+        """
         return self.particles
 
 
 class DetectAllFramesThread(QThread):
+    """Thread for detecting particles in all frames."""
+
     processing_frame = Signal(str)
     finished = Signal()
 
-    def __init__(self, frame_paths, params, config_manager=None, file_controller=None):
+    def __init__(
+        self, frame_paths, params, config_manager=None, file_controller=None
+    ):
+        """Initialize frame detection thread.
+
+        Parameters
+        ----------
+        frame_paths : list
+            List of frame file paths
+        params : dict
+            Detection parameters
+        config_manager : ConfigManager, optional
+            Configuration manager
+        file_controller : FileController, optional
+            File controller instance
+        """
         super().__init__()
         self.frame_paths = frame_paths
         self.params = params
@@ -57,12 +95,15 @@ class DetectAllFramesThread(QThread):
         self.file_controller = file_controller
 
     def run(self):
+        """Run particle detection on all frames."""
         self.combined_particles = pd.DataFrame()
         self.processed_frame_numbers = set()
         try:
             # Use injected file controller if available
             if self.file_controller:
-                annotated_frames_folder = self.file_controller.annotated_frames_folder
+                annotated_frames_folder = (
+                    self.file_controller.annotated_frames_folder
+                )
                 data_folder = self.file_controller.data_folder
             else:
                 # Fall back to config manager
@@ -87,9 +128,13 @@ class DetectAllFramesThread(QThread):
             all_particles = []
             for frame_idx, frame_file in enumerate(self.frame_paths):
                 frame_num = int(
-                    os.path.splitext(os.path.basename(frame_file))[0].split("_")[-1]
+                    os.path.splitext(os.path.basename(frame_file))[0].split(
+                        "_"
+                    )[-1]
                 )
-                self.processing_frame.emit(f"Processing remaining frame {frame_num}")
+                self.processing_frame.emit(
+                    f"Processing remaining frame {frame_num}"
+                )
 
                 frame = cv2.imread(frame_file)
                 if frame is None:
@@ -122,7 +167,9 @@ class DetectAllFramesThread(QThread):
                     self.processed_frame_numbers.add(frame_num)
 
             if all_particles:
-                self.combined_particles = pd.concat(all_particles, ignore_index=True)
+                self.combined_particles = pd.concat(
+                    all_particles, ignore_index=True
+                )
 
         except Exception as e:
             print(f"Error in DetectAllFramesThread: {e}")
@@ -162,7 +209,9 @@ class DetectionParametersWidget(QWidget):
         self.min_mass_input.setDecimals(2)
         self.min_mass_input.setRange(0.0, 1e12)
         self.min_mass_input.setSingleStep(10.0)
-        self.min_mass_input.setToolTip("Minimum integrated brightness of a feature.")
+        self.min_mass_input.setToolTip(
+            "Minimum integrated brightness of a feature."
+        )
 
         self.invert_input = QCheckBox("Invert (detect dark spots)")
 
@@ -170,7 +219,9 @@ class DetectionParametersWidget(QWidget):
         self.threshold_input.setDecimals(2)
         self.threshold_input.setRange(0.0, 1e9)
         self.threshold_input.setSingleStep(1.0)
-        self.threshold_input.setToolTip("Clip band-passed data below this value.")
+        self.threshold_input.setToolTip(
+            "Clip band-passed data below this value."
+        )
 
         self.scaling_input = QDoubleSpinBox()
         self.scaling_input.setDecimals(6)
@@ -239,21 +290,37 @@ class DetectionParametersWidget(QWidget):
         self.min_mass_input.editingFinished.connect(self.save_params)
         self.threshold_input.editingFinished.connect(self.save_params)
         self.scaling_input.editingFinished.connect(self.save_params)
-        self.feature_size_input.lineEdit().returnPressed.connect(self.save_params)
+        self.feature_size_input.lineEdit().returnPressed.connect(
+            self.save_params
+        )
         self.min_mass_input.lineEdit().returnPressed.connect(self.save_params)
         self.threshold_input.lineEdit().returnPressed.connect(self.save_params)
         self.scaling_input.lineEdit().returnPressed.connect(self.save_params)
-        self.invert_input.stateChanged.connect(lambda _state: self.save_params())
+        self.invert_input.stateChanged.connect(
+            lambda _state: self.save_params()
+        )
 
     def set_config_manager(self, config_manager):
-        """Set the config manager for this widget."""
+        """Set the config manager for this widget.
+
+        Parameters
+        ----------
+        config_manager : ConfigManager
+            Configuration manager instance
+        """
         self.config_manager = config_manager
         self._refresh_processed_frames()
         # Reload parameters from config when config_manager is set
         self.load_params()
 
     def set_file_controller(self, file_controller):
-        """Set the file controller for this widget."""
+        """Set the file controller for this widget.
+
+        Parameters
+        ----------
+        file_controller : FileController
+            File controller instance
+        """
         self.file_controller = file_controller
         self._refresh_processed_frames()
 
@@ -262,6 +329,7 @@ class DetectionParametersWidget(QWidget):
         self._refresh_processed_frames()
 
     def clear_processed_frames(self):
+        """Clear processed frames cache and particle data file."""
         particles_file = self._particles_file_path()
         if particles_file and os.path.exists(particles_file):
             try:
@@ -273,12 +341,20 @@ class DetectionParametersWidget(QWidget):
         self.progress_display.setText("")
 
     def set_total_frames(self, num_frames):
+        """Set total number of frames and update input ranges.
+
+        Parameters
+        ----------
+        num_frames : int
+            Total number of frames
+        """
         self.total_frames = num_frames
         self.start_frame_input.setRange(1, num_frames if num_frames > 0 else 1)
         self.end_frame_input.setRange(1, num_frames if num_frames > 0 else 1)
         self.set_all_frames()
 
     def set_all_frames(self):
+        """Set frame range inputs to cover all frames."""
         if self.total_frames <= 0:
             self.start_frame_input.setValue(1)
             self.end_frame_input.setValue(1)
@@ -289,6 +365,7 @@ class DetectionParametersWidget(QWidget):
         self.step_frame_input.setValue(1)
 
     def update_end_range(self):
+        """Update end frame range based on start frame value."""
         self.end_frame_input.setMinimum(self.start_frame_input.value())
 
     def load_params(self):
@@ -338,7 +415,9 @@ class DetectionParametersWidget(QWidget):
 
         # Use injected file controller if available
         if self.file_controller:
-            original_frames_folder = self.file_controller.original_frames_folder
+            original_frames_folder = (
+                self.file_controller.original_frames_folder
+            )
         else:
             # Fall back to config manager
             if self.config_manager:
@@ -373,7 +452,9 @@ class DetectionParametersWidget(QWidget):
             self.progress_display.setText
         )
         self.find_particles_thread.finished.connect(self.on_find_finished)
-        self.find_particles_thread.particles_found.connect(self.on_particles_data_ready)
+        self.find_particles_thread.particles_found.connect(
+            self.on_particles_data_ready
+        )
         # Generate errant particles after detection completes
         self.find_particles_thread.particles_found.connect(
             self._generate_errant_particles
@@ -455,7 +536,9 @@ class DetectionParametersWidget(QWidget):
 
         # Use injected file controller if available
         if self.file_controller:
-            original_frames_folder = self.file_controller.original_frames_folder
+            original_frames_folder = (
+                self.file_controller.original_frames_folder
+            )
         else:
             # Fall back to config manager
             if self.config_manager:
@@ -472,8 +555,12 @@ class DetectionParametersWidget(QWidget):
 
         all_frame_files = []
         for filename in sorted(os.listdir(original_frames_folder)):
-            if filename.startswith("frame_") and filename.lower().endswith(".jpg"):
-                all_frame_files.append(os.path.join(original_frames_folder, filename))
+            if filename.startswith("frame_") and filename.lower().endswith(
+                ".jpg"
+            ):
+                all_frame_files.append(
+                    os.path.join(original_frames_folder, filename)
+                )
 
         if not all_frame_files:
             print("No frame files found in frames folder")
@@ -484,7 +571,9 @@ class DetectionParametersWidget(QWidget):
         for frame_file in all_frame_files:
             try:
                 frame_num = int(
-                    os.path.splitext(os.path.basename(frame_file))[0].split("_")[-1]
+                    os.path.splitext(os.path.basename(frame_file))[0].split(
+                        "_"
+                    )[-1]
                 )
                 if frame_num not in self.processed_frames:
                     frames_to_process.append(frame_file)
@@ -527,9 +616,14 @@ class DetectionParametersWidget(QWidget):
         self.progress_display.setText("Processing remaining frames...")
 
         self.detect_all_thread = DetectAllFramesThread(
-            frames_to_process, params, self.config_manager, self.file_controller
+            frames_to_process,
+            params,
+            self.config_manager,
+            self.file_controller,
         )
-        self.detect_all_thread.processing_frame.connect(self.progress_display.setText)
+        self.detect_all_thread.processing_frame.connect(
+            self.progress_display.setText
+        )
         self.detect_all_thread.finished.connect(self.on_detect_all_finished)
         self.detect_all_thread.start()
 
@@ -556,7 +650,9 @@ class DetectionParametersWidget(QWidget):
             )
             return
 
-        missing = sorted(self._get_available_frame_numbers() - self.processed_frames)
+        missing = sorted(
+            self._get_available_frame_numbers() - self.processed_frames
+        )
         if missing:
             preview = ", ".join(str(num) for num in missing[:5])
             if len(missing) > 5:
@@ -565,7 +661,9 @@ class DetectionParametersWidget(QWidget):
                 f"Particles missing for frames: {preview} (proceeding with available data)"
             )
         else:
-            self.progress_display.setText("Finished processing selected frames.")
+            self.progress_display.setText(
+                "Finished processing selected frames."
+            )
 
         self.openTrajectoryLinking.emit()
 
@@ -607,7 +705,10 @@ class DetectionParametersWidget(QWidget):
             self.processed_frames = set()
             return
         frames = (
-            pd.to_numeric(df["frame"], errors="coerce").dropna().astype(int).tolist()
+            pd.to_numeric(df["frame"], errors="coerce")
+            .dropna()
+            .astype(int)
+            .tolist()
         )
         self.processed_frames = set(frames)
 
@@ -629,7 +730,9 @@ class DetectionParametersWidget(QWidget):
 
         existing = self._load_all_particles_df()
         if not existing.empty and "frame" in existing.columns:
-            existing["frame"] = pd.to_numeric(existing["frame"], errors="coerce")
+            existing["frame"] = pd.to_numeric(
+                existing["frame"], errors="coerce"
+            )
             existing = existing.dropna(subset=["frame"])
             existing["frame"] = existing["frame"].astype(int)
             frames_to_replace = set(particles["frame"].unique())
@@ -646,7 +749,9 @@ class DetectionParametersWidget(QWidget):
         if self.file_controller:
             frames_folder = self.file_controller.original_frames_folder
         elif self.config_manager:
-            frames_folder = self.config_manager.get_path("original_frames_folder")
+            frames_folder = self.config_manager.get_path(
+                "original_frames_folder"
+            )
         else:
             frames_folder = "original_frames/"
 
@@ -655,9 +760,13 @@ class DetectionParametersWidget(QWidget):
 
         frame_numbers = set()
         for filename in os.listdir(frames_folder):
-            if filename.startswith("frame_") and filename.lower().endswith(".jpg"):
+            if filename.startswith("frame_") and filename.lower().endswith(
+                ".jpg"
+            ):
                 try:
-                    frame_num = int(os.path.splitext(filename)[0].split("_")[-1])
+                    frame_num = int(
+                        os.path.splitext(filename)[0].split("_")[-1]
+                    )
                     frame_numbers.add(frame_num)
                 except (ValueError, IndexError):
                     continue

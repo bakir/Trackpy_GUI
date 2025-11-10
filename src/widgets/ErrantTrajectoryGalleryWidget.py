@@ -73,23 +73,33 @@ class ErrantTrajectoryGalleryWidget(QWidget):
         self.next_button = QPushButton("->")
         self.prev_button.clicked.connect(self.prev_trajectory)
         self.next_button.clicked.connect(self.next_trajectory)
-        self.trajectory_display.returnPressed.connect(self._jump_to_input_trajectory)
-        self.trajectory_display.editingFinished.connect(self._jump_to_input_trajectory)
+        self.trajectory_display.returnPressed.connect(
+            self._jump_to_input_trajectory
+        )
+        self.trajectory_display.editingFinished.connect(
+            self._jump_to_input_trajectory
+        )
         self.nav_layout.addWidget(self.prev_button)
         self.nav_layout.addWidget(self.trajectory_display)
         self.nav_layout.addWidget(self.next_button)
         self.layout.addLayout(self.nav_layout)
 
         # Store metadata for regenerating images
-        self.trajectory_metadata = {}  # Will store frame info, particle positions, etc.
+        self.trajectory_metadata = (
+            {}
+        )  # Will store frame info, particle positions, etc.
 
         # RB gallery directory and files (will be set via dependency injection)
         self.rb_gallery_dir = None
         self.rb_gallery_files = []  # All files
-        self.filtered_gallery_files = []  # Files filtered by current frame pair
+        self.filtered_gallery_files = (
+            []
+        )  # Files filtered by current frame pair
         self.current_pixmap = None
         self.original_frames_folder = None
-        self.current_frame_pair = None  # (frame_i, frame_i1) for current filter
+        self.current_frame_pair = (
+            None  # (frame_i, frame_i1) for current filter
+        )
 
         # Show initial trajectory if available
         self._display_trajectory(self.curr_trajectory_idx)
@@ -103,7 +113,9 @@ class ErrantTrajectoryGalleryWidget(QWidget):
         """Set the file controller for this widget."""
         self.file_controller = file_controller
         if self.file_controller:
-            self.original_frames_folder = self.file_controller.original_frames_folder
+            self.original_frames_folder = (
+                self.file_controller.original_frames_folder
+            )
         self._update_rb_gallery_path()
 
     def _update_rb_gallery_path(self):
@@ -111,17 +123,24 @@ class ErrantTrajectoryGalleryWidget(QWidget):
         if self.file_controller:
             self.rb_gallery_dir = self.file_controller.rb_gallery_folder
         elif self.config_manager:
-            self.rb_gallery_dir = self.config_manager.get_path("rb_gallery_folder")
+            self.rb_gallery_dir = self.config_manager.get_path(
+                "rb_gallery_folder"
+            )
         else:
             # Fall back to default
             self.rb_gallery_dir = "rb_gallery/"
 
         # Reload gallery files if path is set
         if self.rb_gallery_dir:
-            self.rb_gallery_files = self._load_rb_gallery_files(self.rb_gallery_dir)
+            self.rb_gallery_files = self._load_rb_gallery_files(
+                self.rb_gallery_dir
+            )
             self._filter_by_frame_pair(self.current_frame_pair)
             self.curr_trajectory_idx = (
-                min(self.curr_trajectory_idx, len(self.filtered_gallery_files) - 1)
+                min(
+                    self.curr_trajectory_idx,
+                    len(self.filtered_gallery_files) - 1,
+                )
                 if self.filtered_gallery_files
                 else 0
             )
@@ -165,7 +184,9 @@ class ErrantTrajectoryGalleryWidget(QWidget):
             # Scale to fit while keeping aspect ratio
             if self.current_pixmap is not None:
                 scaled = self.current_pixmap.scaled(
-                    self.photo_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation
+                    self.photo_label.size(),
+                    Qt.KeepAspectRatio,
+                    Qt.SmoothTransformation,
                 )
                 self.photo_label.setPixmap(scaled)
 
@@ -257,7 +278,9 @@ class ErrantTrajectoryGalleryWidget(QWidget):
         self._update_rb_gallery_path()
         # Reload files
         if self.rb_gallery_dir:
-            self.rb_gallery_files = self._load_rb_gallery_files(self.rb_gallery_dir)
+            self.rb_gallery_files = self._load_rb_gallery_files(
+                self.rb_gallery_dir
+            )
         else:
             self.rb_gallery_files = []
         # Filter by current frame pair if set
@@ -366,7 +389,9 @@ class ErrantTrajectoryGalleryWidget(QWidget):
 
             # Load metadata to get particle positions
             base_name_no_ext = base_name.replace("_rb_overlay.png", "")
-            metadata_path = os.path.join(self.rb_gallery_dir, base_name_no_ext + ".txt")
+            metadata_path = os.path.join(
+                self.rb_gallery_dir, base_name_no_ext + ".txt"
+            )
 
             x_i, y_i, x_i1, y_i1 = None, None, None, None
             if os.path.exists(metadata_path):
@@ -376,12 +401,20 @@ class ErrantTrajectoryGalleryWidget(QWidget):
                             # Parse: POSITION (Frame X): x=123.45, y=678.90
                             try:
                                 if f"Frame {frame_i}" in line:
-                                    x_part = line.split("x=")[1].split(",")[0].strip()
+                                    x_part = (
+                                        line.split("x=")[1]
+                                        .split(",")[0]
+                                        .strip()
+                                    )
                                     y_part = line.split("y=")[1].strip()
                                     x_i = float(x_part)
                                     y_i = float(y_part)
                                 elif f"Frame {frame_i1}" in line:
-                                    x_part = line.split("x=")[1].split(",")[0].strip()
+                                    x_part = (
+                                        line.split("x=")[1]
+                                        .split(",")[0]
+                                        .strip()
+                                    )
                                     y_part = line.split("y=")[1].strip()
                                     x_i1 = float(x_part)
                                     y_i1 = float(y_part)
@@ -473,7 +506,10 @@ class ErrantTrajectoryGalleryWidget(QWidget):
     def resizeEvent(self, event):
         """Ensure the currently shown image keeps aspect ratio on resize."""
         super().resizeEvent(event)
-        if self.current_pixmap is not None and not self.current_pixmap.isNull():
+        if (
+            self.current_pixmap is not None
+            and not self.current_pixmap.isNull()
+        ):
             scaled = self.current_pixmap.scaled(
                 self.photo_label.size(),
                 Qt.KeepAspectRatio,

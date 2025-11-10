@@ -136,7 +136,9 @@ class ConfigManager:
             with open(save_path, "w") as f:
                 self.config.write(f)
 
-    def get_path(self, path_key: str, project_path: Optional[str] = None) -> str:
+    def get_path(
+        self, path_key: str, project_path: Optional[str] = None
+    ) -> str:
         """
         Get a path from configuration, always returning absolute paths.
 
@@ -171,7 +173,8 @@ class ConfigManager:
         return {
             "feature_size": int(self.get("Detection", "feature_size", 27)),
             "min_mass": float(self.get("Detection", "min_mass", 1300.0)),
-            "invert": self.get("Detection", "invert", "false").lower() == "true",
+            "invert": self.get("Detection", "invert", "false").lower()
+            == "true",
             "threshold": float(self.get("Detection", "threshold", 0.0)),
             "frame_idx": int(self.get("Detection", "frame_idx", 0)),
             "scaling": float(self.get("Detection", "scaling", 1.0)),
@@ -203,7 +206,9 @@ class ConfigManager:
 
     def is_project_config(self) -> bool:
         """Check if this is a project-specific config."""
-        return self.config_path is not None and os.path.exists(self.config_path)
+        return self.config_path is not None and os.path.exists(
+            self.config_path
+        )
 
     def get_config_type(self) -> str:
         """Get the type of config (template or project)."""

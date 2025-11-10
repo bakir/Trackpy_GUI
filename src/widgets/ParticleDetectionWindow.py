@@ -37,7 +37,9 @@ class ParticleDetectionWindow(QMainWindow):
         """Set the config manager for this window."""
         self.config_manager = config_manager
         # Pass config manager to widgets that need it
-        if hasattr(self, "main_layout") and hasattr(self.main_layout, "right_panel"):
+        if hasattr(self, "main_layout") and hasattr(
+            self.main_layout, "right_panel"
+        ):
             self.main_layout.right_panel.set_config_manager(config_manager)
         if hasattr(self, "frame_player"):
             self.frame_player.set_config_manager(config_manager)
@@ -45,14 +47,18 @@ class ParticleDetectionWindow(QMainWindow):
             self.errant_particle_gallery, "set_config_manager"
         ):
             self.errant_particle_gallery.set_config_manager(config_manager)
-        if hasattr(self, "main_layout") and hasattr(self.main_layout, "left_panel"):
+        if hasattr(self, "main_layout") and hasattr(
+            self.main_layout, "left_panel"
+        ):
             self.main_layout.left_panel.set_config_manager(config_manager)
 
     def set_file_controller(self, file_controller):
         """Set the file controller for this window."""
         self.file_controller = file_controller
         # Pass file controller to widgets that need it
-        if hasattr(self, "main_layout") and hasattr(self.main_layout, "right_panel"):
+        if hasattr(self, "main_layout") and hasattr(
+            self.main_layout, "right_panel"
+        ):
             self.main_layout.right_panel.set_file_controller(file_controller)
         if hasattr(self, "frame_player"):
             self.frame_player.set_file_controller(file_controller)
@@ -60,7 +66,9 @@ class ParticleDetectionWindow(QMainWindow):
             self.errant_particle_gallery, "set_file_controller"
         ):
             self.errant_particle_gallery.set_file_controller(file_controller)
-        if hasattr(self, "main_layout") and hasattr(self.main_layout, "left_panel"):
+        if hasattr(self, "main_layout") and hasattr(
+            self.main_layout, "left_panel"
+        ):
             self.main_layout.left_panel.set_file_controller(file_controller)
 
         # Load existing particle data if available
@@ -93,8 +101,12 @@ class ParticleDetectionWindow(QMainWindow):
         export_particle_data_menu.addAction(export_particle_data_pkl_action)
 
         # You can then connect your sub-actions to functions
-        export_particle_data_csv_action.triggered.connect(self.export_particles_csv)
-        export_particle_data_pkl_action.triggered.connect(self.export_particles_pkl)
+        export_particle_data_csv_action.triggered.connect(
+            self.export_particles_csv
+        )
+        export_particle_data_pkl_action.triggered.connect(
+            self.export_particles_pkl
+        )
 
         options_menu = menubar.addMenu("Options")
 
@@ -121,7 +133,9 @@ class ParticleDetectionWindow(QMainWindow):
         self.main_layout.addWidget(self.main_layout.right_panel)
 
         # Connect signals
-        self.main_layout.right_panel.particlesUpdated.connect(self.on_particles_updated)
+        self.main_layout.right_panel.particlesUpdated.connect(
+            self.on_particles_updated
+        )
         self.main_layout.right_panel.parameter_changed.connect(
             self.clear_processed_data
         )
@@ -149,7 +163,9 @@ class ParticleDetectionWindow(QMainWindow):
 
     def on_particles_updated(self, particle_data):
         if self.frame_player:
-            self.frame_player.display_frame(self.frame_player.current_frame_idx)
+            self.frame_player.display_frame(
+                self.frame_player.current_frame_idx
+            )
         # Refresh errant particle gallery after particles are detected
         if self.errant_particle_gallery:
             self.errant_particle_gallery.refresh_particles()
@@ -193,7 +209,9 @@ class ParticleDetectionWindow(QMainWindow):
         self.on_particles_updated(particles_df)
 
     def clear_processed_data(self):
-        print("Particle detection parameters changed. Clearing processed data...")
+        print(
+            "Particle detection parameters changed. Clearing processed data..."
+        )
         if self.file_controller:
             try:
                 self.file_controller.delete_all_files_in_folder(
@@ -262,7 +280,9 @@ class ParticleDetectionWindow(QMainWindow):
             print(f"Error: Unsupported export format '{target_format}'")
             return
 
-        default_name = f"{os.path.splitext(source_filename)[0]}_export.{target_format}"
+        default_name = (
+            f"{os.path.splitext(source_filename)[0]}_export.{target_format}"
+        )
         save_path, _ = QFileDialog.getSaveFileName(
             self, "desc", default_name, file_filter
         )
@@ -287,9 +307,12 @@ class ParticleDetectionWindow(QMainWindow):
 
     def export_particles_csv(self):
         """Exports the 'all_particles.csv' file to a user-selected CSV file."""
-        self._export_data(source_filename="all_particles.csv", target_format="csv")
+        self._export_data(
+            source_filename="all_particles.csv", target_format="csv"
+        )
 
     def export_particles_pkl(self):
         """Exports the 'all_particles.csv' data as a user-selected pickle file."""
-        self._export_data(source_filename="all_particles.csv", target_format="pkl")
-
+        self._export_data(
+            source_filename="all_particles.csv", target_format="pkl"
+        )

@@ -23,10 +23,18 @@ import os
 
 
 class TrajectoryPlayerWidget(QWidget):
-    # Signal emitted when overlay changes
-    overlay_changed = Signal(int, int)  # frame_i, frame_i1
+    """Widget for displaying red-blue trajectory overlay images."""
+
+    overlay_changed = Signal(int, int)  # Signal emitted when overlay changes
 
     def __init__(self, parent=None):
+        """Initialize trajectory player widget.
+
+        Parameters
+        ----------
+        parent : QWidget, optional
+            Parent widget
+        """
         super().__init__(parent)
         self.config_manager = None
         self.file_controller = None
@@ -96,7 +104,13 @@ class TrajectoryPlayerWidget(QWidget):
         self.update_overlay_display()
 
     def set_config_manager(self, config_manager):
-        """Set the config manager for this widget."""
+        """Set the config manager for this widget.
+
+        Parameters
+        ----------
+        config_manager : ConfigManager
+            Configuration manager instance
+        """
         self.config_manager = config_manager
         if config_manager:
             self.original_frames_folder = config_manager.get_path(
@@ -104,10 +118,18 @@ class TrajectoryPlayerWidget(QWidget):
             )
 
     def set_file_controller(self, file_controller):
-        """Set the file controller for this widget."""
+        """Set the file controller for this widget.
+
+        Parameters
+        ----------
+        file_controller : FileController
+            File controller instance
+        """
         self.file_controller = file_controller
         if file_controller:
-            self.original_frames_folder = file_controller.original_frames_folder
+            self.original_frames_folder = (
+                file_controller.original_frames_folder
+            )
             # Load total frames count
             self._load_total_frames()
 
@@ -143,7 +165,9 @@ class TrajectoryPlayerWidget(QWidget):
 
         frame_files = []
         for filename in sorted(os.listdir(self.original_frames_folder)):
-            if filename.lower().endswith((".jpg", ".jpeg", ".png", ".tif", ".tiff")):
+            if filename.lower().endswith(
+                (".jpg", ".jpeg", ".png", ".tif", ".tiff")
+            ):
                 frame_files.append(filename)
 
         self.total_frames = len(frame_files)
@@ -183,15 +207,21 @@ class TrajectoryPlayerWidget(QWidget):
             self.original_frames_folder, f"frame_{frame_i1:05d}.jpg"
         )
 
-        if not os.path.exists(frame1_filename) or not os.path.exists(frame2_filename):
-            self.photo_label.setText(f"Frames {frame_i} or {frame_i1} not found")
+        if not os.path.exists(frame1_filename) or not os.path.exists(
+            frame2_filename
+        ):
+            self.photo_label.setText(
+                f"Frames {frame_i} or {frame_i1} not found"
+            )
             return
 
         frame1 = cv2.imread(frame1_filename)
         frame2 = cv2.imread(frame2_filename)
 
         if frame1 is None or frame2 is None:
-            self.photo_label.setText(f"Failed to load frames {frame_i} or {frame_i1}")
+            self.photo_label.setText(
+                f"Failed to load frames {frame_i} or {frame_i1}"
+            )
             return
 
         # Generate full-frame RB overlay
@@ -207,12 +237,18 @@ class TrajectoryPlayerWidget(QWidget):
             bytes_per_line = 3 * width
             q_image = QPixmap.fromImage(
                 QImage(
-                    rb_overlay.data, width, height, bytes_per_line, QImage.Format_RGB888
+                    rb_overlay.data,
+                    width,
+                    height,
+                    bytes_per_line,
+                    QImage.Format_RGB888,
                 )
             )
             self.current_pixmap = q_image
             scaled = self.current_pixmap.scaled(
-                self.photo_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation
+                self.photo_label.size(),
+                Qt.KeepAspectRatio,
+                Qt.SmoothTransformation,
             )
             self.photo_label.setPixmap(scaled)
 
@@ -264,7 +300,10 @@ class TrajectoryPlayerWidget(QWidget):
     def resizeEvent(self, event):
         """Handle widget resize to update image display."""
         super().resizeEvent(event)
-        if self.current_pixmap is not None and not self.current_pixmap.isNull():
+        if (
+            self.current_pixmap is not None
+            and not self.current_pixmap.isNull()
+        ):
             scaled = self.current_pixmap.scaled(
                 self.photo_label.size(),
                 Qt.KeepAspectRatio,

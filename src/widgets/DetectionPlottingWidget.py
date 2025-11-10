@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
     QPushButton,
-    QMenu
+    QMenu,
 )
 from PySide6.QtGui import QAction
 from PySide6.QtCore import Qt
@@ -24,6 +24,7 @@ from copy import copy
 from .. import particle_processing
 
 from .GraphingUtils import *
+
 
 class DectectionPlottingWidget(GraphingPanelWidget):
     def __init__(self, parent=None):
@@ -41,10 +42,10 @@ class DectectionPlottingWidget(GraphingPanelWidget):
         self.sb_label = QLabel("Subpixel Bias")
         self.sb_layout.addWidget(self.sb_label, alignment=Qt.AlignTop)
 
-        self.sb_button = GraphingButton(
-            text="Plot Subpixel Bias", parent=self
+        self.sb_button = GraphingButton(text="Plot Subpixel Bias", parent=self)
+        self.sb_button.clicked.connect(
+            lambda: self.self_plot(self.get_subpixel_bias, self.sb_button)
         )
-        self.sb_button.clicked.connect(lambda: self.self_plot(self.get_subpixel_bias, self.sb_button))
         self.sb_layout.addWidget(self.sb_button, alignment=Qt.AlignTop)
 
         self.button_layout.addWidget(self.sb)
@@ -59,16 +60,18 @@ class DectectionPlottingWidget(GraphingPanelWidget):
         self.hist_label = QLabel("Histograms")
         self.hist_layout.addWidget(self.hist_label, alignment=Qt.AlignTop)
 
-        self.ecc_button = GraphingButton(
-            text="Plot Eccentricity", parent=self
+        self.ecc_button = GraphingButton(text="Plot Eccentricity", parent=self)
+        self.ecc_button.clicked.connect(
+            lambda: self.self_plot(
+                self.get_eccentricity_count, self.ecc_button
+            )
         )
-        self.ecc_button.clicked.connect(lambda: self.self_plot(self.get_eccentricity_count, self.ecc_button))
         self.hist_layout.addWidget(self.ecc_button, alignment=Qt.AlignTop)
 
-        self.mass_button = GraphingButton(
-            text="Plot Mass", parent=self
+        self.mass_button = GraphingButton(text="Plot Mass", parent=self)
+        self.mass_button.clicked.connect(
+            lambda: self.self_plot(self.get_mass_count, self.mass_button)
         )
-        self.mass_button.clicked.connect(lambda: self.self_plot(self.get_mass_count, self.mass_button))
         self.hist_layout.addWidget(self.mass_button, alignment=Qt.AlignTop)
 
         self.button_layout.addWidget(self.hist)

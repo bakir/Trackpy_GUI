@@ -33,7 +33,9 @@ class TrajectoryLinkingWindow(QMainWindow):
         """Set the config manager for this window."""
         self.config_manager = config_manager
         # Pass config manager to widgets that need it
-        if hasattr(self, "main_layout") and hasattr(self.main_layout, "right_panel"):
+        if hasattr(self, "main_layout") and hasattr(
+            self.main_layout, "right_panel"
+        ):
             self.main_layout.right_panel.set_config_manager(config_manager)
         if hasattr(self, "frame_player"):
             self.frame_player.set_config_manager(config_manager)
@@ -44,7 +46,9 @@ class TrajectoryLinkingWindow(QMainWindow):
         """Set the file controller for this window."""
         self.file_controller = file_controller
         # Pass file controller to widgets that need it
-        if hasattr(self, "main_layout") and hasattr(self.main_layout, "right_panel"):
+        if hasattr(self, "main_layout") and hasattr(
+            self.main_layout, "right_panel"
+        ):
             self.main_layout.right_panel.set_file_controller(file_controller)
         if hasattr(self, "frame_player"):
             self.frame_player.set_file_controller(file_controller)
@@ -56,7 +60,10 @@ class TrajectoryLinkingWindow(QMainWindow):
         """Ensure the RB overlay preview is ready when the window opens."""
         if hasattr(self, "frame_player") and self.frame_player:
             self.frame_player.load_initial_overlay()
-        if hasattr(self, "errant_particle_gallery") and self.errant_particle_gallery:
+        if (
+            hasattr(self, "errant_particle_gallery")
+            and self.errant_particle_gallery
+        ):
             self.errant_particle_gallery.refresh_rb_gallery()
 
     def setup_ui(self):
@@ -81,11 +88,19 @@ class TrajectoryLinkingWindow(QMainWindow):
         # Add the sub-option actions to the "Export" menu
         export_particle_data_menu.addAction(export_particle_data_csv_action)
         export_particle_data_menu.addAction(export_particle_data_pkl_action)
-        export_trajectory_data_menu.addAction(export_trajectory_data_csv_action)
-        export_trajectory_data_menu.addAction(export_trajectory_data_pkl_action)
+        export_trajectory_data_menu.addAction(
+            export_trajectory_data_csv_action
+        )
+        export_trajectory_data_menu.addAction(
+            export_trajectory_data_pkl_action
+        )
         # You can then connect your sub-actions to functions
-        export_particle_data_csv_action.triggered.connect(self.export_particles_csv)
-        export_particle_data_pkl_action.triggered.connect(self.export_particles_pkl)
+        export_particle_data_csv_action.triggered.connect(
+            self.export_particles_csv
+        )
+        export_particle_data_pkl_action.triggered.connect(
+            self.export_particles_pkl
+        )
         export_trajectory_data_csv_action.triggered.connect(
             self.export_trajectories_csv
         )
@@ -171,7 +186,9 @@ class TrajectoryLinkingWindow(QMainWindow):
             print(f"Error: Unsupported export format '{target_format}'")
             return
 
-        default_name = f"{os.path.splitext(source_filename)[0]}_export.{target_format}"
+        default_name = (
+            f"{os.path.splitext(source_filename)[0]}_export.{target_format}"
+        )
         save_path, _ = QFileDialog.getSaveFileName(
             self, "desc", default_name, file_filter
         )
@@ -196,24 +213,34 @@ class TrajectoryLinkingWindow(QMainWindow):
 
     def export_particles_csv(self):
         """Exports the 'all_particles.csv' file to a user-selected CSV file."""
-        self._export_data(source_filename="all_particles.csv", target_format="csv")
+        self._export_data(
+            source_filename="all_particles.csv", target_format="csv"
+        )
 
     def export_particles_pkl(self):
         """Exports the 'all_particles.csv' data as a user-selected pickle file."""
-        self._export_data(source_filename="all_particles.csv", target_format="pkl")
+        self._export_data(
+            source_filename="all_particles.csv", target_format="pkl"
+        )
 
     def export_trajectories_csv(self):
         """Exports the 'trajectories.csv' file to a user-selected CSV file."""
-        self._export_data(source_filename="trajectories.csv", target_format="csv")
+        self._export_data(
+            source_filename="trajectories.csv", target_format="csv"
+        )
 
     def export_trajectories_pkl(self):
-        self._export_data(source_filename="trajectories.csv", target_format="pkl")
-
+        self._export_data(
+            source_filename="trajectories.csv", target_format="pkl"
+        )
 
     def go_back_to_detection(self):
         """Emit signal to switch back to particle detection window."""
         if hasattr(self, "frame_player") and self.frame_player:
             self.frame_player.reset_state()
-        if hasattr(self, "errant_particle_gallery") and self.errant_particle_gallery:
+        if (
+            hasattr(self, "errant_particle_gallery")
+            and self.errant_particle_gallery
+        ):
             self.errant_particle_gallery.reset_state()
         self.goBackToDetection.emit()

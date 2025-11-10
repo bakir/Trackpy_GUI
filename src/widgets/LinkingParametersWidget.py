@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
     QSpinBox,
     QDoubleSpinBox,
     QPushButton,
-    QCheckBox
+    QCheckBox,
 )
 from PySide6.QtCore import Qt, Signal
 import os
@@ -86,7 +86,9 @@ class LinkingParametersWidget(QWidget):
 
         self.form.addRow("Search range", self.search_range_input)
         self.form.addRow("Memory", self.memory_input)
-        self.form.addRow("Min trajectory length", self.min_trajectory_length_input)
+        self.form.addRow(
+            "Min trajectory length", self.min_trajectory_length_input
+        )
         self.form.addRow("FPS", self.fps_input)
         self.form.addRow("Max speed (μm/s)", self.max_speed_input)
         self.form.addRow("Subtract Drift", self.sub_drift)
@@ -104,7 +106,9 @@ class LinkingParametersWidget(QWidget):
 
         self.back_button = QPushButton("Back")
         self.back_button.clicked.connect(self.go_back)
-        self.buttons_layout.addWidget(self.back_button, alignment=Qt.AlignRight)
+        self.buttons_layout.addWidget(
+            self.back_button, alignment=Qt.AlignRight
+        )
 
         self.layout.addLayout(self.buttons_layout)
 
@@ -114,11 +118,15 @@ class LinkingParametersWidget(QWidget):
         # Save on Enter / editing finished
         self.search_range_input.editingFinished.connect(self.save_params)
         self.memory_input.editingFinished.connect(self.save_params)
-        self.min_trajectory_length_input.editingFinished.connect(self.save_params)
+        self.min_trajectory_length_input.editingFinished.connect(
+            self.save_params
+        )
         self.fps_input.editingFinished.connect(self.save_params)
         self.max_speed_input.editingFinished.connect(self.save_params)
         # Also catch Return in the embedded line edits
-        self.search_range_input.lineEdit().returnPressed.connect(self.save_params)
+        self.search_range_input.lineEdit().returnPressed.connect(
+            self.save_params
+        )
         self.memory_input.lineEdit().returnPressed.connect(self.save_params)
         self.min_trajectory_length_input.lineEdit().returnPressed.connect(
             self.save_params
@@ -154,7 +162,9 @@ class LinkingParametersWidget(QWidget):
         params = {
             "search_range": int(self.search_range_input.value()),
             "memory": int(self.memory_input.value()),
-            "min_trajectory_length": int(self.min_trajectory_length_input.value()),
+            "min_trajectory_length": int(
+                self.min_trajectory_length_input.value()
+            ),
             "fps": float(self.fps_input.value()),
             "max_speed": float(self.max_speed_input.value()),
         }
@@ -202,7 +212,9 @@ class LinkingParametersWidget(QWidget):
             # Get linking parameters
             search_range = int(linking_params.get("search_range", 10))
             memory = int(linking_params.get("memory", 10))
-            min_trajectory_length = int(linking_params.get("min_trajectory_length", 10))
+            min_trajectory_length = int(
+                linking_params.get("min_trajectory_length", 10)
+            )
 
             print(
                 f"Linking particles with search_range={search_range}, memory={memory}"
@@ -210,7 +222,9 @@ class LinkingParametersWidget(QWidget):
 
             # Link particles into trajectories
             trajectories = tp.link_df(
-                self.detected_particles, search_range=search_range, memory=memory
+                self.detected_particles,
+                search_range=search_range,
+                memory=memory,
             )
 
             print(f"Created {trajectories['particle'].nunique()} trajectories")
@@ -219,7 +233,9 @@ class LinkingParametersWidget(QWidget):
             print(
                 f"Filtering trajectories shorter than {min_trajectory_length} frames..."
             )
-            trajectories_filtered = tp.filter_stubs(trajectories, min_trajectory_length)
+            trajectories_filtered = tp.filter_stubs(
+                trajectories, min_trajectory_length
+            )
 
             print(
                 f"After filtering: {trajectories_filtered['particle'].nunique()} trajectories"
@@ -228,16 +244,22 @@ class LinkingParametersWidget(QWidget):
             if self.sub_drift.isChecked():
                 # Remove drift
                 drift = tp.compute_drift(trajectories_filtered)
-                drift_subtracted = tp.subtract_drift(trajectories_filtered.copy(), drift)
+                drift_subtracted = tp.subtract_drift(
+                    trajectories_filtered.copy(), drift
+                )
 
                 # Fix dataframe index level groupings that tp.subtract_drift creates
-                if 'particle' in drift_subtracted.columns:
-                    drift_subtracted = drift_subtracted.drop(columns=['particle']) 
+                if "particle" in drift_subtracted.columns:
+                    drift_subtracted = drift_subtracted.drop(
+                        columns=["particle"]
+                    )
 
-                if 'frame' in drift_subtracted.columns:
-                    drift_subtracted = drift_subtracted.drop(columns=['frame'])
-                    
-                trajectories_filtered = drift_subtracted.reset_index(drop=False)
+                if "frame" in drift_subtracted.columns:
+                    drift_subtracted = drift_subtracted.drop(columns=["frame"])
+
+                trajectories_filtered = drift_subtracted.reset_index(
+                    drop=False
+                )
 
             # Store the linked trajectories
             self.linked_trajectories = trajectories_filtered
@@ -248,7 +270,9 @@ class LinkingParametersWidget(QWidget):
             print(f"Saved trajectories to: {trajectories_file}")
 
             # Create trajectory visualization
-            self.create_trajectory_visualization(trajectories_filtered, data_folder)
+            self.create_trajectory_visualization(
+                trajectories_filtered, data_folder
+            )
 
             # Create RB gallery for trajectory validation
             self.create_rb_gallery(trajectories_file, data_folder)
@@ -258,7 +282,9 @@ class LinkingParametersWidget(QWidget):
             self.rbGalleryCreated.emit()
 
             # Pass linked patricle data to plotting widget
-            self.trajectory_plotting.get_linked_particles(self.linked_trajectories)
+            self.trajectory_plotting.get_linked_particles(
+                self.linked_trajectories
+            )
 
         except Exception as e:
             print(f"Error linking trajectories: {e}")
@@ -275,7 +301,9 @@ class LinkingParametersWidget(QWidget):
 
             # Get image dimensions from first frame
             if self.file_controller:
-                original_frames_folder = self.file_controller.original_frames_folder
+                original_frames_folder = (
+                    self.file_controller.original_frames_folder
+                )
             else:
                 if self.config_manager:
                     original_frames_folder = self.config_manager.get_path(
@@ -289,7 +317,9 @@ class LinkingParametersWidget(QWidget):
                 if filename.lower().endswith(
                     (".jpg", ".jpeg", ".png", ".tif", ".tiff")
                 ):
-                    frame_files.append(os.path.join(original_frames_folder, filename))
+                    frame_files.append(
+                        os.path.join(original_frames_folder, filename)
+                    )
                     break  # Just need first frame for dimensions
 
             if frame_files:
@@ -304,7 +334,9 @@ class LinkingParametersWidget(QWidget):
                 height, width = 800, 600  # Default dimensions
 
             # Create figure with white background
-            fig, ax = plt.subplots(figsize=(width / 100, height / 100), dpi=100)
+            fig, ax = plt.subplots(
+                figsize=(width / 100, height / 100), dpi=100
+            )
             ax.set_facecolor("white")
             fig.patch.set_facecolor("white")
 
@@ -366,7 +398,9 @@ class LinkingParametersWidget(QWidget):
             )
             plt.close(fig)
 
-            print(f"Trajectory visualization saved to: {trajectory_image_path}")
+            print(
+                f"Trajectory visualization saved to: {trajectory_image_path}"
+            )
 
             # Emit signal with image path for display
             self.trajectoryVisualizationCreated.emit(trajectory_image_path)
@@ -381,7 +415,9 @@ class LinkingParametersWidget(QWidget):
             print(f"🔵 Trajectories file: {trajectories_file}")
 
             if self.file_controller:
-                original_frames_folder = self.file_controller.original_frames_folder
+                original_frames_folder = (
+                    self.file_controller.original_frames_folder
+                )
                 rb_gallery_folder = self.file_controller.rb_gallery_folder
                 print(f"🔵 Using file_controller paths:")
                 print(f"   Frames folder: {original_frames_folder}")
@@ -391,7 +427,9 @@ class LinkingParametersWidget(QWidget):
                     original_frames_folder = self.config_manager.get_path(
                         "original_frames_folder"
                     )
-                    rb_gallery_folder = self.config_manager.get_path("rb_gallery_folder")
+                    rb_gallery_folder = self.config_manager.get_path(
+                        "rb_gallery_folder"
+                    )
                 else:
                     original_frames_folder = "original_frames/"
                     rb_gallery_folder = "rb_gallery/"

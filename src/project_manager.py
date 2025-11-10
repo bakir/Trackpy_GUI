@@ -59,7 +59,9 @@ class ProjectManager:
                 os.makedirs(folder_path, exist_ok=True)
 
             # Create default config for project
-            project_config_path = os.path.join(project_folder_path, "config.ini")
+            project_config_path = os.path.join(
+                project_folder_path, "config.ini"
+            )
             self._create_default_project_config(
                 project_config_path, project_folder_path
             )
@@ -95,7 +97,9 @@ class ProjectManager:
                 print(f"Project folder does not exist: {project_folder_path}")
                 return False
 
-            project_config_path = os.path.join(project_folder_path, "config.ini")
+            project_config_path = os.path.join(
+                project_folder_path, "config.ini"
+            )
             if not os.path.exists(project_config_path):
                 print(f"Project config file not found: {project_config_path}")
                 return False
@@ -131,12 +135,16 @@ class ProjectManager:
             "annotated_frames": os.path.join(
                 self.current_project_path, "annotated_frames"
             ),
-            "rb_gallery": os.path.join(self.current_project_path, "rb_gallery"),
+            "rb_gallery": os.path.join(
+                self.current_project_path, "rb_gallery"
+            ),
             "data": os.path.join(self.current_project_path, "data"),
             "videos": os.path.join(self.current_project_path, "videos"),
         }
 
-    def _update_project_config_paths(self, config_path: str, project_path: str):
+    def _update_project_config_paths(
+        self, config_path: str, project_path: str
+    ):
         """Update config file paths to be absolute paths relative to project folder."""
         import configparser
 
@@ -167,7 +175,9 @@ class ProjectManager:
         with open(config_path, "w") as f:
             config.write(f)
 
-    def _create_default_project_config(self, config_path: str, project_path: str):
+    def _create_default_project_config(
+        self, config_path: str, project_path: str
+    ):
         """Create a default config file for the project with absolute paths."""
         import configparser
 
@@ -188,7 +198,9 @@ class ProjectManager:
                 os.path.join(project_path, "rb_gallery")
             ),
             "data_folder": os.path.abspath(os.path.join(project_path, "data")),
-            "videos_folder": os.path.abspath(os.path.join(project_path, "videos")),
+            "videos_folder": os.path.abspath(
+                os.path.join(project_path, "videos")
+            ),
         }
 
         # Detection section
@@ -233,5 +245,3 @@ Path: {project_path}
         info_path = os.path.join(project_path, "README.md")
         with open(info_path, "w") as f:
             f.write(info_content)
-
-

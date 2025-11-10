@@ -26,7 +26,9 @@ from ..project_manager import ProjectManager
 class StartScreen(QWidget):
     """Main start screen widget for project management."""
 
-    project_selected = Signal(str)  # Emits project path when project is selected
+    project_selected = Signal(
+        str
+    )  # Emits project path when project is selected
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -51,7 +53,9 @@ class StartScreen(QWidget):
         main_layout.addWidget(title_label)
 
         # Subtitle
-        subtitle_label = QLabel("Select a project to begin particle tracking analysis")
+        subtitle_label = QLabel(
+            "Select a project to begin particle tracking analysis"
+        )
         subtitle_font = QFont()
         subtitle_font.setPointSize(12)
         subtitle_label.setFont(subtitle_font)
@@ -186,7 +190,9 @@ class StartScreen(QWidget):
             project_path = dialog.get_project_path()
             project_name = dialog.get_project_name()
 
-            if self.project_manager.create_new_project(project_path, project_name):
+            if self.project_manager.create_new_project(
+                project_path, project_name
+            ):
                 QMessageBox.information(
                     self,
                     "Project Created",
@@ -232,4 +238,3 @@ class StartScreen(QWidget):
                     "Invalid Project",
                     "The selected folder does not appear to be a valid project folder.\n\nA project folder should contain a 'config.ini' file.",
                 )
-
