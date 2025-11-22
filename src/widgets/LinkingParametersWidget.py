@@ -277,6 +277,12 @@ class LinkingParametersWidget(QWidget):
             # Create RB gallery for trajectory validation
             self.create_rb_gallery(trajectories_file, data_folder)
 
+            # Find and save high-memory links
+            from .. import particle_processing
+            particle_processing.find_and_save_high_memory_links(
+                trajectories_file, memory, max_links=5
+            )
+
             # Emit signals
             self.trajectoriesLinked.emit()
             self.rbGalleryCreated.emit()

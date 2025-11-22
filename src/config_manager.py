@@ -44,6 +44,7 @@ class ConfigManager:
             "rb_gallery_folder": "rb_gallery/",
             "data_folder": "data/",
             "videos_folder": "videos/",
+            "memory_folder": "memory/",
         }
 
         self.config["Detection"] = {

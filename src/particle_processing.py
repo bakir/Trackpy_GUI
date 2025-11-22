@@ -1227,3 +1227,103 @@ def annotate_frame(
         os.remove(annotated_frame_path)
 
     return None
+
+
+def find_and_save_high_memory_links(trajectories_file, memory_parameter, max_links=5):
+    """
+    Find the highest memory links (particles that disappeared for the most frames)
+    and save the relevant, annotated frames to the memory folder.
+    
+    Parameters
+    ----------
+    trajectories_file : str
+        Path to trajectories.csv file
+    memory_parameter : int
+        Maximum memory parameter used in linking
+    max_links : int
+        Maximum number of links to find (default 5)
+        
+    Returns
+    -------
+    list of dict
+        List of link information dictionaries
+    """
+    if file_controller is None:
+        print("File controller not set in particle_processing.")
+        return []
+    
+    try:
+        trajectories = pd.read_csv(trajectories_file)
+    except Exception as e:
+        print(f"Error loading trajectories: {e}")
+        return []
+    
+    if len(trajectories) == 0:
+        print("No trajectory data found")
+        return []
+    
+    memory_links = []
+    unique_particles = trajectories['particle'].unique()
+    
+    for particle_id in unique_particles:
+        particle_data = trajectories[trajectories['particle'] == particle_id].sort_values('frame')
+        
+        if len(particle_data) < 2:
+            continue
+        
+        frames = particle_data['frame'].values
+        for i in range(len(frames) - 1):
+            frame_gap = frames[i + 1] - frames[i]
+            if frame_gap > 1:
+                memory_used = frame_gap - 1
+                if memory_used < memory_parameter:
+                    last_frame = int(frames[i])
+                    reappear_frame = int(frames[i + 1])
+                    frame_sequence = list(range(last_frame, reappear_frame + 1))
+                    
+                    start_pos_data = particle_data.iloc[i]
+                    end_pos_data = particle_data.iloc[i+1]
+
+                    memory_links.append({
+                        'particle_id': particle_id,
+                        'memory_used': memory_used,
+                        'last_frame': last_frame,
+                        'reappear_frame': reappear_frame,
+                        'frames': frame_sequence,
+                        'start_pos': (start_pos_data['x'], start_pos_data['y']),
+                        'end_pos': (end_pos_data['x'], end_pos_data['y']),
+                    })
+    
+    memory_links.sort(key=lambda x: x['memory_used'], reverse=True)
+    top_links = memory_links[:max_links]
+    
+    if len(top_links) == 0:
+        print("No high-memory links found")
+        return []
+    
+    memory_folder = file_controller.memory_folder
+    file_controller.ensure_folder_exists(memory_folder)
+    file_controller.delete_all_files_in_folder(memory_folder)
+    
+    original_frames_folder = file_controller.original_frames_folder
+    
+    for link_idx, link in enumerate(top_links):
+        link_folder = os.path.join(memory_folder, f"memory_link_{link_idx}")
+        file_controller.ensure_folder_exists(link_folder)
+        
+        start_pos = link['start_pos']
+        end_pos = link['end_pos']
+
+        for frame_num in link['frames']:
+            source_frame_path = os.path.join(original_frames_folder, f"frame_{frame_num:05d}.jpg")
+            if os.path.exists(source_frame_path):
+                dest_frame_path = os.path.join(link_folder, f"frame_{frame_num:05d}.jpg")
+                
+                image = cv2.imread(source_frame_path)
+                if image is not None:
+                    cv2.circle(image, (int(start_pos[0]), int(start_pos[1])), 10, (0, 255, 255), 2)
+                    cv2.circle(image, (int(end_pos[0]), int(end_pos[1])), 10, (0, 255, 255), 2)
+                    cv2.imwrite(dest_frame_path, image)
+    
+    print(f"Found {len(top_links)} high-memory links and saved frames to {memory_folder}")
+    return top_links

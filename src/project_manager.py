@@ -52,6 +52,7 @@ class ProjectManager:
                 "rb_gallery",
                 "data",
                 "videos",
+                "memory",
             ]
 
             for folder in folders:
@@ -200,6 +201,9 @@ class ProjectManager:
             "data_folder": os.path.abspath(os.path.join(project_path, "data")),
             "videos_folder": os.path.abspath(
                 os.path.join(project_path, "videos")
+            ),
+            "memory_folder": os.path.abspath(
+                os.path.join(project_path, "memory")
             ),
         }
 

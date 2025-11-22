@@ -52,6 +52,9 @@ class FileController:
         self.data_folder = self.config_manager.get_path(
             "data_folder", self.project_path
         )
+        self.memory_folder = self.config_manager.get_path(
+            "memory_folder", self.project_path
+        )
 
     def set_project_path(self, project_path: str):
         """Set the project path and reload folder paths."""

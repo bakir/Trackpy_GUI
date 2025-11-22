@@ -1,9 +1,9 @@
 """
-Trajectory Player Widget
+Trajectory Player Widget - Memory Link Gallery
 
-Description: Displays full-frame red-blue overlays for trajectory linking visualization.
-Shows frame pairs (i, i+1) with red particles in frame i and blue particles in frame i+1,
-both at 50% opacity on white background.
+Description: Displays a gallery of high-memory links (particles that disappeared
+for many frames before reappearing). Allows navigation through links and frames
+within each link.
 """
 
 from PySide6.QtWidgets import (
@@ -12,20 +12,18 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
     QPushButton,
-    QLineEdit,
-    QSlider,
 )
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QPixmap, QImage
+import os
+import shutil
 import cv2
 import numpy as np
-import os
+import json
 
 
 class TrajectoryPlayerWidget(QWidget):
-    """Widget for displaying red-blue trajectory overlay images."""
-
-    overlay_changed = Signal(int, int)  # Signal emitted when overlay changes
+    """Widget for displaying memory link galleries."""
 
     def __init__(self, parent=None):
         """Initialize trajectory player widget.
@@ -40,8 +38,8 @@ class TrajectoryPlayerWidget(QWidget):
         self.file_controller = None
         self.layout = QVBoxLayout(self)
 
-        # Photo display for RB overlay
-        self.photo_label = QLabel("RB Overlay Display")
+        # Photo display for current frame
+        self.photo_label = QLabel("No memory links available")
         self.photo_label.setAlignment(Qt.AlignCenter)
         self.photo_label.setStyleSheet(
             "background-color: white; color: #333; border: 1px solid #555;"
@@ -50,58 +48,53 @@ class TrajectoryPlayerWidget(QWidget):
         self.photo_label.setScaledContents(False)
         self.layout.addWidget(self.photo_label)
 
-        # Current overlay display
-        self.current_overlay_label = QLabel("Overlay: 0 / 0")
-        self.current_overlay_label.setAlignment(Qt.AlignCenter)
-        self.layout.addWidget(self.current_overlay_label)
+        # Current link and frame display
+        self.current_display_label = QLabel("Memory Link: 0 / 0 | Frame: 0 / 0")
+        self.current_display_label.setAlignment(Qt.AlignCenter)
+        self.layout.addWidget(self.current_display_label)
 
-        # Navigation controls
+        # Combined navigation controls
         nav_layout = QHBoxLayout()
-        self.prev_button = QPushButton("◀")
-        self.prev_button.setFixedSize(40, 30)
-        self.prev_button.clicked.connect(self.previous_overlay)
-        nav_layout.addWidget(self.prev_button)
+        nav_layout.addStretch()
 
-        nav_layout.addWidget(QLabel("Overlay:"))
-        self.overlay_input = QLineEdit()
-        self.overlay_input.setPlaceholderText("Enter overlay number")
-        self.overlay_input.returnPressed.connect(self.go_to_overlay)
-        nav_layout.addWidget(self.overlay_input)
+        # Memory Link navigation
+        nav_layout.addWidget(QLabel("Memory Link:"))
+        self.prev_link_button = QPushButton("◀◀")
+        self.prev_link_button.setFixedSize(40, 30)
+        self.prev_link_button.clicked.connect(self.previous_link)
+        nav_layout.addWidget(self.prev_link_button)
 
-        self.overlay_slider = QSlider(Qt.Horizontal)
-        self.overlay_slider.setRange(0, 0)
-        self.overlay_slider.valueChanged.connect(self.slider_value_changed)
-        nav_layout.addWidget(self.overlay_slider)
+        # Frame navigation
+        self.prev_frame_button = QPushButton("◀")
+        self.prev_frame_button.setFixedSize(40, 30)
+        self.prev_frame_button.clicked.connect(self.previous_frame)
+        nav_layout.addWidget(self.prev_frame_button)
 
-        self.next_button = QPushButton("▶")
-        self.next_button.setFixedSize(40, 30)
-        self.next_button.clicked.connect(self.next_overlay)
-        nav_layout.addWidget(self.next_button)
+        self.frame_display = QLabel("0 / 0")
+        self.frame_display.setAlignment(Qt.AlignCenter)
+        self.frame_display.setMinimumWidth(60)
+        nav_layout.addWidget(self.frame_display)
 
+        self.next_frame_button = QPushButton("▶")
+        self.next_frame_button.setFixedSize(40, 30)
+        self.next_frame_button.clicked.connect(self.next_frame)
+        nav_layout.addWidget(self.next_frame_button)
+
+        self.next_link_button = QPushButton("▶▶")
+        self.next_link_button.setFixedSize(40, 30)
+        self.next_link_button.clicked.connect(self.next_link)
+        nav_layout.addWidget(self.next_link_button)
+
+        nav_layout.addStretch()
         self.layout.addLayout(nav_layout)
 
-        # Store current pixmap and state
+        # Store state
         self.current_pixmap = None
-        self.original_frames_folder = None
-        self.total_frames = 0
-        self.current_overlay_idx = 0
-        self.threshold_percent = 50  # Default threshold
-        self.threshold_slider = (
-            None  # Will be connected from ErrantTrajectoryGalleryWidget
-        )
-
-    def reset_state(self):
-        """Reload frames and show the first overlay."""
-        self.current_pixmap = None
-        self.current_overlay_idx = 0
-        self._load_total_frames()
-        if self.total_frames > 1:
-            self.display_overlay(0)
-        elif self.total_frames == 1:
-            self.photo_label.setText("Need at least 2 frames for overlay")
-        else:
-            self.photo_label.setText("No frames available")
-        self.update_overlay_display()
+        self.memory_folder = None
+        self.links = []  # List of link folders
+        self.current_link_idx = 0
+        self.current_frame_idx = 0
+        self.current_link_frames = []  # List of frame files for current link
 
     def set_config_manager(self, config_manager):
         """Set the config manager for this widget.
@@ -112,10 +105,6 @@ class TrajectoryPlayerWidget(QWidget):
             Configuration manager instance
         """
         self.config_manager = config_manager
-        if config_manager:
-            self.original_frames_folder = config_manager.get_path(
-                "original_frames_folder"
-            )
 
     def set_file_controller(self, file_controller):
         """Set the file controller for this widget.
@@ -127,175 +116,156 @@ class TrajectoryPlayerWidget(QWidget):
         """
         self.file_controller = file_controller
         if file_controller:
-            self.original_frames_folder = (
-                file_controller.original_frames_folder
-            )
-            # Load total frames count
-            self._load_total_frames()
+            self.memory_folder = file_controller.memory_folder
+            self._load_links()
 
-    def load_initial_overlay(self):
-        """Load the first available RB overlay immediately."""
-        self._load_total_frames()
-        if self.total_frames > 1:
-            self.display_overlay(0)
-        elif self.total_frames == 1:
-            self.photo_label.setText("Need at least 2 frames for overlay")
-        else:
-            self.photo_label.setText("No frames available")
-
-    def set_threshold_slider(self, slider):
-        """Connect to threshold slider from ErrantTrajectoryGalleryWidget."""
-        self.threshold_slider = slider
-        if slider:
-            self.threshold_percent = slider.value()
-            slider.valueChanged.connect(self._on_threshold_changed)
-
-    def _on_threshold_changed(self, value):
-        """Handle threshold slider change - regenerate current overlay."""
-        self.threshold_percent = value
-        self.display_overlay(self.current_overlay_idx)
-
-    def _load_total_frames(self):
-        """Load total number of frames from folder."""
-        if not self.original_frames_folder or not os.path.exists(
-            self.original_frames_folder
-        ):
-            self.total_frames = 0
+    def _load_links(self):
+        """Load available memory links from the memory folder."""
+        if not self.memory_folder or not os.path.exists(self.memory_folder):
+            self.links = []
+            self.current_link_frames = []
+            self._update_display()
             return
 
+        # Find all link folders (memory_link_0, memory_link_1, etc.)
+        link_folders = []
+        for item in sorted(os.listdir(self.memory_folder)):
+            item_path = os.path.join(self.memory_folder, item)
+            if os.path.isdir(item_path) and item.startswith("memory_link_"):
+                link_folders.append(item_path)
+
+        self.links = link_folders
+        if len(self.links) > 0:
+            self.current_link_idx = 0
+            self._load_link_frames()
+        else:
+            self.current_link_frames = []
+            self.photo_label.setText("No memory links available")
+        self._update_display()
+
+    def _load_link_frames(self):
+        """Load frame files for the current link."""
+        if self.current_link_idx < 0 or self.current_link_idx >= len(self.links):
+            self.current_link_frames = []
+            return
+
+        link_folder = self.links[self.current_link_idx]
         frame_files = []
-        for filename in sorted(os.listdir(self.original_frames_folder)):
-            if filename.lower().endswith(
-                (".jpg", ".jpeg", ".png", ".tif", ".tiff")
-            ):
-                frame_files.append(filename)
+        
+        # Get all frame files and sort by frame number (extracted from filename)
+        for filename in sorted(os.listdir(link_folder)):
+            if filename.startswith("frame_") and filename.lower().endswith(".jpg"):
+                frame_path = os.path.join(link_folder, filename)
+                if os.path.isfile(frame_path):
+                    frame_files.append(frame_path)
 
-        self.total_frames = len(frame_files)
-        # Overlays are frame pairs (i, i+1), so max overlay is total_frames - 2
-        max_overlays = max(0, self.total_frames - 1)
-        if max_overlays > 0:
-            self.overlay_slider.setRange(0, max_overlays - 1)
+        self.current_link_frames = frame_files
+        if len(self.current_link_frames) > 0:
+            self.current_frame_idx = 0
+            self._display_current_frame()
         else:
-            self.overlay_slider.setRange(0, 0)
-        self.update_overlay_display()
+            self.photo_label.setText(f"No frames in memory link {self.current_link_idx}")
 
-    def display_trajectory_image(self, image_path):
-        """Legacy method - now loads frames and displays overlay instead."""
-        # When trajectories are linked, load frames and show overlay
-        self._load_total_frames()
-        if self.total_frames > 1:
-            self.display_overlay(0)
-
-    def display_overlay(self, overlay_idx):
-        """Display RB overlay for overlay_idx (shows frames overlay_idx and overlay_idx+1)."""
-        if self.total_frames < 2:
-            self.photo_label.setText("Need at least 2 frames for overlay")
+    def _display_current_frame(self):
+        """Display the current frame from the current link."""
+        if (self.current_frame_idx < 0 or 
+            self.current_frame_idx >= len(self.current_link_frames)):
+            self.photo_label.setText("No Frames")
             return
 
-        max_overlays = self.total_frames - 1
-        if overlay_idx < 0 or overlay_idx >= max_overlays:
+        frame_path = self.current_link_frames[self.current_frame_idx]
+        if not os.path.exists(frame_path):
+            self.photo_label.setText("Frame file not found")
             return
 
-        frame_i = overlay_idx
-        frame_i1 = overlay_idx + 1
-
-        # Load frames
-        frame1_filename = os.path.join(
-            self.original_frames_folder, f"frame_{frame_i:05d}.jpg"
-        )
-        frame2_filename = os.path.join(
-            self.original_frames_folder, f"frame_{frame_i1:05d}.jpg"
-        )
-
-        if not os.path.exists(frame1_filename) or not os.path.exists(
-            frame2_filename
-        ):
-            self.photo_label.setText(
-                f"Frames {frame_i} or {frame_i1} not found"
-            )
+        image = cv2.imread(frame_path)
+        if image is None:
+            self.photo_label.setText("Failed to load frame")
             return
 
-        frame1 = cv2.imread(frame1_filename)
-        frame2 = cv2.imread(frame2_filename)
+        # Convert BGR (OpenCV default) to RGB for Qt display
+        image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-        if frame1 is None or frame2 is None:
-            self.photo_label.setText(
-                f"Failed to load frames {frame_i} or {frame_i1}"
-            )
-            return
+        # Convert to QPixmap
+        height, width, channel = image_rgb.shape
+        bytes_per_line = 3 * width
+        q_image = QImage(image_rgb.data, width, height, bytes_per_line, QImage.Format_RGB888)
+        pixmap = QPixmap.fromImage(q_image)
 
-        # Generate full-frame RB overlay
-        from ..particle_processing import create_full_frame_rb_overlay
-
-        rb_overlay = create_full_frame_rb_overlay(
-            frame1, frame2, threshold_percent=self.threshold_percent
-        )
-
-        if rb_overlay is not None:
-            # Convert to QPixmap
-            height, width, channel = rb_overlay.shape
-            bytes_per_line = 3 * width
-            q_image = QPixmap.fromImage(
-                QImage(
-                    rb_overlay.data,
-                    width,
-                    height,
-                    bytes_per_line,
-                    QImage.Format_RGB888,
-                )
-            )
-            self.current_pixmap = q_image
-            scaled = self.current_pixmap.scaled(
+        if not pixmap.isNull():
+            self.current_pixmap = pixmap
+            scaled = pixmap.scaled(
                 self.photo_label.size(),
                 Qt.KeepAspectRatio,
                 Qt.SmoothTransformation,
             )
             self.photo_label.setPixmap(scaled)
-
-        self.current_overlay_idx = overlay_idx
-        self.update_overlay_display()
-
-        # Emit signal to notify errant trajectory gallery of frame pair change
-        self.overlay_changed.emit(frame_i, frame_i1)
-
-    def update_overlay_display(self):
-        """Update overlay display and input."""
-        max_overlays = max(0, self.total_frames - 1)
-        if max_overlays > 0:
-            self.current_overlay_label.setText(
-                f"Overlay: {self.current_overlay_idx} / {max_overlays - 1} (Frames {self.current_overlay_idx} & {self.current_overlay_idx + 1})"
-            )
-            self.overlay_slider.setValue(self.current_overlay_idx)
         else:
-            self.current_overlay_label.setText("Overlay: 0 / 0")
-        self.overlay_input.setText(str(self.current_overlay_idx))
+            self.photo_label.setText("Failed to create pixmap")
 
-    def previous_overlay(self):
-        """Go to previous overlay."""
-        if self.current_overlay_idx > 0:
-            self.display_overlay(self.current_overlay_idx - 1)
+    def _update_display(self):
+        """Update the display labels."""
+        # Update frame display
+        if len(self.current_link_frames) > 0:
+            self.frame_display.setText(f"{self.current_frame_idx} / {len(self.current_link_frames) - 1}")
+        else:
+            self.frame_display.setText("0 / 0")
 
-    def next_overlay(self):
-        """Go to next overlay."""
-        max_overlays = max(0, self.total_frames - 1)
-        if self.current_overlay_idx < max_overlays - 1:
-            self.display_overlay(self.current_overlay_idx + 1)
+        # Update combined display
+        if len(self.links) > 0 and len(self.current_link_frames) > 0:
+            frame_filename = os.path.basename(self.current_link_frames[self.current_frame_idx])
+            # Extract frame number from filename (frame_00010.jpg -> 10)
+            try:
+                frame_num = int(frame_filename.split('_')[1].split('.')[0])
+            except (ValueError, IndexError):
+                frame_num = self.current_frame_idx
+            self.current_display_label.setText(
+                f"Memory Link: {self.current_link_idx} / {len(self.links) - 1} | "
+                f"Frame: {self.current_frame_idx} / {len(self.current_link_frames) - 1} "
+                f"(Original: {frame_num})"
+            )
+        else:
+            self.current_display_label.setText("Memory Link: 0 / 0 | Frame: 0 / 0")
 
-    def go_to_overlay(self):
-        """Go to overlay specified in input."""
-        try:
-            overlay_idx = int(self.overlay_input.text())
-            max_overlays = max(0, self.total_frames - 1)
-            if 0 <= overlay_idx < max_overlays:
-                self.display_overlay(overlay_idx)
-        except ValueError:
-            pass
+    def previous_link(self):
+        """Go to previous link."""
+        if len(self.links) == 0:
+            return
+        if self.current_link_idx > 0:
+            self.current_link_idx -= 1
+            self._load_link_frames()
+            self._update_display()
 
-    def slider_value_changed(self, value):
-        """Go to overlay specified by slider."""
-        max_overlays = max(0, self.total_frames - 1)
-        if 0 <= value < max_overlays:
-            self.display_overlay(value)
+    def next_link(self):
+        """Go to next link."""
+        if len(self.links) == 0:
+            return
+        if self.current_link_idx < len(self.links) - 1:
+            self.current_link_idx += 1
+            self._load_link_frames()
+            self._update_display()
+
+    def previous_frame(self):
+        """Go to previous frame in current link."""
+        if len(self.current_link_frames) == 0:
+            return
+        if self.current_frame_idx > 0:
+            self.current_frame_idx -= 1
+            self._display_current_frame()
+            self._update_display()
+
+    def next_frame(self):
+        """Go to next frame in current link."""
+        if len(self.current_link_frames) == 0:
+            return
+        if self.current_frame_idx < len(self.current_link_frames) - 1:
+            self.current_frame_idx += 1
+            self._display_current_frame()
+            self._update_display()
+
+    def refresh_links(self):
+        """Reload links from disk (called when trajectories are found)."""
+        self._load_links()
 
     def resizeEvent(self, event):
         """Handle widget resize to update image display."""
@@ -310,3 +280,8 @@ class TrajectoryPlayerWidget(QWidget):
                 Qt.SmoothTransformation,
             )
             self.photo_label.setPixmap(scaled)
+
+    def reset_state(self):
+        self.current_link_idx = 0
+        self.current_frame_idx = 0
+        self.refresh_links()

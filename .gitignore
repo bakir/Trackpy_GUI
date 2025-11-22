@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+*.eggs
+
+# Logs and databases
+*.log
+*.sqlite3
+
+# OS-specific
+.DS_Store
+
+# IDE-specific
+.vscode/
+
+# Generated data and frames
+data/
+frames/
+annotated_frames/
+original_frames/
+particles/
+rb_gallery/
+memory/
