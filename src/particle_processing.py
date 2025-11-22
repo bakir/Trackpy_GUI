@@ -1231,22 +1231,8 @@ def annotate_frame(
 
 def find_and_save_high_memory_links(trajectories_file, memory_parameter, max_links=5):
     """
-    Find the highest memory links (particles that disappeared for the most frames)
-    and save the relevant, annotated frames to the memory folder.
-    
-    Parameters
-    ----------
-    trajectories_file : str
-        Path to trajectories.csv file
-    memory_parameter : int
-        Maximum memory parameter used in linking
-    max_links : int
-        Maximum number of links to find (default 5)
-        
-    Returns
-    -------
-    list of dict
-        List of link information dictionaries
+    Finds the highest memory links, saves padded 250x250 un-annotated cropped frames,
+    and creates metadata text files for each link for UI processing.
     """
     if file_controller is None:
         print("File controller not set in particle_processing.")
@@ -1313,17 +1299,56 @@ def find_and_save_high_memory_links(trajectories_file, memory_parameter, max_lin
         
         start_pos = link['start_pos']
         end_pos = link['end_pos']
+        particle_id = link['particle_id']
 
+        # Calculate center for cropping
+        center_x = (start_pos[0] + end_pos[0]) / 2
+        center_y = (start_pos[1] + end_pos[1]) / 2
+        crop_radius = 75
+        target_dim = 150
+        
+        crop_origin_x = int(center_x - crop_radius)
+        crop_origin_y = int(center_y - crop_radius)
+        crop_origin = (crop_origin_x, crop_origin_y)
+
+        # Save metadata to text files
+        with open(os.path.join(link_folder, "particle_id.txt"), 'w') as f:
+            f.write(str(int(particle_id)))
+        with open(os.path.join(link_folder, "start_pos.txt"), 'w') as f:
+            f.write(f"{start_pos[0]},{start_pos[1]}")
+        with open(os.path.join(link_folder, "end_pos.txt"), 'w') as f:
+            f.write(f"{end_pos[0]},{end_pos[1]}")
+        with open(os.path.join(link_folder, "crop_origin.txt"), 'w') as f:
+            f.write(f"{crop_origin[0]},{crop_origin[1]}")
+
+        # Single pass: Crop and save un-annotated images
         for frame_num in link['frames']:
             source_frame_path = os.path.join(original_frames_folder, f"frame_{frame_num:05d}.jpg")
             if os.path.exists(source_frame_path):
                 dest_frame_path = os.path.join(link_folder, f"frame_{frame_num:05d}.jpg")
                 
-                image = cv2.imread(source_frame_path)
-                if image is not None:
-                    cv2.circle(image, (int(start_pos[0]), int(start_pos[1])), 10, (0, 255, 255), 2)
-                    cv2.circle(image, (int(end_pos[0]), int(end_pos[1])), 10, (0, 255, 255), 2)
-                    cv2.imwrite(dest_frame_path, image)
+                full_image = cv2.imread(source_frame_path)
+                if full_image is not None:
+                    # Create a black canvas of the target size
+                    canvas = np.zeros((target_dim, target_dim, 3), dtype=np.uint8)
+                    
+                    # Define source region from the full image
+                    src_x_start = max(0, crop_origin_x)
+                    src_y_start = max(0, crop_origin_y)
+                    src_x_end = min(full_image.shape[1], crop_origin_x + target_dim)
+                    src_y_end = min(full_image.shape[0], crop_origin_y + target_dim)
+                    
+                    # Define destination region on the canvas
+                    dest_x_start = max(0, -crop_origin_x)
+                    dest_y_start = max(0, -crop_origin_y)
+                    dest_x_end = dest_x_start + (src_x_end - src_x_start)
+                    dest_y_end = dest_y_start + (src_y_end - src_y_start)
+                    
+                    # Copy the valid region from the source to the destination on the canvas
+                    canvas[dest_y_start:dest_y_end, dest_x_start:dest_x_end] = full_image[src_y_start:src_y_end, src_x_start:src_x_end]
+                    
+                    # Save the UN-ANNOTATED canvas
+                    cv2.imwrite(dest_frame_path, canvas)
     
     print(f"Found {len(top_links)} high-memory links and saved frames to {memory_folder}")
     return top_links
