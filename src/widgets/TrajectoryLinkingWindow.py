@@ -78,7 +78,7 @@ class TrajectoryLinkingWindow(QMainWindow):
         menubar = self.menuBar()
         file_menu = menubar.addMenu("File")
 
-        export_action = QAction("Export All Data", self)
+        export_action = QAction("Export...", self)
         export_action.triggered.connect(self.export_all_data)
         file_menu.addAction(export_action)
 
