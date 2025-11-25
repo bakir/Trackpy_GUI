@@ -30,6 +30,7 @@ class LinkingParametersWidget(QWidget):
     trajectoryVisualizationCreated = Signal(str)  # Emits image path
     rbGalleryCreated = Signal()  # Signal that RB gallery was created
     goBackToDetection = Signal()  # Signal to go back to detection window
+    export_and_close = Signal()
 
     def __init__(self, trajectory_plotting, parent=None):
         super().__init__(parent)
@@ -108,6 +109,12 @@ class LinkingParametersWidget(QWidget):
         self.back_button.clicked.connect(self.go_back)
         self.buttons_layout.addWidget(
             self.back_button, alignment=Qt.AlignRight
+        )
+
+        self.export_close_button = QPushButton("Export & Close")
+        self.export_close_button.clicked.connect(self.export_and_close.emit)
+        self.buttons_layout.addWidget(
+            self.export_close_button, alignment=Qt.AlignRight
         )
 
         self.layout.addLayout(self.buttons_layout)
