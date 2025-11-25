@@ -346,9 +346,9 @@ class FramePlayerWidget(QWidget):
                                 cv2.circle(
                                     image_to_modify,
                                     (int(particle["x"]), int(particle["y"])),
-                                    int(self.feature_size / 2),
+                                    int(self.feature_size / 1.5),
                                     (0, 255, 255),  # Yellow
-                                    1,
+                                    2,
                                 )
 
                 # Annotate with highlight box
