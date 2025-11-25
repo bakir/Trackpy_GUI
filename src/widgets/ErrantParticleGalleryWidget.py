@@ -22,7 +22,7 @@ from PySide6.QtWidgets import (
 
 class ErrantParticleGalleryWidget(QWidget):
     errant_particle_selected = Signal(int)
-    show_particle_on_frame = Signal(int, float, float)  # frame_number, x, y
+    update_required = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -48,9 +48,6 @@ class ErrantParticleGalleryWidget(QWidget):
         self.particle_frames = {}  # index -> frame_number
         self.particle_positions = {}  # index -> (x, y)
         self.current_frame_number = -1
-        self.highlighted_frame = (
-            -1
-        )  # Frame that was highlighted via button press
 
         # info
         self.info_label = QLabel("Info")
@@ -93,6 +90,19 @@ class ErrantParticleGalleryWidget(QWidget):
 
         # show initial particle if available
         self._display_particle(self.curr_particle_idx)
+
+    def is_show_on_frame_checked(self):
+        """Returns the state of the 'Show particle on frame' checkbox."""
+        return self.show_particle_checkbox.isChecked()
+
+    def get_current_particle_info(self):
+        """Returns a dict with info of the currently displayed particle."""
+        if 0 <= self.curr_particle_idx < len(self.particle_files):
+            frame_num = self.particle_frames.get(self.curr_particle_idx, -1)
+            position = self.particle_positions.get(self.curr_particle_idx, None)
+            if frame_num >= 0 and position is not None:
+                return {"frame": frame_num, "x": position[0], "y": position[1]}
+        return None
 
     def set_config_manager(self, config_manager):
         """Set the config manager for this widget."""
@@ -138,7 +148,6 @@ class ErrantParticleGalleryWidget(QWidget):
     def reset_state(self):
         """Reset gallery state and reload particles from disk."""
         self.current_frame_number = -1
-        self.highlighted_frame = -1
         self.curr_particle_idx = 0
         self.particle_frames.clear()
         self.particle_positions.clear()
@@ -259,14 +268,11 @@ class ErrantParticleGalleryWidget(QWidget):
             if particle_x is not None and particle_y is not None:
                 self.particle_positions[index] = (particle_x, particle_y)
 
-            # Update background highlighting based on current frame
-            self._update_background_highlighting()
-
             self._update_display_text()
 
-            # If checkbox is checked, show the particle on the frame
-            if self.show_particle_checkbox.isChecked():
-                self._show_particle_on_frame()
+            # If checkbox is checked, notify the main window to update the view
+            if self.is_show_on_frame_checked():
+                self.update_required.emit()
         else:
             self.errant_particle_selected.emit(-1)
             # out of bounds or no files
@@ -277,69 +283,7 @@ class ErrantParticleGalleryWidget(QWidget):
 
     def _on_show_particle_checkbox_changed(self, state):
         """Handle state change of 'Show particle on frame' checkbox."""
-        if state == Qt.Checked:
-            self._show_particle_on_frame()
-
-    def _show_particle_on_frame(self):
-        """Show the current particle on its frame."""
-        if 0 <= self.curr_particle_idx < len(self.particle_files):
-            frame_num = self.particle_frames.get(self.curr_particle_idx, -1)
-            position = self.particle_positions.get(
-                self.curr_particle_idx, None
-            )
-            if frame_num >= 0 and position is not None:
-                particle_x, particle_y = position
-                # Set the highlighted frame to trigger background color change
-                self.highlighted_frame = frame_num
-                self.show_particle_on_frame.emit(
-                    frame_num, particle_x, particle_y
-                )
-                # Update background highlighting
-                self._update_background_highlighting()
-
-    def set_current_frame(self, frame_number):
-        """Set the current frame number for background highlighting."""
-        old_frame = self.current_frame_number
-        self.current_frame_number = frame_number
-
-        # If frame changed (and it wasn't changed by the button), clear highlighted frame
-        if (
-            old_frame != frame_number
-            and frame_number != self.highlighted_frame
-        ):
-            self.highlighted_frame = -1
-
-        self._update_background_highlighting()
-
-    def _update_background_highlighting(self):
-        """Update background color based on whether current frame contains an errant particle."""
-        # Background should be blue only if:
-        # 1. We have a highlighted frame (set by button press)
-        # 2. The current frame matches the highlighted frame
-        # 3. The displayed particle is from that frame
-        if (
-            self.highlighted_frame >= 0
-            and self.current_frame_number == self.highlighted_frame
-            and 0 <= self.curr_particle_idx < len(self.particle_files)
-        ):
-            particle_frame = self.particle_frames.get(
-                self.curr_particle_idx, -1
-            )
-            if particle_frame == self.highlighted_frame:
-                # Current frame has this errant particle and was highlighted - blue background
-                self.photo_label.setStyleSheet(
-                    "background-color: #0066ff; color: #ccc; border: 2px solid blue;"
-                )
-            else:
-                # Default background
-                self.photo_label.setStyleSheet(
-                    "background-color: #222; color: #ccc; border: 2px solid blue;"
-                )
-        else:
-            # Default background
-            self.photo_label.setStyleSheet(
-                "background-color: #222; color: #ccc; border: 2px solid blue;"
-            )
+        self.update_required.emit()
 
     def resizeEvent(self, event):
         """Ensure the currently shown image keeps aspect ratio on resize."""

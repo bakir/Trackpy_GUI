@@ -123,6 +123,11 @@ class ParticleDetectionWindow(QMainWindow):
         self.errant_particle_gallery = ErrantParticleGalleryWidget()
         self.middle_layout.addWidget(self.errant_particle_gallery)
 
+        # Set the gallery reference in the frame player
+        self.frame_player.set_errant_particle_gallery(
+            self.errant_particle_gallery
+        )
+
         self.main_layout.addWidget(self.main_layout.middle_panel)
 
         # Right Panel
@@ -148,16 +153,9 @@ class ParticleDetectionWindow(QMainWindow):
         self.frame_player.errant_particles_updated.connect(
             self.errant_particle_gallery.refresh_particles
         )
-        self.errant_particle_gallery.errant_particle_selected.connect(
-            self.frame_player.on_errant_particle_selected
-        )
-        # Connect new signal for showing particle on frame
-        self.errant_particle_gallery.show_particle_on_frame.connect(
-            self.frame_player.jump_to_frame_and_highlight_particle
-        )
-        # Connect frame changes to update gallery highlighting
-        self.frame_player.frame_changed.connect(
-            self.errant_particle_gallery.set_current_frame
+        # Connect the gallery's need for an update to the player's handler
+        self.errant_particle_gallery.update_required.connect(
+            self.frame_player.handle_gallery_update
         )
         self.frame_player.import_video_requested.connect(self.import_video)
 
