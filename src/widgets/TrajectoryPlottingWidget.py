@@ -22,6 +22,7 @@ from copy import copy
 from .. import particle_processing
 
 from .GraphingUtils import *
+from .FilteringWidget import FilteringWidget
 
 
 class TrajectoryPlottingWidget(GraphingPanelWidget):
@@ -76,6 +77,12 @@ class TrajectoryPlottingWidget(GraphingPanelWidget):
         self.drift_layout.addStretch(1)
 
         self.layout.addWidget(self.graphing_buttons)
+        
+        # Add filtering widget below the graphs
+        self.filtering_widget = FilteringWidget()
+        self.filtering_widget.set_source_data_file("trajectories.csv")
+        self.layout.addWidget(self.filtering_widget)
+        
         # Add stretch below the buttons
         self.layout.addStretch(1)
 
@@ -83,6 +90,14 @@ class TrajectoryPlottingWidget(GraphingPanelWidget):
         """Sets linking data and plots trajectories."""
         self.data = linked_particles
         self.self_plot(self.get_trajectories, self.trajectory_button)
+    
+    def set_file_controller(self, file_controller):
+        """Override to also set file controller for filtering widget."""
+        super().set_file_controller(file_controller)
+        if hasattr(self, 'filtering_widget'):
+            self.filtering_widget.set_file_controller(file_controller)
+            if file_controller and hasattr(file_controller, 'project_path'):
+                self.filtering_widget.set_project_path(file_controller.project_path)
 
     def get_drift(self, page=None):
         """Creates a plot of all particles drift"""

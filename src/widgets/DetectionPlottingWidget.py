@@ -25,7 +25,8 @@ import os
 from copy import copy
 from .. import particle_processing
 
-from .GraphingUtils import * 
+from .GraphingUtils import *
+from .FilteringWidget import FilteringWidget
 
 class DectectionPlottingWidget(GraphingPanelWidget):
     def __init__(self, parent=None):
@@ -93,6 +94,12 @@ class DectectionPlottingWidget(GraphingPanelWidget):
         self.hist_layout.addStretch(1)
 
         self.layout.addWidget(self.graphing_buttons)
+        
+        # Add filtering widget below the graphs
+        self.filtering_widget = FilteringWidget()
+        self.filtering_widget.set_source_data_file("all_particles.csv")
+        self.layout.addWidget(self.filtering_widget)
+        
         # Add stretch below the buttons
         self.layout.addStretch(1)
 
@@ -100,6 +107,14 @@ class DectectionPlottingWidget(GraphingPanelWidget):
         """Sets paritcle data and plots subpixel bias."""
         self.data = particles
         self.self_plot(self.get_subpixel_bias, self.sb_button)
+    
+    def set_file_controller(self, file_controller):
+        """Override to also set file controller for filtering widget."""
+        super().set_file_controller(file_controller)
+        if hasattr(self, 'filtering_widget'):
+            self.filtering_widget.set_file_controller(file_controller)
+            if file_controller and hasattr(file_controller, 'project_path'):
+                self.filtering_widget.set_project_path(file_controller.project_path)
 
     def update_bins(self, value):
         self.bins = value
