@@ -52,16 +52,10 @@ class GraphingButton(QPushButton):
         self.setText(text)
 
     def switch_button_color(self):
-        """Change the highlighted button to blue."""
-        if self.highlighted_button != None:
-            # Change the previously higlighted button back to its original color
-            self.highlighted_button.setStyleSheet(
-                "background-color: light grey"
-            )
-
-        # Updates the button that is highlighted and makes it blue
+        """Track which button is highlighted (styling removed, keeping logic)."""
+        # Keep the tracking logic but remove visual styling
+        # The button state is tracked for functional purposes
         GraphingButton.highlighted_button = self
-        self.setStyleSheet("background-color: #1f77b4")
 
 
 class GraphingPanelWidget(QWidget):

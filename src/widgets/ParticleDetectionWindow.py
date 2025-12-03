@@ -175,7 +175,19 @@ class ParticleDetectionWindow(QMainWindow):
 
         self.main_layout.left_panel.blank_plot()
         self.main_layout.left_panel.refresh_plots()
-        self.main_layout.left_panel.filtering_widget.apply_filters_and_notify()
+        
+        # Only apply filters if particle data actually exists
+        # Check if all_particles.csv exists and has data before applying filters
+        all_particles_path = os.path.join(self.file_controller.data_folder, "all_particles.csv")
+        if os.path.exists(all_particles_path):
+            try:
+                particle_data = pd.read_csv(all_particles_path)
+                # Only apply filters if there's actual particle data
+                if not particle_data.empty:
+                    self.main_layout.left_panel.filtering_widget.apply_filters_and_notify()
+            except (pd.errors.EmptyDataError, Exception):
+                # File exists but is empty or invalid, don't apply filters
+                pass
 
     def clear_processed_data(self):
         print(

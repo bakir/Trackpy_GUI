@@ -55,7 +55,6 @@ class NewProjectWindow(QDialog):
         title_font.setBold(True)
         title_label.setFont(title_font)
         title_label.setAlignment(Qt.AlignCenter)
-        title_label.setStyleSheet("color: #2c3e50; margin-bottom: 20px;")
         main_layout.addWidget(title_label)
 
         # Form layout
@@ -67,38 +66,12 @@ class NewProjectWindow(QDialog):
         self.project_name_edit.setPlaceholderText(
             "Enter project name (e.g., 'My Particle Analysis')"
         )
-        self.project_name_edit.setStyleSheet(
-            """
-            QLineEdit {
-                padding: 10px;
-                border: 2px solid #bdc3c7;
-                border-radius: 5px;
-                font-size: 14px;
-            }
-            QLineEdit:focus {
-                border-color: #3498db;
-            }
-        """
-        )
         form_layout.addRow("Project Name:", self.project_name_edit)
 
         # Movie Taker field
         self.movie_taker_edit = QLineEdit()
         self.movie_taker_edit.setPlaceholderText(
             "Enter name of person who took the movie (optional)"
-        )
-        self.movie_taker_edit.setStyleSheet(
-            """
-            QLineEdit {
-                padding: 10px;
-                border: 2px solid #bdc3c7;
-                border-radius: 5px;
-                font-size: 14px;
-            }
-            QLineEdit:focus {
-                border-color: #3498db;
-            }
-        """
         )
         form_layout.addRow("Movie Taker:", self.movie_taker_edit)
 
@@ -107,38 +80,12 @@ class NewProjectWindow(QDialog):
         self.person_doing_analysis_edit.setPlaceholderText(
             "Enter name of person doing analysis (optional)"
         )
-        self.person_doing_analysis_edit.setStyleSheet(
-            """
-            QLineEdit {
-                padding: 10px;
-                border: 2px solid #bdc3c7;
-                border-radius: 5px;
-                font-size: 14px;
-            }
-            QLineEdit:focus {
-                border-color: #3498db;
-            }
-        """
-        )
         form_layout.addRow("Person Doing Analysis:", self.person_doing_analysis_edit)
 
         # Movie Taken Date field
         self.movie_taken_date_edit = QDateEdit()
         self.movie_taken_date_edit.setDate(QDate.currentDate())
         self.movie_taken_date_edit.setCalendarPopup(True)
-        self.movie_taken_date_edit.setStyleSheet(
-            """
-            QDateEdit {
-                padding: 10px;
-                border: 2px solid #bdc3c7;
-                border-radius: 5px;
-                font-size: 14px;
-            }
-            QDateEdit:focus {
-                border-color: #3498db;
-            }
-        """
-        )
         form_layout.addRow("Movie Taken Date:", self.movie_taken_date_edit)
 
         # Video File selection
@@ -146,35 +93,8 @@ class NewProjectWindow(QDialog):
         self.video_path_edit = QLineEdit()
         self.video_path_edit.setPlaceholderText("Select video file...")
         self.video_path_edit.setReadOnly(True)
-        self.video_path_edit.setStyleSheet(
-            """
-            QLineEdit {
-                padding: 10px;
-                border: 2px solid #bdc3c7;
-                border-radius: 5px;
-                font-size: 14px;
-                background-color: #f8f9fa;
-            }
-        """
-        )
 
         self.browse_video_btn = QPushButton("Browse...")
-        self.browse_video_btn.setStyleSheet(
-            """
-            QPushButton {
-                background-color: #95a5a6;
-                color: white;
-                border: none;
-                border-radius: 5px;
-                padding: 10px 20px;
-                font-size: 14px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #7f8c8d;
-            }
-        """
-        )
         self.browse_video_btn.clicked.connect(self.browse_video)
 
         video_layout.addWidget(self.video_path_edit)
@@ -188,19 +108,6 @@ class NewProjectWindow(QDialog):
         self.scaling_edit.setSingleStep(0.1)
         self.scaling_edit.setValue(1.0)
         self.scaling_edit.setToolTip("Microns per pixel (calibration).")
-        self.scaling_edit.setStyleSheet(
-            """
-            QDoubleSpinBox {
-                padding: 10px;
-                border: 2px solid #bdc3c7;
-                border-radius: 5px;
-                font-size: 14px;
-            }
-            QDoubleSpinBox:focus {
-                border-color: #3498db;
-            }
-        """
-        )
         form_layout.addRow("Scaling (μm/pixel):", self.scaling_edit)
 
         # Project folder selection
@@ -210,35 +117,8 @@ class NewProjectWindow(QDialog):
             "Select parent folder for project..."
         )
         self.folder_path_edit.setReadOnly(True)
-        self.folder_path_edit.setStyleSheet(
-            """
-            QLineEdit {
-                padding: 10px;
-                border: 2px solid #bdc3c7;
-                border-radius: 5px;
-                font-size: 14px;
-                background-color: #f8f9fa;
-            }
-        """
-        )
 
         self.browse_btn = QPushButton("Browse...")
-        self.browse_btn.setStyleSheet(
-            """
-            QPushButton {
-                background-color: #95a5a6;
-                color: white;
-                border: none;
-                border-radius: 5px;
-                padding: 10px 20px;
-                font-size: 14px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #7f8c8d;
-            }
-        """
-        )
         self.browse_btn.clicked.connect(self.browse_folder)
 
         folder_layout.addWidget(self.folder_path_edit)
@@ -260,18 +140,9 @@ class NewProjectWindow(QDialog):
             "  - videos/ - Video files\n"
             "  - config.ini - Project configuration"
         )
-        info_label.setStyleSheet(
-            """
-            QLabel {
-                background-color: #ecf0f1;
-                border: 1px solid #bdc3c7;
-                border-radius: 5px;
-                padding: 15px;
-                font-size: 12px;
-                color: #2c3e50;
-            }
-        """
-        )
+        info_font = QFont()
+        info_font.setPointSize(12)
+        info_label.setFont(info_font)
         main_layout.addWidget(info_label)
 
         # Add stretch
@@ -283,46 +154,11 @@ class NewProjectWindow(QDialog):
 
         # Cancel button
         self.cancel_btn = QPushButton("Cancel")
-        self.cancel_btn.setStyleSheet(
-            """
-            QPushButton {
-                background-color: #e74c3c;
-                color: white;
-                border: none;
-                border-radius: 5px;
-                padding: 10px 20px;
-                font-size: 14px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #c0392b;
-            }
-        """
-        )
         self.cancel_btn.clicked.connect(self.reject)
         button_layout.addWidget(self.cancel_btn)
 
         # Create button
         self.create_btn = QPushButton("Create Project")
-        self.create_btn.setStyleSheet(
-            """
-            QPushButton {
-                background-color: #27ae60;
-                color: white;
-                border: none;
-                border-radius: 5px;
-                padding: 10px 20px;
-                font-size: 14px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #229954;
-            }
-            QPushButton:disabled {
-                background-color: #bdc3c7;
-            }
-        """
-        )
         self.create_btn.clicked.connect(self.create_project)
         self.create_btn.setEnabled(False)
         button_layout.addWidget(self.create_btn)

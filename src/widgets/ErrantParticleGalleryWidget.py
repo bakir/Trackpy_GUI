@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QVBoxLayout,
     QWidget,
+    QToolButton,
 )
 
 
@@ -34,9 +35,6 @@ class ErrantParticleGalleryWidget(QWidget):
         # photo - fixed 200x200 size, centered
         self.photo_label = QLabel("Photo display")
         self.photo_label.setAlignment(Qt.AlignCenter)
-        self.photo_label.setStyleSheet(
-            "background-color: #222; color: #ccc; border: 2px solid black;"
-        )
         self.photo_label.setFixedSize(200, 200)
         self.photo_label.setScaledContents(False)
         # Center the widget horizontally
@@ -56,12 +54,14 @@ class ErrantParticleGalleryWidget(QWidget):
 
         # --- Frame Navigation ---
         self.frame_nav_layout = QHBoxLayout()
-        self.prev_frame_button = QPushButton("<")
+        self.prev_frame_button = QToolButton()
+        self.prev_frame_button.setArrowType(Qt.LeftArrow)
         self.frame_number_display = QLineEdit("0 / 0")
         self.curr_particle_idx = 0
         self.frame_number_display.setReadOnly(False)
         self.frame_number_display.setAlignment(Qt.AlignCenter)
-        self.next_frame_button = QPushButton("->")
+        self.next_frame_button = QToolButton()
+        self.next_frame_button.setArrowType(Qt.RightArrow)
         self.prev_frame_button.clicked.connect(self.prev_particle)
         self.next_frame_button.clicked.connect(self.next_particle)
         self.frame_number_display.returnPressed.connect(
@@ -298,15 +298,12 @@ class ErrantParticleGalleryWidget(QWidget):
         """Handle state change of 'Show particle on frame' checkbox."""
         self.update_required.emit()
 
-        # Update boarder color around errant particle zoomins to reflect state of checkbox
+        # Update border color around errant particle zoomins to reflect state of checkbox
+        # Keep blue border when checked (functional indicator)
         if self.is_show_on_frame_checked():
-            self.photo_label.setStyleSheet(
-                "background-color: #222; color: #ccc; border: 2px solid blue;"
-            )
+            self.photo_label.setStyleSheet("border: 2px solid blue;")
         else:
-            self.photo_label.setStyleSheet(
-                "background-color: #222; color: #ccc; border: 2px solid black;"
-            )
+            self.photo_label.setStyleSheet("border: 2px solid black;")
 
     def resizeEvent(self, event):
         """Ensure the currently shown image keeps aspect ratio on resize."""

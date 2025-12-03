@@ -126,18 +126,11 @@ class FramePlayerWidget(QWidget):
         self.frame_label = QLabel()
         self.frame_label.setAlignment(Qt.AlignCenter)
         self.frame_label.setMinimumSize(640, 480)
-        self.frame_label.setStyleSheet(
-            "border: 1px solid gray; background-color: black;"
-        )
         self.frame_label.setText("No video loaded")
 
         self.import_video_button = QPushButton("Click to import video")
         self.import_video_button.clicked.connect(
             self.import_video_requested.emit
-        )
-        self.import_video_button.setStyleSheet(
-            "QPushButton { background-color: black; color: white; font-size: 14px; padding: 20px; border: 2px solid black; }"
-            "QPushButton:hover { background-color: #333; }"
         )
         self.import_video_button.setFixedSize(640, 480)
 

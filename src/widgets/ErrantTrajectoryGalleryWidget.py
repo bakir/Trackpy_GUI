@@ -36,9 +36,6 @@ class ErrantTrajectoryGalleryWidget(QWidget):
         # Photo display for RB overlay images
         self.photo_label = QLabel("RB Overlay Display")
         self.photo_label.setAlignment(Qt.AlignCenter)
-        self.photo_label.setStyleSheet(
-            "background-color: #222; color: #ccc; border: 1px solid #555;"
-        )
         self.photo_label.setMinimumHeight(200)
         self.photo_label.setScaledContents(False)
         self.layout.addWidget(self.photo_label)
@@ -47,9 +44,6 @@ class ErrantTrajectoryGalleryWidget(QWidget):
         self.info_label = QLabel("Info")
         self.info_label.setAlignment(Qt.AlignCenter)
         self.info_label.setWordWrap(True)
-        self.info_label.setStyleSheet(
-            "background-color: #333; color: #ccc; padding: 10px; border: 1px solid #555;"
-        )
         self.layout.addWidget(self.info_label)
 
         # Threshold slider

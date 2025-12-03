@@ -7,6 +7,7 @@ Description: Main application controller that manages the start screen and proje
 
 import sys
 import os
+import platform
 from PySide6.QtWidgets import QApplication, QMainWindow, QStackedWidget
 from PySide6 import QtWidgets
 from src.widgets.StartScreen import StartScreen
@@ -183,8 +184,21 @@ def main():
     """Main application entry point."""
     app = QApplication(sys.argv)
 
-    # Set the application style
-    app.setStyle(QtWidgets.QStyleFactory.create("Fusion"))
+    # Set the application style based on operating system
+    system = platform.system()
+    available_styles = QtWidgets.QStyleFactory.keys()
+    
+    if system == "Darwin":  # macOS
+        # Don't set a style - let Qt use native macOS styling
+        pass
+    elif system == "Windows":
+        if "Windows" in available_styles:
+            app.setStyle(QtWidgets.QStyleFactory.create("Windows"))
+        else:
+            app.setStyle(QtWidgets.QStyleFactory.create("Fusion"))
+    else:
+        # Linux or other
+        app.setStyle(QtWidgets.QStyleFactory.create("Fusion"))
 
     # Create and show the main controller
     controller = ParticleTrackingAppController()
