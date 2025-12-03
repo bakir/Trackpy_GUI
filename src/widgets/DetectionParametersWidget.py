@@ -189,9 +189,13 @@ class DetectionParametersWidget(QWidget):
 
         self._backup_and_clear_particles_data()
 
+        # Convert 1-based UI input to 0-based frame indexing
+        start_frame_0based = self.start_frame_input.value() - 1
+        end_frame_0based = self.end_frame_input.value() - 1
+
         frame_paths = self.file_controller.get_frame_files(
-            start=self.start_frame_input.value(),
-            end=self.end_frame_input.value(),
+            start=start_frame_0based,
+            end=end_frame_0based,
             step=self.step_frame_input.value(),
         )
 
