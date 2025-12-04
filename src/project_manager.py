@@ -19,7 +19,14 @@ class ProjectManager:
         self.current_project_config = None
 
     def create_new_project(
-        self, project_folder_path: str, project_name: str = None
+        self,
+        project_folder_path: str,
+        project_name: str = None,
+        movie_taker: str = "",
+        person_doing_analysis: str = "",
+        video_path: str = "",
+        scaling: float = 1.0,
+        movie_taken_date: str = "",
     ) -> bool:
         """
         Create a new project with folder structure and config file.
@@ -30,6 +37,16 @@ class ProjectManager:
             Path where the project folder will be created
         project_name : str, optional
             Name of the project. If None, uses folder name.
+        movie_taker : str, optional
+            Name of person who took the movie
+        person_doing_analysis : str, optional
+            Name of person doing analysis
+        video_path : str, optional
+            Path to the video file to copy to project
+        scaling : float, optional
+            Scaling value in microns per pixel
+        movie_taken_date : str, optional
+            Date when movie was taken (ISO format)
 
         Returns
         -------
@@ -68,12 +85,30 @@ class ProjectManager:
             # Create empty filters file
             open(os.path.join(project_folder_path, "filters.ini"), 'w').close()
 
+            # Copy video file to project videos folder if provided
+            video_filename = ""
+            if video_path and os.path.exists(video_path):
+                videos_folder = os.path.join(project_folder_path, "videos")
+                video_filename = os.path.basename(video_path)
+                dest_video_path = os.path.join(videos_folder, video_filename)
+                try:
+                    shutil.copy2(video_path, dest_video_path)
+                    print(f"Video file copied to: {dest_video_path}")
+                except Exception as e:
+                    print(f"Error copying video file: {e}")
+
             # Create default config for project
             project_config_path = os.path.join(
                 project_folder_path, "config.ini"
             )
             self._create_default_project_config(
-                project_config_path, project_folder_path
+                project_config_path,
+                project_folder_path,
+                movie_taker=movie_taker,
+                person_doing_analysis=person_doing_analysis,
+                video_filename=video_filename,
+                scaling=scaling,
+                movie_taken_date=movie_taken_date,
             )
 
             # Create project info file
@@ -186,7 +221,14 @@ class ProjectManager:
             config.write(f)
 
     def _create_default_project_config(
-        self, config_path: str, project_path: str
+        self,
+        config_path: str,
+        project_path: str,
+        movie_taker: str = "",
+        person_doing_analysis: str = "",
+        video_filename: str = "",
+        scaling: float = 1.0,
+        movie_taken_date: str = "",
     ):
         """Create a default config file for the project with absolute paths."""
         import configparser
@@ -216,6 +258,14 @@ class ProjectManager:
             ),
         }
 
+        # Metadata section
+        config["Metadata"] = {
+            "movie_taker": movie_taker,
+            "person_doing_analysis": person_doing_analysis,
+            "movie_taken_date": movie_taken_date,
+            "movie_filename": video_filename,
+        }
+
         # Detection section
         config["Detection"] = {
             "feature_size": "15",
@@ -223,7 +273,7 @@ class ProjectManager:
             "invert": "false",
             "threshold": "0.0",
             "frame_idx": "0",
-            "scaling": "1.0",
+            "scaling": str(scaling),
         }
 
         # Linking section

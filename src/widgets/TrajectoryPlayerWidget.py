@@ -38,9 +38,6 @@ class TrajectoryPlayerWidget(QWidget):
         # Photo display for current frame
         self.photo_label = QLabel("No memory links available")
         self.photo_label.setAlignment(Qt.AlignCenter)
-        self.photo_label.setStyleSheet(
-            "background-color: white; color: #333; border: 1px solid #555;"
-        )
         self.photo_label.setMinimumHeight(300)
         self.layout.addWidget(self.photo_label)
 

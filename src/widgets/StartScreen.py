@@ -11,11 +11,8 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QPushButton,
     QLabel,
-    QFrame,
     QFileDialog,
     QMessageBox,
-    QListWidget,
-    QListWidgetItem,
 )
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont, QPixmap, QIcon
@@ -49,7 +46,6 @@ class StartScreen(QWidget):
         title_font.setBold(True)
         title_label.setFont(title_font)
         title_label.setAlignment(Qt.AlignCenter)
-        title_label.setStyleSheet("color: #2c3e50; margin-bottom: 20px;")
         main_layout.addWidget(title_label)
 
         # Subtitle
@@ -60,60 +56,11 @@ class StartScreen(QWidget):
         subtitle_font.setPointSize(12)
         subtitle_label.setFont(subtitle_font)
         subtitle_label.setAlignment(Qt.AlignCenter)
-        subtitle_label.setStyleSheet("color: #7f8c8d; margin-bottom: 30px;")
         main_layout.addWidget(subtitle_label)
 
         # Project management section
-        project_frame = QFrame()
-        project_frame.setFrameStyle(QFrame.Box)
-        project_frame.setStyleSheet(
-            """
-            QFrame {
-                border: 2px solid #bdc3c7;
-                border-radius: 10px;
-                background-color: #f8f9fa;
-                padding: 20px;
-            }
-        """
-        )
+        project_frame = QWidget()
         project_layout = QVBoxLayout(project_frame)
-
-        # Recent projects section
-        recent_label = QLabel("Recent Projects")
-        recent_font = QFont()
-        recent_font.setPointSize(14)
-        recent_font.setBold(True)
-        recent_label.setFont(recent_font)
-        recent_label.setStyleSheet("color: #34495e; margin-bottom: 10px;")
-        project_layout.addWidget(recent_label)
-
-        # Recent projects list (placeholder)
-        self.recent_projects_list = QListWidget()
-        self.recent_projects_list.setMaximumHeight(100)
-        self.recent_projects_list.setStyleSheet(
-            """
-            QListWidget {
-                border: 1px solid #bdc3c7;
-                border-radius: 5px;
-                background-color: white;
-                padding: 5px;
-            }
-            QListWidget::item {
-                padding: 5px;
-                border-bottom: 1px solid #ecf0f1;
-            }
-            QListWidget::item:selected {
-                background-color: #3498db;
-                color: white;
-            }
-        """
-        )
-
-        # Add placeholder items
-        placeholder_item = QListWidgetItem("No recent projects")
-        placeholder_item.setFlags(Qt.NoItemFlags)  # Make it non-selectable
-        self.recent_projects_list.addItem(placeholder_item)
-        project_layout.addWidget(self.recent_projects_list)
 
         # Button layout
         button_layout = QHBoxLayout()
@@ -122,50 +69,12 @@ class StartScreen(QWidget):
         # New Project button
         self.new_project_btn = QPushButton("Create New Project")
         self.new_project_btn.setMinimumHeight(50)
-        self.new_project_btn.setStyleSheet(
-            """
-            QPushButton {
-                background-color: #27ae60;
-                color: white;
-                border: none;
-                border-radius: 8px;
-                font-size: 14px;
-                font-weight: bold;
-                padding: 10px;
-            }
-            QPushButton:hover {
-                background-color: #229954;
-            }
-            QPushButton:pressed {
-                background-color: #1e8449;
-            }
-        """
-        )
         self.new_project_btn.clicked.connect(self.create_new_project)
         button_layout.addWidget(self.new_project_btn)
 
         # Open Project button
         self.open_project_btn = QPushButton("Open Existing Project")
         self.open_project_btn.setMinimumHeight(50)
-        self.open_project_btn.setStyleSheet(
-            """
-            QPushButton {
-                background-color: #3498db;
-                color: white;
-                border: none;
-                border-radius: 8px;
-                font-size: 14px;
-                font-weight: bold;
-                padding: 10px;
-            }
-            QPushButton:hover {
-                background-color: #2980b9;
-            }
-            QPushButton:pressed {
-                background-color: #21618c;
-            }
-        """
-        )
         self.open_project_btn.clicked.connect(self.open_existing_project)
         button_layout.addWidget(self.open_project_btn)
 
@@ -175,12 +84,6 @@ class StartScreen(QWidget):
         # Add some stretch to center everything
         main_layout.addStretch()
 
-        # Footer
-        footer_label = QLabel("© 2024 Particle Tracking GUI")
-        footer_label.setAlignment(Qt.AlignCenter)
-        footer_label.setStyleSheet("color: #95a5a6; font-size: 10px;")
-        main_layout.addWidget(footer_label)
-
     def create_new_project(self):
         """Open dialog to create a new project."""
         from .NewProjectWindow import NewProjectWindow
@@ -189,9 +92,20 @@ class StartScreen(QWidget):
         if dialog.exec() == NewProjectWindow.Accepted:
             project_path = dialog.get_project_path()
             project_name = dialog.get_project_name()
+            movie_taker = dialog.get_movie_taker()
+            person_doing_analysis = dialog.get_person_doing_analysis()
+            video_path = dialog.get_video_path()
+            scaling = dialog.get_scaling()
+            movie_taken_date = dialog.get_movie_taken_date()
 
             if self.project_manager.create_new_project(
-                project_path, project_name
+                project_path,
+                project_name,
+                movie_taker=movie_taker,
+                person_doing_analysis=person_doing_analysis,
+                video_path=video_path,
+                scaling=scaling,
+                movie_taken_date=movie_taken_date,
             ):
                 QMessageBox.information(
                     self,

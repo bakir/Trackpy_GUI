@@ -114,9 +114,7 @@ class TrajectoryLinkingWindow(QMainWindow):
         )
 
         # Connect filtered data updates to refresh relevant widgets
-        self.main_layout.left_panel.filtering_widget.filteredParticlesUpdated.connect(
-            self.main_layout.right_panel.refresh_trajectories
-        )
+        # Note: refresh_trajectories is NOT connected here - user must manually click "Find Trajectories"
         self.main_layout.left_panel.filtering_widget.filteredParticlesUpdated.connect(
             self.frame_player.refresh_links
         )

@@ -217,3 +217,12 @@ class ConfigManager:
             return "project"
         else:
             return "template"
+
+    def get_metadata(self) -> Dict[str, str]:
+        """Get metadata as a dictionary."""
+        return {
+            "movie_taker": self.get("Metadata", "movie_taker", ""),
+            "person_doing_analysis": self.get("Metadata", "person_doing_analysis", ""),
+            "movie_taken_date": self.get("Metadata", "movie_taken_date", ""),
+            "movie_filename": self.get("Metadata", "movie_filename", ""),
+        }

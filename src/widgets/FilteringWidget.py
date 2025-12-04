@@ -99,16 +99,16 @@ class FilterCard(QFrame):
         self.filter_obj = filter_obj
         self.on_delete = on_delete
         self.setFrameStyle(QFrame.Box)
-        self.setStyleSheet("QFrame { border: 1px solid #ccc; border-radius: 4px; background-color: #f5f5f5; padding: 5px; }")
         layout = QHBoxLayout(self)
         layout.setContentsMargins(8, 4, 8, 4)
         filter_text = f"{filter_obj.parameter} {filter_obj.operator} {filter_obj.value}"
         label = QLabel(filter_text)
-        label.setStyleSheet("font-weight: bold;")
+        label_font = QFont()
+        label_font.setBold(True)
+        label.setFont(label_font)
         layout.addWidget(label)
         delete_button = QPushButton("×")
         delete_button.setFixedSize(24, 24)
-        delete_button.setStyleSheet("QPushButton { background-color: #ff4444; color: white; border: none; border-radius: 12px; font-weight: bold; font-size: 14px; } QPushButton:hover { background-color: #cc0000; }")
         delete_button.clicked.connect(lambda: self.on_delete(filter_obj.filter_id))
         layout.addWidget(delete_button)
 
@@ -149,7 +149,6 @@ class FilteringWidget(QWidget):
         layout.addWidget(title)
         
         add_button = QPushButton("+ Add Filter")
-        add_button.setStyleSheet("QPushButton { background-color: #4CAF50; color: white; border: none; border-radius: 4px; padding: 5px; font-weight: bold; } QPushButton:hover { background-color: #45a049; }")
         add_button.clicked.connect(self.open_filter_creator)
         
         button_layout = QHBoxLayout()
@@ -159,7 +158,6 @@ class FilteringWidget(QWidget):
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
         scroll_area.setMaximumHeight(200)
-        scroll_area.setStyleSheet("QScrollArea { border: 1px solid #ddd; }")
         self.cards_container = QWidget()
         self.cards_layout = QVBoxLayout(self.cards_container)
         self.cards_layout.setContentsMargins(5, 5, 5, 5)
@@ -168,7 +166,9 @@ class FilteringWidget(QWidget):
         scroll_area.setWidget(self.cards_container)
         layout.addWidget(scroll_area)
         self.status_label = QLabel("No filters active")
-        self.status_label.setStyleSheet("color: #666; font-style: italic;")
+        status_font = QFont()
+        status_font.setItalic(True)
+        self.status_label.setFont(status_font)
         layout.addWidget(self.status_label)
 
     def update_available_parameters(self):

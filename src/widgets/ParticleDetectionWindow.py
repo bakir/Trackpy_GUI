@@ -51,6 +51,8 @@ class ParticleDetectionWindow(QMainWindow):
             self.main_layout, "left_panel"
         ):
             self.main_layout.left_panel.set_config_manager(config_manager)
+        # Update metadata display
+        self._update_metadata_display()
 
     def set_file_controller(self, file_controller):
         """Set the file controller for this window."""
@@ -111,10 +113,20 @@ class ParticleDetectionWindow(QMainWindow):
 
         self.main_layout.addWidget(self.main_layout.middle_panel)
 
-        # Right Panel
+        # Right Panel - Create container widget
+        right_panel_container = QWidget()
+        right_panel_layout = QVBoxLayout(right_panel_container)
+        right_panel_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Detection parameters widget
         self.main_layout.right_panel = DetectionParametersWidget(self.main_layout.left_panel)
-        self.right_layout = QVBoxLayout(self.main_layout.right_panel)
-        self.main_layout.addWidget(self.main_layout.right_panel)
+        right_panel_layout.addWidget(self.main_layout.right_panel)
+        
+        # Metadata display widget
+        self.metadata_widget = self._create_metadata_widget()
+        right_panel_layout.addWidget(self.metadata_widget)
+        
+        self.main_layout.addWidget(right_panel_container)
 
         # Connect signals
         self.main_layout.right_panel.allParticlesUpdated.connect(
@@ -163,7 +175,19 @@ class ParticleDetectionWindow(QMainWindow):
 
         self.main_layout.left_panel.blank_plot()
         self.main_layout.left_panel.refresh_plots()
-        self.main_layout.left_panel.filtering_widget.apply_filters_and_notify()
+        
+        # Only apply filters if particle data actually exists
+        # Check if all_particles.csv exists and has data before applying filters
+        all_particles_path = os.path.join(self.file_controller.data_folder, "all_particles.csv")
+        if os.path.exists(all_particles_path):
+            try:
+                particle_data = pd.read_csv(all_particles_path)
+                # Only apply filters if there's actual particle data
+                if not particle_data.empty:
+                    self.main_layout.left_panel.filtering_widget.apply_filters_and_notify()
+            except (pd.errors.EmptyDataError, Exception):
+                # File exists but is empty or invalid, don't apply filters
+                pass
 
     def clear_processed_data(self):
         print(
@@ -216,3 +240,52 @@ class ParticleDetectionWindow(QMainWindow):
         """Load existing frames into the widgets."""
         self.main_layout.right_panel.set_total_frames(num_frames)
         self.frame_player.load_frames(num_frames)
+
+    def _create_metadata_widget(self):
+        """Create the metadata display widget."""
+        from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel
+        
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(5)
+        
+        # Title
+        title_label = QLabel("Project Metadata")
+        title_font = title_label.font()
+        title_font.setBold(True)
+        title_label.setFont(title_font)
+        layout.addWidget(title_label)
+        
+        # Metadata fields
+        self.movie_taker_label = QLabel()
+        self.person_doing_analysis_label = QLabel()
+        self.movie_taken_date_label = QLabel()
+        self.movie_filename_label = QLabel()
+        self.movie_filename_label.setWordWrap(True)
+        
+        layout.addWidget(self.movie_taker_label)
+        layout.addWidget(self.person_doing_analysis_label)
+        layout.addWidget(self.movie_taken_date_label)
+        layout.addWidget(self.movie_filename_label)
+        
+        layout.addStretch()
+        
+        return widget
+
+    def _update_metadata_display(self):
+        """Update the metadata display with current config values."""
+        if not self.config_manager:
+            return
+        
+        metadata = self.config_manager.get_metadata()
+        
+        movie_taker = metadata.get("movie_taker", "") or "-"
+        person_doing_analysis = metadata.get("person_doing_analysis", "") or "-"
+        movie_taken_date = metadata.get("movie_taken_date", "") or "-"
+        movie_filename = metadata.get("movie_filename", "") or "-"
+        
+        self.movie_taker_label.setText(f"Movie Taker: {movie_taker}")
+        self.person_doing_analysis_label.setText(f"Person Doing Analysis: {person_doing_analysis}")
+        self.movie_taken_date_label.setText(f"Movie Taken Date: {movie_taken_date}")
+        self.movie_filename_label.setText(f"Movie Filename: {movie_filename}")

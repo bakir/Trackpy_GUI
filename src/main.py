@@ -7,6 +7,7 @@ Description: Main application controller that manages the start screen and proje
 
 import sys
 import os
+import platform
 from PySide6.QtWidgets import QApplication, QMainWindow, QStackedWidget
 from PySide6 import QtWidgets
 from src.widgets.StartScreen import StartScreen
@@ -82,6 +83,16 @@ class ParticleTrackingAppController(QMainWindow):
             num_frames = self.file_controller.get_total_frames_count()
             if num_frames > 0:
                 self.particle_detection_window.load_existing_frames(num_frames)
+            else:
+                # If no frames exist, check if video file exists and auto-extract frames
+                metadata = self.project_config.get_metadata()
+                video_filename = metadata.get("movie_filename", "")
+                if video_filename:
+                    videos_folder = self.file_controller.videos_folder
+                    video_path = os.path.join(videos_folder, video_filename)
+                    if os.path.exists(video_path):
+                        # Auto-extract frames from video
+                        self.particle_detection_window.frame_player.save_video_frames(video_path)
         else:
             print(f"Failed to load project: {project_path}")
 
@@ -173,8 +184,21 @@ def main():
     """Main application entry point."""
     app = QApplication(sys.argv)
 
-    # Set the application style
-    app.setStyle(QtWidgets.QStyleFactory.create("Fusion"))
+    # Set the application style based on operating system
+    system = platform.system()
+    available_styles = QtWidgets.QStyleFactory.keys()
+    
+    if system == "Darwin":  # macOS
+        # Don't set a style - let Qt use native macOS styling
+        pass
+    elif system == "Windows":
+        if "Windows" in available_styles:
+            app.setStyle(QtWidgets.QStyleFactory.create("Windows"))
+        else:
+            app.setStyle(QtWidgets.QStyleFactory.create("Fusion"))
+    else:
+        # Linux or other
+        app.setStyle(QtWidgets.QStyleFactory.create("Fusion"))
 
     # Create and show the main controller
     controller = ParticleTrackingAppController()

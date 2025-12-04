@@ -82,17 +82,10 @@ class DetectionParametersWidget(QWidget):
         self.threshold_input.setSingleStep(1.0)
         self.threshold_input.setToolTip("Clip band-passed data below this value.")
 
-        self.scaling_input = QDoubleSpinBox()
-        self.scaling_input.setDecimals(6)
-        self.scaling_input.setRange(0.000001, 1000.0)
-        self.scaling_input.setSingleStep(0.1)
-        self.scaling_input.setToolTip("Microns per pixel (calibration).")
-
         self.form.addRow("Feature size", self.feature_size_input)
         self.form.addRow("Min mass", self.min_mass_input)
         self.form.addRow("Invert", self.invert_input)
         self.form.addRow("Threshold", self.threshold_input)
-        self.form.addRow("Scaling (μm/pixel)", self.scaling_input)
 
         self.layout.addLayout(self.form)
         self.layout.addStretch()
@@ -139,7 +132,6 @@ class DetectionParametersWidget(QWidget):
         self.feature_size_input.editingFinished.connect(self.save_params)
         self.min_mass_input.editingFinished.connect(self.save_params)
         self.threshold_input.editingFinished.connect(self.save_params)
-        self.scaling_input.editingFinished.connect(self.save_params)
         self.invert_input.stateChanged.connect(self.save_params)
 
     def set_config_manager(self, config_manager):
@@ -173,17 +165,18 @@ class DetectionParametersWidget(QWidget):
         self.min_mass_input.setValue(float(params.get("min_mass", 100.0)))
         self.invert_input.setChecked(bool(params.get("invert", False)))
         self.threshold_input.setValue(float(params.get("threshold", 0.0)))
-        self.scaling_input.setValue(float(params.get("scaling", 1.0)))
 
     def save_params(self):
         if not self.config_manager:
             return
+        # Get current scaling from config (don't allow editing it here)
+        current_scaling = self.config_manager.get_detection_params().get("scaling", 1.0)
         params = {
             "feature_size": self.feature_size_input.value(),
             "min_mass": self.min_mass_input.value(),
             "invert": self.invert_input.isChecked(),
             "threshold": self.threshold_input.value(),
-            "scaling": self.scaling_input.value(),
+            "scaling": current_scaling,  # Preserve existing scaling value
         }
         self.config_manager.save_detection_params(params)
         self.parameter_changed.emit()
@@ -196,9 +189,13 @@ class DetectionParametersWidget(QWidget):
 
         self._backup_and_clear_particles_data()
 
+        # Convert 1-based UI input to 0-based frame indexing
+        start_frame_0based = self.start_frame_input.value() - 1
+        end_frame_0based = self.end_frame_input.value() - 1
+
         frame_paths = self.file_controller.get_frame_files(
-            start=self.start_frame_input.value(),
-            end=self.end_frame_input.value(),
+            start=start_frame_0based,
+            end=end_frame_0based,
             step=self.step_frame_input.value(),
         )
 
