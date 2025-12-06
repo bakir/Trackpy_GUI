@@ -281,8 +281,7 @@ class ProjectManager:
             "search_range": "10",
             "memory": "10",
             "min_trajectory_length": "10",
-            "fps": "30.0",
-            "max_speed": "100.0",
+            "drift": "false",
         }
 
         with open(config_path, "w") as f:

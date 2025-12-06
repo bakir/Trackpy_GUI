@@ -37,7 +37,6 @@ class LinkingParametersWidget(QWidget):
         self.config_manager = None
         self.file_controller = None
         self.trajectory_plotting = trajectory_plotting
-        self.subtract_drift = False
 
         # Store detected particles and linked trajectories
         self.detected_particles = None
@@ -69,20 +68,6 @@ class LinkingParametersWidget(QWidget):
             "Minimum number of frames for a valid trajectory."
         )
 
-        self.fps_input = QDoubleSpinBox()
-        self.fps_input.setDecimals(2)
-        self.fps_input.setRange(0.1, 1000.0)
-        self.fps_input.setSingleStep(1.0)
-        self.fps_input.setToolTip("Frames per second of the video.")
-
-        self.max_speed_input = QDoubleSpinBox()
-        self.max_speed_input.setDecimals(2)
-        self.max_speed_input.setRange(0.1, 10000.0)
-        self.max_speed_input.setSingleStep(10.0)
-        self.max_speed_input.setToolTip(
-            "Maximum expected particle speed (microns/second)."
-        )
-
         self.sub_drift = QCheckBox()
 
         self.form.addRow("Search range", self.search_range_input)
@@ -90,8 +75,6 @@ class LinkingParametersWidget(QWidget):
         self.form.addRow(
             "Min trajectory length", self.min_trajectory_length_input
         )
-        self.form.addRow("FPS", self.fps_input)
-        self.form.addRow("Max speed (μm/s)", self.max_speed_input)
         self.form.addRow("Subtract Drift", self.sub_drift)
 
         self.layout.addLayout(self.form)
@@ -128,8 +111,7 @@ class LinkingParametersWidget(QWidget):
         self.min_trajectory_length_input.editingFinished.connect(
             self.save_params
         )
-        self.fps_input.editingFinished.connect(self.save_params)
-        self.max_speed_input.editingFinished.connect(self.save_params)
+        self.sub_drift.stateChanged.connect(self.save_params)
         # Also catch Return in the embedded line edits
         self.search_range_input.lineEdit().returnPressed.connect(
             self.save_params
@@ -138,8 +120,6 @@ class LinkingParametersWidget(QWidget):
         self.min_trajectory_length_input.lineEdit().returnPressed.connect(
             self.save_params
         )
-        self.fps_input.lineEdit().returnPressed.connect(self.save_params)
-        self.max_speed_input.lineEdit().returnPressed.connect(self.save_params)
 
     def set_config_manager(self, config_manager):
         """Set the config manager for this widget."""
@@ -160,8 +140,7 @@ class LinkingParametersWidget(QWidget):
         self.min_trajectory_length_input.setValue(
             int(params.get("min_trajectory_length", 10))
         )
-        self.fps_input.setValue(float(params.get("fps", 30.0)))
-        self.max_speed_input.setValue(float(params.get("max_speed", 100.0)))
+        self.sub_drift.setChecked(bool(params.get("drift", False)))
 
     def save_params(self):
         if not self.config_manager:
@@ -169,13 +148,39 @@ class LinkingParametersWidget(QWidget):
         params = {
             "search_range": int(self.search_range_input.value()),
             "memory": int(self.memory_input.value()),
-            "min_trajectory_length": int(
-                self.min_trajectory_length_input.value()
-            ),
-            "fps": float(self.fps_input.value()),
-            "max_speed": float(self.max_speed_input.value()),
+            "min_trajectory_length": int(self.min_trajectory_length_input.value()),
+            "drift": bool(self.sub_drift.isChecked())
         }
         self.config_manager.save_linking_params(params)
+
+    def calc_drift(self, particle_data):
+        try:
+            import trackpy as tp
+            scaling = self.config_manager.get_detection_params().get("scaling", 1.0)
+            particle_data = particle_data.copy()
+            
+            # ⭐️ FIX: Check if the index is a simple RangeIndex (meaning structure was lost).
+            # If so, reset the index to the required MultiIndex.
+            if isinstance(particle_data.index, pd.RangeIndex):
+                if 'particle' in particle_data.columns and 'frame' in particle_data.columns:
+                    particle_data = particle_data.set_index(['frame', 'particle'])
+            # if 'particle' in particle_data.columns and 'frame' in particle_data.columns:
+            #     particle_data = particle_data.copy().set_index(['frame', 'particle'], drop=False)
+            # else:
+            #      # Should not happen with linked data, but a safeguard
+            #     particle_data = particle_data.copy().set_index('frame', drop=False)
+            drift = tp.compute_drift(particle_data, smoothing=15)*scaling
+            # if 'particle' in particle_data.columns and 'frame' in particle_data.columns:
+            #     particle_data = particle_data.set_index(['frame', 'particle'], drop=False)
+            print(drift)
+            print(particle_data.head())
+            particle_data = tp.subtract_drift(particle_data, drift)
+            print(particle_data.head())
+            particle_data = particle_data.reset_index(drop=True)
+            return particle_data
+        except Exception as e:
+            print(f"Error linking trajectories: {e}")
+            self.linked_trajectories = None
 
     def find_trajectories(self):
         """Load detected particles and link them into trajectories."""
@@ -208,16 +213,23 @@ class LinkingParametersWidget(QWidget):
                 if not all_particles_df.empty:
                     print("Linking ALL particles for unfiltered view...")
                     trajectories_all = tp.link_df(all_particles_df, search_range=search_range, memory=memory)
+                    print(trajectories_all)
+                    
                     trajectories_all = tp.filter_stubs(trajectories_all, min_trajectory_length)
-
+                    print(trajectories_all)
                     if self.sub_drift.isChecked():
-                        drift_all = tp.compute_drift(trajectories_all)
-                        trajectories_all = tp.subtract_drift(trajectories_all.copy(), drift_all).reset_index(drop=False)
-                        if "particle" in trajectories_all.columns:
-                            trajectories_all = trajectories_all.drop(columns=["particle"])
-                        if "frame" in trajectories_all.columns:
-                            trajectories_all = trajectories_all.drop(columns=["frame"])
-                        trajectories_all = trajectories_all.reset_index(drop=False)
+                        self.calc_drift(trajectories_all)
+                        # scaling = self.config_manager.get_detection_params().get("scaling", 1.0)
+                        # # scaling = float(params.get("scaling", 1.0))
+                        # drift = tp.compute_drift(trajectories_all, smoothing=15)*scaling
+                        # # drift_all = tp.compute_drift(trajectories_all)
+                        # trajectories_all = tp.subtract_drift(trajectories_all, drift)
+                        # trajectories_all = trajectories_all.reset_index(drop=True)
+                        # if "particle" in trajectories_all.columns:
+                        #     trajectories_all = trajectories_all.drop(columns=["particle"])
+                        # if "frame" in trajectories_all.columns:
+                        #     trajectories_all = trajectories_all.drop(columns=["frame"])
+                        # trajectories_all = trajectories_all.reset_index(drop=False)
 
                     # Save all_trajectories.csv
                     all_trajectories_file = os.path.join(data_folder, "all_trajectories.csv")
@@ -243,16 +255,11 @@ class LinkingParametersWidget(QWidget):
             print(f"After filtering: {trajectories_filtered['particle'].nunique()} filtered trajectories")
 
             if self.sub_drift.isChecked():
-                drift_filtered = tp.compute_drift(trajectories_filtered)
-                trajectories_filtered = tp.subtract_drift(trajectories_filtered.copy(), drift_filtered).reset_index(drop=False)
-                if "particle" in trajectories_filtered.columns:
-                    trajectories_filtered = trajectories_filtered.drop(columns=["particle"])
-                if "frame" in trajectories_filtered.columns:
-                    trajectories_filtered = trajectories_filtered.drop(columns=["frame"])
-                trajectories_filtered = trajectories_filtered.reset_index(drop=False)
+                self.calc_drift(trajectories_filtered)
 
             self.linked_trajectories = trajectories_filtered # Store the filtered linked trajectories
-
+            print(trajectories_all.head())
+            print(trajectories_filtered.head())
             # Save filtered trajectories.csv
             trajectories_file = os.path.join(data_folder, "trajectories.csv")
             trajectories_filtered.to_csv(trajectories_file, index=False)
@@ -266,7 +273,6 @@ class LinkingParametersWidget(QWidget):
                 self.create_trajectory_visualization(trajectories_all, data_folder, "trajectory_visualization.png")
 
             self.create_rb_gallery(trajectories_file, data_folder) # RB gallery from filtered trajectories
-            from .. import particle_processing
             particle_processing.find_and_save_high_memory_links(trajectories_file, memory, max_links=5)
 
             self.trajectoriesLinked.emit()

@@ -51,6 +51,7 @@ class FilterCreatorDialog(QDialog):
         self.resize(400, 200)
         self.available_parameters = available_parameters
         self.created_filter = None
+
         layout = QVBoxLayout(self)
         param_layout = QHBoxLayout()
         param_layout.addWidget(QLabel("Parameter:"))
@@ -58,23 +59,27 @@ class FilterCreatorDialog(QDialog):
         self.parameter_combo.addItems(available_parameters)
         param_layout.addWidget(self.parameter_combo)
         layout.addLayout(param_layout)
+
         operator_layout = QHBoxLayout()
         operator_layout.addWidget(QLabel("Operator:"))
         self.operator_combo = QComboBox()
         self.operator_combo.addItems(["<", "<=", ">", ">=", "==", "!="])
         operator_layout.addWidget(self.operator_combo)
         layout.addLayout(operator_layout)
+
         value_layout = QHBoxLayout()
         value_layout.addWidget(QLabel("Value:"))
         self.value_input = QLineEdit()
         self.value_input.setPlaceholderText("Enter numeric value")
         value_layout.addWidget(self.value_input)
         layout.addLayout(value_layout)
+
         button_layout = QHBoxLayout()
         self.create_button = QPushButton("Create Filter")
         self.create_button.clicked.connect(self.create_filter)
         self.cancel_button = QPushButton("Cancel")
         self.cancel_button.clicked.connect(self.reject)
+
         button_layout.addWidget(self.create_button)
         button_layout.addWidget(self.cancel_button)
         layout.addLayout(button_layout)
@@ -158,6 +163,7 @@ class FilteringWidget(QWidget):
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
         scroll_area.setMaximumHeight(200)
+
         self.cards_container = QWidget()
         self.cards_layout = QVBoxLayout(self.cards_container)
         self.cards_layout.setContentsMargins(5, 5, 5, 5)
@@ -165,11 +171,20 @@ class FilteringWidget(QWidget):
         self.cards_layout.addStretch()
         scroll_area.setWidget(self.cards_container)
         layout.addWidget(scroll_area)
+
         self.status_label = QLabel("No filters active")
         status_font = QFont()
         status_font.setItalic(True)
         self.status_label.setFont(status_font)
         layout.addWidget(self.status_label)
+
+        self.particle_labels = QWidget()
+        self.particle_labels_layout = QVBoxLayout(self.particle_labels)
+        self.total_particles_label = QLabel()
+        self.particles_after_filter_label = QLabel()
+        self.particle_labels_layout.addWidget(self.total_particles_label)
+        self.particle_labels_layout.addWidget(self.particles_after_filter_label)
+        layout.addWidget(self.particle_labels)
 
     def update_available_parameters(self):
         if not self.file_controller:
@@ -278,6 +293,11 @@ class FilteringWidget(QWidget):
         self.apply_filters()
         self.filteredParticlesUpdated.emit()
 
+    def update_particle_labels(self, all_particle_count, filtered_particle_count):
+        self.total_particles_label.setText(f"Particles Found: {all_particle_count}")
+        self.particles_after_filter_label.setText(f"Particles After Filter(s): {filtered_particle_count}")
+
+
     def apply_filters(self) -> Optional[pd.DataFrame]:
         if not self.file_controller:
             print("File controller not set")
@@ -296,6 +316,7 @@ class FilteringWidget(QWidget):
         print(f"Saved filtered data to: {output_path}")
         print(f"  Original: {original_count} particles")
         print(f"  Filtered: {len(filtered_data)} particles")
+        self.update_particle_labels(original_count, len(filtered_data))
         return filtered_data
         # except Exception as e:
         #     print(f"Error applying filters: {e}")

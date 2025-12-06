@@ -126,8 +126,9 @@ class TrajectoryPlottingWidget(GraphingUtils.GraphingPanelWidget):
             self.check_for_empty_data()
 
             # Create the plot
-            d = tp.compute_drift(self.data)
-            ax = d.plot()
+            scaling = self.config_manager.get_detection_params().get("scaling", 1.0)
+            drift = tp.compute_drift(self.data, smoothing=15)*scaling
+            ax = drift.plot()
 
             ax.set_xlabel("Frame")
 
@@ -153,7 +154,6 @@ class TrajectoryPlottingWidget(GraphingUtils.GraphingPanelWidget):
 
             params = self.config_manager.get_detection_params()
             scaling = params.get("scaling")
-            print(scaling)
 
             # Create the plot
             fig, ax = plt.subplots()

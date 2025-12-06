@@ -222,8 +222,8 @@ class ErrantParticleGalleryWidget(QWidget):
                     # But only display mass/min_mass or feature_size/parameter_feature_size
                     mass = None
                     min_mass = None
-                    feature_size = None
-                    parameter_feature_size = None
+                    size = None
+                    min_size = None
 
                     for line in info_text.split("\n"):
                         if line.startswith("frame:"):
@@ -251,16 +251,16 @@ class ErrantParticleGalleryWidget(QWidget):
                                 min_mass = float(line.split(":")[1].strip())
                             except (ValueError, IndexError):
                                 pass
-                        elif line.startswith("feature_size:"):
+                        elif line.startswith("size:"):
                             try:
-                                feature_size = float(
+                                size = float(
                                     line.split(":")[1].strip()
                                 )
                             except (ValueError, IndexError):
                                 pass
-                        elif line.startswith("parameter_feature_size:"):
+                        elif line.startswith("min_size:"):
                             try:
-                                parameter_feature_size = float(
+                                min_size = float(
                                     line.split(":")[1].strip()
                                 )
                             except (ValueError, IndexError):
@@ -269,13 +269,13 @@ class ErrantParticleGalleryWidget(QWidget):
                     # Build display text - only show mass/min_mass or feature_size/parameter_feature_size
                     if mass is not None and min_mass is not None:
                         display_text = (
-                            f"mass: {mass:.2f}\nmin_mass: {min_mass:.2f}"
+                            f"Mass: {mass:.2f}\nMin mass: {min_mass:.2f}"
                         )
                     elif (
-                        feature_size is not None
-                        and parameter_feature_size is not None
+                        size is not None
+                        and min_size is not None
                     ):
-                        display_text = f"feature_size: {feature_size:.2f}\nparameter_feature_size: {parameter_feature_size:.2f}"
+                        display_text = f"Size: {size:.2f}\nMin size: {min_size:.2f}"
 
                     self.info_label.setText(display_text)
             else:

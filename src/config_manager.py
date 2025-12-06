@@ -60,8 +60,7 @@ class ConfigManager:
             "search_range": "10",
             "memory": "10",
             "min_trajectory_length": "10",
-            "fps": "30.0",
-            "max_speed": "100.0",
+            "drift": "false",
         }
 
     def get(self, section: str, key: str, fallback: Any = None) -> Any:
@@ -189,8 +188,7 @@ class ConfigManager:
             "min_trajectory_length": int(
                 self.get("Linking", "min_trajectory_length", 10)
             ),
-            "fps": float(self.get("Linking", "fps", 30.0)),
-            "max_speed": float(self.get("Linking", "max_speed", 100.0)),
+            "drift": self.get("Linking", "drift", "false").lower() == "true",
         }
 
     def save_detection_params(self, params: Dict[str, Any]):

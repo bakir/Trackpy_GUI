@@ -112,8 +112,7 @@ def link_particles_to_trajectories(
                 "feature_size": 15,
                 "min_mass": 100.0,
                 "invert": False,
-                "threshold": 0.0,
-                "scaling": 1.0,
+                "threshold": 0.0
             }
 
     if output_folder is None:
@@ -170,13 +169,15 @@ def link_particles_to_trajectories(
 
     # Calculate search range based on expected particle speed
     # Assuming max speed of ~100 microns/second and typical fps
-    fps = 30  # Default fps, could be extracted from video
-    scaling = 1.0  # microns per pixel, could be from config
-    max_speed_um_per_sec = 100
-    search_range = int(np.ceil(max_speed_um_per_sec / (fps * scaling)))
+    # fps = 30  # Default fps, could be extracted from video
+    # scaling = 1.0  # microns per pixel, could be from config
+    # max_speed_um_per_sec = 100
+    # search_range = int(np.ceil(max_speed_um_per_sec / (fps * scaling)))
 
-    # Memory parameter: how many frames a particle can disappear and still be linked
-    memory = 10
+    search_range = int(params.get("search_range", 10))
+    memory = int(params.get("memory", 10))
+    min_trajectory_length = int(params.get("min_trajectory_length", 10))
+    drift = bool(params.get("drift", False))
 
     try:
         trajectories = tp.link_df(
@@ -189,7 +190,7 @@ def link_particles_to_trajectories(
     print(f"Created {trajectories['particle'].nunique()} trajectories")
 
     # Step 3: Filter short trajectories
-    min_trajectory_length = 10
+    # min_trajectory_length = 10
     print(
         f"Filtering trajectories shorter than {min_trajectory_length} frames..."
     )
@@ -206,13 +207,14 @@ def link_particles_to_trajectories(
     print("Computing and subtracting drift...")
     try:
         # Compute drift
-        drift = tp.compute_drift(trajectories_filtered, smoothing=15)
+        if drift == True:
+            drift = tp.compute_drift(trajectories_filtered, smoothing=15)
 
-        # Subtract drift
-        trajectories_final = tp.subtract_drift(trajectories_filtered, drift)
-        trajectories_final = trajectories_final.reset_index(drop=True)
+            # Subtract drift
+            trajectories_final = tp.subtract_drift(trajectories_filtered, drift)
+            trajectories_final = trajectories_final.reset_index(drop=True)
 
-        print("Drift subtraction completed")
+            print("Drift subtraction completed")
     except Exception as e:
         print(f"Warning: Drift subtraction failed: {e}")
         print("Using trajectories without drift subtraction")
@@ -226,63 +228,63 @@ def link_particles_to_trajectories(
     return trajectories_final
 
 
-def analyze_trajectories(trajectories_df, scaling=1.0, fps=30):
-    """
-    Analyze linked trajectories to compute MSD and other metrics.
+# def analyze_trajectories(trajectories_df, scaling=1.0, fps=30):
+#     """
+#     Analyze linked trajectories to compute MSD and other metrics.
 
-    Parameters
-    ----------
-    trajectories_df : pandas.DataFrame
-        DataFrame with trajectory data from link_particles_to_trajectories
-    scaling : float
-        Microns per pixel
-    fps : float
-        Frames per second
+#     Parameters
+#     ----------
+#     trajectories_df : pandas.DataFrame
+#         DataFrame with trajectory data from link_particles_to_trajectories
+#     scaling : float
+#         Microns per pixel
+#     fps : float
+#         Frames per second
 
-    Returns
-    -------
-    dict
-        Dictionary containing analysis results
-    """
-    if trajectories_df is None or len(trajectories_df) == 0:
-        return None
+#     Returns
+#     -------
+#     dict
+#         Dictionary containing analysis results
+#     """
+#     if trajectories_df is None or len(trajectories_df) == 0:
+#         return None
 
-    results = {}
+#     results = {}
 
-    # Compute ensemble mean square displacement (eMSD)
-    try:
-        emsd = tp.emsd(trajectories_df, mpp=scaling, fps=fps, max_lagtime=100)
-        results["emsd"] = emsd
-        print("Computed ensemble MSD")
-    except Exception as e:
-        print(f"Error computing eMSD: {e}")
+#     # Compute ensemble mean square displacement (eMSD)
+#     try:
+#         emsd = tp.emsd(trajectories_df, mpp=scaling, fps=fps, max_lagtime=100)
+#         results["emsd"] = emsd
+#         print("Computed ensemble MSD")
+#     except Exception as e:
+#         print(f"Error computing eMSD: {e}")
 
-    # Compute individual MSD (iMSD)
-    try:
-        imsd = tp.imsd(trajectories_df, mpp=scaling, fps=fps, max_lagtime=100)
-        results["imsd"] = imsd
-        print("Computed individual MSD")
-    except Exception as e:
-        print(f"Error computing iMSD: {e}")
+#     # Compute individual MSD (iMSD)
+#     try:
+#         imsd = tp.imsd(trajectories_df, mpp=scaling, fps=fps, max_lagtime=100)
+#         results["imsd"] = imsd
+#         print("Computed individual MSD")
+#     except Exception as e:
+#         print(f"Error computing iMSD: {e}")
 
-    # Basic statistics
-    results["num_trajectories"] = trajectories_df["particle"].nunique()
-    results["num_frames"] = trajectories_df["frame"].nunique()
-    results["total_detections"] = len(trajectories_df)
+#     # Basic statistics
+#     results["num_trajectories"] = trajectories_df["particle"].nunique()
+#     results["num_frames"] = trajectories_df["frame"].nunique()
+#     results["total_detections"] = len(trajectories_df)
 
-    # Trajectory lengths
-    traj_lengths = trajectories_df.groupby("particle").size()
-    results["mean_trajectory_length"] = traj_lengths.mean()
-    results["std_trajectory_length"] = traj_lengths.std()
+#     # Trajectory lengths
+#     traj_lengths = trajectories_df.groupby("particle").size()
+#     results["mean_trajectory_length"] = traj_lengths.mean()
+#     results["std_trajectory_length"] = traj_lengths.std()
 
-    print(f"Analysis complete:")
-    print(f"  - {results['num_trajectories']} trajectories")
-    print(f"  - {results['num_frames']} frames")
-    print(
-        f"  - Mean trajectory length: {results['mean_trajectory_length']:.1f} frames"
-    )
+#     print(f"Analysis complete:")
+#     print(f"  - {results['num_trajectories']} trajectories")
+#     print(f"  - {results['num_frames']} frames")
+#     print(
+#         f"  - Mean trajectory length: {results['mean_trajectory_length']:.1f} frames"
+#     )
 
-    return results
+#     return results
 
 
 # =============================================================================
@@ -372,18 +374,19 @@ def save_errant_particle_crops_for_frame(params):
     if all_particles.empty:
         return
 
-    feature_size = int(params.get("feature_size", 15))
+    # feature_size = int(params.get("feature_size", 15))
+    min_size = all_particles['size'].min()
     min_mass = float(params.get("min_mass", 100.0))
 
     # Calculate errant scores for all particles
     all_particles["mass_diff"] = all_particles["mass"] - min_mass
-    all_particles["size_diff"] = abs(all_particles["size"] - feature_size)
+    all_particles["size_diff"] = abs(all_particles["size"] - min_size)
 
     # Get top 5 most errant by mass (lowest mass, most negative mass_diff)
     top_5_mass_particles = all_particles.nsmallest(5, "mass_diff")
 
-    # Get top 5 most errant by size (largest size_diff)
-    top_5_size_particles = all_particles.nlargest(5, "size_diff")
+    # Get top 5 most errant by size (smallest size_diff)
+    top_5_size_particles = all_particles.nsmallest(5, "size_diff")
 
     if top_5_mass_particles.empty and top_5_size_particles.empty:
         return
@@ -523,8 +526,8 @@ def save_errant_particle_crops_for_frame(params):
             f.write(f"frame: {frame_num}\n")
             f.write(f"x: {particle['x']:.2f}\n")
             f.write(f"y: {particle['y']:.2f}\n")
-            f.write(f"feature_size: {particle['size']:.2f}\n")
-            f.write(f"parameter_feature_size: {feature_size}\n")
+            f.write(f"size: {particle['size']:.2f}\n")
+            f.write(f"min_size: {min_size}\n")
 
         particle_counter += 1
 
