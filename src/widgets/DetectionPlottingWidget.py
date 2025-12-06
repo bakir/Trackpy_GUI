@@ -44,7 +44,7 @@ class DectectionPlottingWidget(GraphingUtils.GraphingPanelWidget):
         self.sb_label = QLabel("Subpixel Bias")
         self.sb_layout.addWidget(self.sb_label, alignment=Qt.AlignTop)
 
-        self.sb_button = GraphingUtils.GraphingButton(text="Plot Subpixel Bias", parent=self)
+        self.sb_button = GraphingUtils.GraphingButton(text="Subpixel Bias", parent=self)
         self.sb_button.clicked.connect(
             lambda: self.self_plot(self.get_subpixel_bias, self.sb_button)
         )
@@ -62,7 +62,7 @@ class DectectionPlottingWidget(GraphingUtils.GraphingPanelWidget):
         self.hist_label = QLabel("Histograms")
         self.hist_layout.addWidget(self.hist_label, alignment=Qt.AlignTop)
 
-        self.ecc_button = GraphingUtils.GraphingButton(text="Plot Eccentricity", parent=self)
+        self.ecc_button = GraphingUtils.GraphingButton(text="Eccentricity", parent=self)
         self.ecc_button.clicked.connect(
             lambda: self.self_plot(
                 self.get_eccentricity_count, self.ecc_button
@@ -70,7 +70,7 @@ class DectectionPlottingWidget(GraphingUtils.GraphingPanelWidget):
         )
         self.hist_layout.addWidget(self.ecc_button, alignment=Qt.AlignTop)
 
-        self.mass_button = GraphingUtils.GraphingButton(text="Plot Mass", parent=self)
+        self.mass_button = GraphingUtils.GraphingButton(text="Mass", parent=self)
         self.mass_button.clicked.connect(
             lambda: self.self_plot(self.get_mass_count, self.mass_button)
         )
@@ -127,6 +127,16 @@ class DectectionPlottingWidget(GraphingUtils.GraphingPanelWidget):
             self.filtering_widget.set_file_controller(file_controller)
             if file_controller and hasattr(file_controller, 'project_path'):
                 self.filtering_widget.project_path = file_controller.project_path
+        # Load particle data when file controller is set
+        self.load_particle_data()
+    
+    def load_particle_data(self):
+        """Load particle data from file controller if available."""
+        if self.file_controller:
+            try:
+                self.data = self.file_controller.load_particles_data("all_particles.csv")
+            except (pd.errors.EmptyDataError, FileNotFoundError):
+                self.data = pd.DataFrame()
 
     def update_bins(self, value):
         self.bins = value

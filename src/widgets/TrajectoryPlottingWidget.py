@@ -46,7 +46,7 @@ class TrajectoryPlottingWidget(GraphingUtils.GraphingPanelWidget):
         )
 
         self.trajectory_button = GraphingUtils.GraphingButton(
-            text="Plot Trajectories", parent=self
+            text="Trajectories", parent=self
         )
         self.trajectory_button.clicked.connect(
             lambda: self.self_plot(
@@ -69,7 +69,7 @@ class TrajectoryPlottingWidget(GraphingUtils.GraphingPanelWidget):
         self.drift_label = QLabel("Drift")
         self.drift_layout.addWidget(self.drift_label, alignment=Qt.AlignTop)
 
-        self.drift_button = GraphingUtils.GraphingButton(text="Plot Drift", parent=self)
+        self.drift_button = GraphingUtils.GraphingButton(text="Drift", parent=self)
         self.drift_button.clicked.connect(
             lambda: self.self_plot(self.get_drift, self.drift_button)
         )
@@ -113,6 +113,16 @@ class TrajectoryPlottingWidget(GraphingUtils.GraphingPanelWidget):
             self.filtering_widget.set_file_controller(file_controller)
             if file_controller and hasattr(file_controller, 'project_path'):
                 self.filtering_widget.project_path = file_controller.project_path
+        # Load trajectory data when file controller is set
+        self.load_trajectory_data()
+    
+    def load_trajectory_data(self):
+        """Load trajectory data from file controller if available."""
+        if self.file_controller:
+            try:
+                self.data = self.file_controller.load_trajectories_data("all_trajectories.csv")
+            except (pd.errors.EmptyDataError, FileNotFoundError):
+                self.data = pd.DataFrame()
 
     def get_drift(self, page=None):
         """Creates a plot of all particles drift"""
