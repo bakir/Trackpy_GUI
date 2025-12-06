@@ -93,10 +93,12 @@ class ParticleDetectionWindow(QMainWindow):
 
         # Left Panel
         self.left_panel = DectectionPlottingWidget()
+        self.left_panel.setMinimumWidth(200)
         splitter.addWidget(self.left_panel)
 
         # Middle Panel
         self.middle_panel = QWidget()
+        self.middle_panel.setMinimumWidth(300)
         middle_layout = QVBoxLayout(self.middle_panel)
 
         self.frame_player = FramePlayerWidget()
@@ -113,6 +115,7 @@ class ParticleDetectionWindow(QMainWindow):
 
         # Right Panel - Create container widget
         right_panel_container = QWidget()
+        right_panel_container.setMinimumWidth(200)
         right_panel_layout = QVBoxLayout(right_panel_container)
         right_panel_layout.setContentsMargins(0, 0, 0, 0)
         
@@ -126,10 +129,26 @@ class ParticleDetectionWindow(QMainWindow):
         
         splitter.addWidget(right_panel_container)
 
+        # Set initial sizes for smooth resizing (proportional: 1:2:1)
+        # This prevents the splitter from jumping when clicked
+        splitter.setSizes([300, 600, 300])
+        
         # Set stretch factors for the splitter
         splitter.setStretchFactor(0, 1)
         splitter.setStretchFactor(1, 2)
         splitter.setStretchFactor(2, 1)
+        
+        # Make splitter handle wider and black for easy clicking
+        splitter.setHandleWidth(20)
+        splitter.setStyleSheet("""
+            QSplitter::handle {
+                background-color: black;
+                border: 1px solid black;
+            }
+            QSplitter::handle:hover {
+                background-color: #333333;
+            }
+        """)
 
         # Connect signals
         self.right_panel.parameter_changed.connect(

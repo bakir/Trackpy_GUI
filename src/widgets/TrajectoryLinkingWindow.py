@@ -91,10 +91,12 @@ class TrajectoryLinkingWindow(QMainWindow):
 
         # Left Panel
         self.left_panel = TrajectoryPlottingWidget()
+        self.left_panel.setMinimumWidth(200)
         splitter.addWidget(self.left_panel)
 
         # Middle Panel
         self.middle_panel = QWidget()
+        self.middle_panel.setMinimumWidth(300)
         self.middle_layout = QVBoxLayout(self.middle_panel)
 
         self.frame_player = TrajectoryPlayerWidget()
@@ -106,13 +108,30 @@ class TrajectoryLinkingWindow(QMainWindow):
 
         # Right Panel
         self.right_panel = LinkingParametersWidget(self.left_panel)
+        self.right_panel.setMinimumWidth(200)
         self.right_layout = QVBoxLayout(self.right_panel)
         splitter.addWidget(self.right_panel)
 
+        # Set initial sizes for smooth resizing (proportional: 1:2:1)
+        # This prevents the splitter from jumping when clicked
+        splitter.setSizes([300, 600, 300])
+        
         # Set stretch factors for the splitter
         splitter.setStretchFactor(0, 1)
         splitter.setStretchFactor(1, 2)
         splitter.setStretchFactor(2, 1)
+        
+        # Make splitter handle wider and black for easy clicking
+        splitter.setHandleWidth(20)
+        splitter.setStyleSheet("""
+            QSplitter::handle {
+                background-color: black;
+                border: 1px solid black;
+            }
+            QSplitter::handle:hover {
+                background-color: #333333;
+            }
+        """)
 
         # Connect trajectory linking signal to refresh memory links when trajectories are found
         self.right_panel.trajectoriesLinked.connect(
