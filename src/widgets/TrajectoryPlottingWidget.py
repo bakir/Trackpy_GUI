@@ -60,8 +60,8 @@ class TrajectoryPlottingWidget(GraphingUtils.GraphingPanelWidget):
         self.button_layout.addWidget(self.trajectories)
         self.trajectory_layout.addStretch(1)
 
-        # Filtering
-        self.filtering_buttons(self.button_layout, "trajectory")
+        # Filtering - use "detection" page type to match particle detection window
+        self.filtering_buttons(self.button_layout, "detection")
 
         # Drift
         self.drift = QWidget()
@@ -81,7 +81,8 @@ class TrajectoryPlottingWidget(GraphingUtils.GraphingPanelWidget):
         self.layout.addWidget(self.graphing_buttons)
         
         # Add filtering widget below the graphs
-        self.filtering_widget = FilteringWidget(source_data_file="trajectories.csv")
+        # Use all_particles.csv to match particle detection window
+        self.filtering_widget = FilteringWidget(source_data_file="all_particles.csv")
         self.filtering_widget.filteredParticlesUpdated.connect(self.filteredTrajectoriesUpdated.emit)
         self.layout.addWidget(self.filtering_widget)
         
@@ -113,14 +114,14 @@ class TrajectoryPlottingWidget(GraphingUtils.GraphingPanelWidget):
             self.filtering_widget.set_file_controller(file_controller)
             if file_controller and hasattr(file_controller, 'project_path'):
                 self.filtering_widget.project_path = file_controller.project_path
-        # Load trajectory data when file controller is set
-        self.load_trajectory_data()
+        # Load particle data when file controller is set (to match particle detection window)
+        self.load_particle_data()
     
-    def load_trajectory_data(self):
-        """Load trajectory data from file controller if available."""
+    def load_particle_data(self):
+        """Load particle data from file controller if available."""
         if self.file_controller:
             try:
-                self.data = self.file_controller.load_trajectories_data("all_trajectories.csv")
+                self.data = self.file_controller.load_particles_data("all_particles.csv")
             except (pd.errors.EmptyDataError, FileNotFoundError):
                 self.data = pd.DataFrame()
 
@@ -131,12 +132,19 @@ class TrajectoryPlottingWidget(GraphingUtils.GraphingPanelWidget):
             import cv2
             import pandas as pd
 
-            # Check if particles were found before plotting
-            self.check_for_empty_data()
+            # Use particle data to match particle detection window
+            if self.file_controller:
+                plot_data = self.file_controller.load_particles_data("all_particles.csv")
+            else:
+                plot_data = self.data
+            
+            if plot_data is None or plot_data.empty:
+                self.check_for_empty_data()
+                return None
 
             # Create the plot
             scaling = self.config_manager.get_detection_params().get("scaling", 1.0)
-            drift = tp.compute_drift(self.data, smoothing=15)*scaling
+            drift = tp.compute_drift(plot_data, smoothing=15)*scaling
             ax = drift.plot()
 
             ax.set_xlabel("Frame")
@@ -158,15 +166,22 @@ class TrajectoryPlottingWidget(GraphingUtils.GraphingPanelWidget):
             import cv2
             import pandas as pd
 
-            # Check if particles were found before plotting
-            self.check_for_empty_data()
+            # Use particle data to match particle detection window
+            if self.file_controller:
+                plot_data = self.file_controller.load_particles_data("all_particles.csv")
+            else:
+                plot_data = self.data
+            
+            if plot_data is None or plot_data.empty:
+                self.check_for_empty_data()
+                return None
 
             params = self.config_manager.get_detection_params()
             scaling = params.get("scaling")
 
             # Create the plot
             fig, ax = plt.subplots()
-            tp.plot_traj(self.data, mpp = scaling, ax=ax)
+            tp.plot_traj(plot_data, mpp = scaling, ax=ax)
 
             ax.set_xlabel("X [microns per px]")
             ax.set_ylabel("Y [microns per px]")

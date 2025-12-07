@@ -151,24 +151,27 @@ class GraphingPanelWidget(QWidget):
         # Assign new figure and render it to a pixmap
         self.fig = new_fig
         
-        # Calculate figure size based on actual widget size to avoid upscaling
-        # Use reasonable figure dimensions (8-12 inches) with high DPI
-        target_dpi = 300
+        # Use very high DPI for crisp rendering (800 DPI for maximum quality)
+        target_dpi = 800
+        
+        # Calculate figure size based on widget size, but use reasonable minimums
         if hasattr(self, 'plot_label') and self.plot_label.isVisible():
             label_size = self.plot_label.size()
             # Get widget size in pixels
-            width_px = label_size.width()
-            height_px = label_size.height()
-            # Convert to inches, but cap at reasonable maximum (12 inches)
-            width_inches = min(width_px / target_dpi, 12.0)
-            height_inches = min(height_px / target_dpi, 10.0)
-            # Ensure minimum size
-            width_inches = max(width_inches, 6.0)
-            height_inches = max(height_inches, 4.5)
+            width_px = max(label_size.width(), 1000)  # Minimum 1000px
+            height_px = max(label_size.height(), 750)  # Minimum 750px
+            
+            # Convert to inches - use a reasonable size that will look good
+            # Aim for 10-12 inches width for good visibility
+            width_inches = max(width_px / target_dpi, 10.0)
+            height_inches = max(height_px / target_dpi, 7.5)
+            # Cap maximum size to avoid huge files
+            width_inches = min(width_inches, 14.0)
+            height_inches = min(height_inches, 10.5)
         else:
             # Use reasonable default if widget not yet sized
-            width_inches = 10.0
-            height_inches = 8.0
+            width_inches = 12.0
+            height_inches = 9.0
         
         # Resize the figure to match display size
         self.fig.set_size_inches(width_inches, height_inches)
@@ -176,7 +179,7 @@ class GraphingPanelWidget(QWidget):
         # Improve figure formatting - better spacing and layout
         self.fig.tight_layout(pad=1.2)
         
-        # Generate at high DPI matching the display size - no upscaling needed
+        # Generate at high DPI for crisp, non-pixelated rendering
         buf = io.BytesIO()
         self.fig.savefig(
             buf, 

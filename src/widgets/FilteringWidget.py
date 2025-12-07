@@ -306,7 +306,12 @@ class FilteringWidget(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(5, 5, 5, 5)
         layout.setSpacing(5)
-        title = QLabel("Particle Filters")
+        # Use appropriate title based on source data file
+        if self.source_data_file == "all_trajectories.csv" or self.source_data_file == "trajectories.csv":
+            title_text = "Trajectory Filters"
+        else:
+            title_text = "Particle Filters"
+        title = QLabel(title_text)
         title_font = QFont()
         title_font.setBold(True)
         title_font.setPointSize(12)
@@ -361,7 +366,12 @@ class FilteringWidget(QWidget):
         if not self.file_controller:
             return
         try:
-            data = self.file_controller.load_particles_data("all_particles.csv")
+            # Use source_data_file to determine which file to load
+            if self.source_data_file == "all_trajectories.csv" or self.source_data_file == "trajectories.csv":
+                data = self.file_controller.load_trajectories_data(self.source_data_file)
+            else:
+                data = self.file_controller.load_particles_data(self.source_data_file)
+            
             if not data.empty:
                 numeric_cols = data.select_dtypes(include=["number"]).columns.tolist()
                 if numeric_cols:
@@ -537,13 +547,22 @@ class FilteringWidget(QWidget):
             print("File controller not set")
             return None
         # try:
-        data = self.file_controller.load_particles_data("all_particles.csv")
+        # Use source_data_file to determine which file to load
+        # For trajectories, use load_trajectories_data, for particles use load_particles_data
+        if self.source_data_file == "all_trajectories.csv" or self.source_data_file == "trajectories.csv":
+            data = self.file_controller.load_trajectories_data(self.source_data_file)
+            output_filename = "trajectories.csv"  # Save filtered trajectories to trajectories.csv
+        else:
+            # Default to particles
+            data = self.file_controller.load_particles_data(self.source_data_file)
+            output_filename = "filtered_particles.csv"
+        
         if data.empty:
             filtered_data = pd.DataFrame()
         else:
             filtered_data = apply_filters(data, self.filters, self.compound_filters)
         
-        output_path = os.path.join(self.file_controller.data_folder, "filtered_particles.csv")
+        output_path = os.path.join(self.file_controller.data_folder, output_filename)
         filtered_data.to_csv(output_path, index=False)
         
         original_count = len(data) if not data.empty else 0
