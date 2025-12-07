@@ -81,7 +81,7 @@ class DWParametersWidget(QWidget):
             font = info_icon.font()
             font.setPointSize(10)
             info_icon.setFont(font)
-            info_icon.setStyleSheet("color: #0066cc;")
+            info_icon.setStyleSheet("color: #0033cc;")
             label_layout.addWidget(label)
             label_layout.addWidget(info_icon)
             label_layout.addStretch()
@@ -145,7 +145,7 @@ class DWParametersWidget(QWidget):
             font = info_icon.font()
             font.setPointSize(10)
             info_icon.setFont(font)
-            info_icon.setStyleSheet("color: #0066cc;")
+            info_icon.setStyleSheet("color: #0033cc;")
             label_layout.addWidget(label)
             label_layout.addWidget(info_icon)
             return label_widget

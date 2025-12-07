@@ -41,6 +41,47 @@ class LWErrantMemoryLinksWidget(QWidget):
         self.photo_label.setMinimumHeight(300)
         self.layout.addWidget(self.photo_label)
 
+        # Legend/key for cross markers (placed right after video frame)
+        legend_layout = QHBoxLayout()
+        legend_layout.addStretch()
+        
+        # Helper function to create label with info icon
+        def create_legend_item(label_text, color, tooltip_text):
+            item_widget = QWidget()
+            item_layout = QHBoxLayout(item_widget)
+            item_layout.setContentsMargins(0, 0, 0, 0)
+            item_layout.setSpacing(4)
+            label = QLabel(label_text)
+            label.setStyleSheet(f"color: {color};")
+            info_icon = QLabel("ⓘ")
+            info_icon.setToolTip(tooltip_text)
+            font = info_icon.font()
+            font.setPointSize(10)
+            info_icon.setFont(font)
+            info_icon.setStyleSheet("color: #0033cc;")
+            item_layout.addWidget(label)
+            item_layout.addWidget(info_icon)
+            return item_widget
+        
+        # Create legend items
+        disappears_item = create_legend_item(
+            "Disappears",
+            "yellow",
+            "The last location of the particle before it disappears from the linking data for a few frames"
+        )
+        reappears_item = create_legend_item(
+            "Reappears",
+            "green",
+            "The first location of the particle after it reappears in the linking data after being absent for a few frames"
+        )
+        
+        legend_layout.addWidget(disappears_item)
+        legend_layout.addSpacing(20)  # Add spacing between items
+        legend_layout.addWidget(reappears_item)
+        legend_layout.addStretch()
+        
+        self.layout.addLayout(legend_layout)
+
         # Current link and frame display
         self.current_display_label = QLabel("Particle ID: N/A | Memory Link: 0 / 0 | Frame: 0 / 0")
         self.current_display_label.setAlignment(Qt.AlignCenter)
