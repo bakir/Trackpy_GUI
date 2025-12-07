@@ -110,8 +110,8 @@ class DWErrantParticleWidget(QWidget):
         params = self.config_manager.get_detection_params()
         
         # This function now uses filtered_particles.csv internally
-        from .. import particle_processing
-        particle_processing.save_errant_particle_crops_for_frame(params)
+        from ..utils import ParticleProcessing
+        ParticleProcessing.save_errant_particle_crops_for_frame(params)
         
         self.refresh_particles()
 

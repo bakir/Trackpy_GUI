@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 import os
 from copy import copy
-from .. import particle_processing
+from ..utils import ParticleProcessing
 import pandas as pd
 
 from ..utils import GraphingUtils

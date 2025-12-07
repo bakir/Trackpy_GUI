@@ -22,7 +22,7 @@ from PySide6.QtCore import Qt, Signal, QThread, QTimer
 import pandas as pd
 import os
 import shutil
-from .. import particle_processing
+from ..utils import ParticleProcessing
 
 
 class FindParticlesThread(QThread):
@@ -39,7 +39,7 @@ class FindParticlesThread(QThread):
 
     def run(self):
         """Run particle detection on frames and return particles, but do not save."""
-        particles = particle_processing.find_particles_in_frames(
+        particles = ParticleProcessing.find_particles_in_frames(
             self.frame_paths,
             self.params,
             progress_callback=self.processing_frame,

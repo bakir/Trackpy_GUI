@@ -11,12 +11,12 @@ import platform
 from PySide6.QtWidgets import QApplication, QMainWindow, QStackedWidget
 from PySide6.QtGui import QGuiApplication
 from PySide6 import QtWidgets
-from src.widgets.SSW_StartScreenWindow import SSWStartScreenWindow
-from src.widgets.DW_DetectionWindow import DWDetectionWindow
-from src.widgets.LW_LinkingWindow import LWLinkingWindow
-from src.project_manager import ProjectManager
-from src.file_controller import FileController
-from src.config_manager import ConfigManager
+from src.UI.SSW_StartScreenWindow import SSWStartScreenWindow
+from src.UI.DW_DetectionWindow import DWDetectionWindow
+from src.UI.LW_LinkingWindow import LWLinkingWindow
+from src.utils.ProjectManager import ProjectManager
+from src.utils.FileController import FileController
+from src.utils.ConfigManager import ConfigManager
 
 
 class ParticleTrackingAppController(QMainWindow):
@@ -85,9 +85,9 @@ class ParticleTrackingAppController(QMainWindow):
             )
 
             # Set file controller in particle processing module
-            from src import particle_processing
+            from src.utils import ParticleProcessing
 
-            particle_processing.set_file_controller(self.file_controller)
+            ParticleProcessing.set_file_controller(self.file_controller)
 
             # Start the main application workflow
             self.show_particle_detection_window()

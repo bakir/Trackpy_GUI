@@ -9,7 +9,7 @@ Description: Centralized file and folder management for the particle tracking ap
 import os
 import shutil
 import pandas as pd
-from .config_manager import ConfigManager
+from .ConfigManager import ConfigManager
 
 
 class FileController:

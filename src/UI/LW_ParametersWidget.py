@@ -24,7 +24,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QFont
 from PySide6.QtCore import Qt, Signal
 import os
-from .. import particle_processing
+from ..utils import ParticleProcessing
 import pandas as pd
 
 
@@ -335,7 +335,7 @@ class LWParametersWidget(QWidget):
             
             self.progress_label.setText("Working... Finding high memory links...")
             QApplication.processEvents()
-            particle_processing.find_and_save_high_memory_links(trajectories_file, memory, max_links=5)
+            ParticleProcessing.find_and_save_high_memory_links(trajectories_file, memory, max_links=5)
 
             self.trajectoriesLinked.emit()
             self.rbGalleryCreated.emit()
@@ -510,7 +510,7 @@ class LWParametersWidget(QWidget):
 
             # Call the RB gallery creation function
             print(f"🔵 Calling particle_processing.create_rb_gallery...")
-            particle_processing.create_rb_gallery(
+            ParticleProcessing.create_rb_gallery(
                 trajectories_file=trajectories_file,
                 frames_folder=original_frames_folder,
                 output_folder=rb_gallery_folder,

@@ -7,7 +7,7 @@ Description: Handles project creation, management, and configuration.
 
 import os
 import shutil
-from .config_manager import ConfigManager
+from .ConfigManager import ConfigManager
 
 
 class ProjectManager:

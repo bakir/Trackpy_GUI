@@ -12,7 +12,7 @@ import pandas as pd
 import trackpy as tp
 import pims
 import matplotlib.pyplot as plt
-from .file_controller import FileController
+from .FileController import FileController
 
 # Initialize file controller (will be set by main application)
 file_controller = None

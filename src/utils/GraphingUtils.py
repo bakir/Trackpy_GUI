@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 import os
 from copy import copy
-from .. import particle_processing
+from . import ParticleProcessing
 import io
 from .ScaledLabel import ScaledLabel
 

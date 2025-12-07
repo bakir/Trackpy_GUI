@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont, QPixmap, QIcon
 import os
-from ..project_manager import ProjectManager
+from ..utils.ProjectManager import ProjectManager
 
 
 class SSWStartScreenWindow(QWidget):

@@ -322,7 +322,7 @@ Search Range: {link_info.get('search_range', 0)} pixels"""
             padded_crop1 = create_padded_crop(full_frame1)
             padded_crop2 = create_padded_crop(full_frame2)
 
-            from ..particle_processing import create_rb_overlay_image
+            from ..utils.ParticleProcessing import create_rb_overlay_image
 
             rb_image = create_rb_overlay_image(
                 padded_crop1,
