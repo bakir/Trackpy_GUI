@@ -2,6 +2,10 @@
 Detection Parameters Widget
 
 Description: GUI widget for configuring particle detection parameters and triggering detection workflows.
+
+Copyright (c) 2025, Jacqueline Reynaga, Kevin Pillsbury, Bakir Husremovic
+License: BSD 3-Clause License
+Date: 2025-12-08
 """
 
 from PySide6.QtWidgets import (

@@ -3,6 +3,10 @@ New Project Window
 
 Description: Dialog window for creating new projects.
              Allows users to select project folder and set project name.
+
+Copyright (c) 2025, Jacqueline Reynaga, Kevin Pillsbury, Bakir Husremovic
+License: BSD 3-Clause License
+Date: 2025-12-08
 """
 
 from PySide6.QtWidgets import (
@@ -29,6 +33,18 @@ class NPWNewProjectWindow(QDialog):
     """Dialog for creating a new project."""
 
     def __init__(self, parent=None):
+        """
+        Initialize the new project window dialog.
+
+        Parameters
+        ----------
+        parent : QWidget, optional
+            Parent widget. Defaults to None.
+
+        Returns
+        -------
+        None
+        """
         super().__init__(parent)
         self.project_path = None
         self.project_name = None
@@ -40,7 +56,13 @@ class NPWNewProjectWindow(QDialog):
         self.setup_ui()
 
     def setup_ui(self):
-        """Set up the dialog UI."""
+        """
+        Set up the dialog UI.
+
+        Returns
+        -------
+        None
+        """
         self.setWindowTitle("Create New Project")
         self.setModal(True)
 
@@ -177,7 +199,13 @@ class NPWNewProjectWindow(QDialog):
         self.scaling_edit.valueChanged.connect(self.validate_input)
 
     def browse_folder(self):
-        """Open folder selection dialog."""
+        """
+        Open folder selection dialog.
+
+        Returns
+        -------
+        None
+        """
         folder = QFileDialog.getExistingDirectory(
             self,
             "Select Project Folder",
@@ -193,7 +221,13 @@ class NPWNewProjectWindow(QDialog):
                 self.project_name_edit.setText(folder_name)
 
     def browse_video(self):
-        """Open video file selection dialog."""
+        """
+        Open video file selection dialog.
+
+        Returns
+        -------
+        None
+        """
         file_path, _ = QFileDialog.getOpenFileName(
             self,
             "Select Video File",
@@ -204,7 +238,13 @@ class NPWNewProjectWindow(QDialog):
             self.video_path_edit.setText(file_path)
 
     def validate_input(self):
-        """Validate input fields and enable/disable create button."""
+        """
+        Validate input fields and enable/disable create button.
+
+        Returns
+        -------
+        None
+        """
         has_name = bool(self.project_name_edit.text().strip())
         has_folder = bool(self.folder_path_edit.text().strip())
         has_video = bool(self.video_path_edit.text().strip())
@@ -213,7 +253,13 @@ class NPWNewProjectWindow(QDialog):
         self.create_btn.setEnabled(has_name and has_folder and has_video and has_scaling)
 
     def create_project(self):
-        """Create the project and accept the dialog."""
+        """
+        Create the project and accept the dialog.
+
+        Returns
+        -------
+        None
+        """
         project_name = self.project_name_edit.text().strip()
         parent_folder = self.folder_path_edit.text().strip()
 
@@ -287,7 +333,19 @@ class NPWNewProjectWindow(QDialog):
         self.accept()
 
     def _make_filesystem_safe(self, name):
-        """Make a project name safe for filesystem use."""
+        """
+        Make a project name safe for filesystem use.
+
+        Parameters
+        ----------
+        name : str
+            The project name to sanitize.
+
+        Returns
+        -------
+        str
+            Filesystem-safe project name.
+        """
         # Replace invalid characters with underscores
         safe_name = re.sub(r'[<>:"/\\|?*]', "_", name)
         # Remove leading/trailing spaces and dots
@@ -301,29 +359,78 @@ class NPWNewProjectWindow(QDialog):
         return safe_name
 
     def get_project_name(self):
-        """Get the project name."""
+        """
+        Get the project name.
+
+        Returns
+        -------
+        str
+            The project name.
+        """
         return self.project_name
 
     def get_project_path(self):
-        """Get the project path."""
+        """
+        Get the project path.
+
+        Returns
+        -------
+        str
+            The project folder path.
+        """
         return self.project_path
 
     def get_movie_taker(self):
-        """Get the movie taker name."""
+        """
+        Get the movie taker name.
+
+        Returns
+        -------
+        str
+            Name of the person who took the movie.
+        """
         return self.movie_taker
 
     def get_person_doing_analysis(self):
-        """Get the person doing analysis name."""
+        """
+        Get the person doing analysis name.
+
+        Returns
+        -------
+        str
+            Name of the person doing the analysis.
+        """
         return self.person_doing_analysis
 
     def get_video_path(self):
-        """Get the video file path."""
+        """
+        Get the video file path.
+
+        Returns
+        -------
+        str
+            Path to the video file.
+        """
         return self.video_path
 
     def get_scaling(self):
-        """Get the scaling value."""
+        """
+        Get the scaling value.
+
+        Returns
+        -------
+        float
+            Scaling value in microns per pixel.
+        """
         return self.scaling
 
     def get_movie_taken_date(self):
-        """Get the movie taken date."""
+        """
+        Get the movie taken date.
+
+        Returns
+        -------
+        str
+            Date when the movie was taken (ISO format).
+        """
         return self.movie_taken_date

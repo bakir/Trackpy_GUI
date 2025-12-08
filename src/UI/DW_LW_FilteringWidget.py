@@ -3,6 +3,10 @@ Filtering Widget Module
 
 Description: Interactive UI for defining filters on particle data and automatically
              generating filtered_particles.csv whenever filters are changed.
+
+Copyright (c) 2025, Jacqueline Reynaga, Kevin Pillsbury, Bakir Husremovic
+License: BSD 3-Clause License
+Date: 2025-12-08
 """
 
 import os
@@ -39,6 +43,13 @@ class Filter:
     filter_id: str = None  # Unique ID for this filter
 
     def __post_init__(self):
+        """
+        Initialize filter_id if not provided.
+
+        Returns
+        -------
+        None
+        """
         if self.filter_id is None:
             self.filter_id = str(uuid.uuid4())[:8]
 
@@ -53,6 +64,13 @@ class CompoundFilter:
     filter_id: str = None  # Unique ID for this compound filter
 
     def __post_init__(self):
+        """
+        Initialize filter_id if not provided.
+
+        Returns
+        -------
+        None
+        """
         if self.filter_id is None:
             self.filter_id = str(uuid.uuid4())[:8]
 
@@ -61,6 +79,20 @@ class FilterCreatorDialog(QDialog):
     """Dialog for creating a new filter."""
 
     def __init__(self, available_parameters: List[str], parent=None):
+        """
+        Initialize the filter creator dialog.
+
+        Parameters
+        ----------
+        available_parameters : List[str]
+            List of available parameter names for filtering.
+        parent : QWidget, optional
+            Parent widget. Defaults to None.
+
+        Returns
+        -------
+        None
+        """
         super().__init__(parent)
         self.setWindowTitle("Filter Creator")
         self.setModal(True)
@@ -101,6 +133,13 @@ class FilterCreatorDialog(QDialog):
         layout.addLayout(button_layout)
 
     def create_filter(self):
+        """
+        Create a filter from the dialog inputs.
+
+        Returns
+        -------
+        None
+        """
         parameter = self.parameter_combo.currentText()
         operator = self.operator_combo.currentText()
         try:
@@ -116,6 +155,20 @@ class CompoundFilterCreatorDialog(QDialog):
     """Dialog for creating a compound filter with two filters and an operator."""
 
     def __init__(self, available_parameters: List[str], parent=None):
+        """
+        Initialize the filter creator dialog.
+
+        Parameters
+        ----------
+        available_parameters : List[str]
+            List of available parameter names for filtering.
+        parent : QWidget, optional
+            Parent widget. Defaults to None.
+
+        Returns
+        -------
+        None
+        """
         super().__init__(parent)
         self.setWindowTitle("Compound Filter Creator")
         self.setModal(True)
@@ -205,6 +258,13 @@ class CompoundFilterCreatorDialog(QDialog):
         layout.addLayout(button_layout)
 
     def create_compound_filter(self):
+        """
+        Create a compound filter from the dialog inputs.
+
+        Returns
+        -------
+        None
+        """
         try:
             value1 = float(self.value1_input.text())
             value2 = float(self.value2_input.text())
@@ -236,6 +296,22 @@ class FilterCard(QFrame):
     """Widget representing a single filter card."""
 
     def __init__(self, filter_obj: Filter, on_delete: Callable, parent=None):
+        """
+        Initialize a filter card widget.
+
+        Parameters
+        ----------
+        filter_obj : Filter
+            The filter object to display.
+        on_delete : Callable
+            Callback function to call when filter is deleted.
+        parent : QWidget, optional
+            Parent widget. Defaults to None.
+
+        Returns
+        -------
+        None
+        """
         super().__init__(parent)
         self.filter_obj = filter_obj
         self.on_delete = on_delete
@@ -258,6 +334,22 @@ class CompoundFilterCard(QFrame):
     """Widget representing a compound filter card."""
 
     def __init__(self, compound_filter_obj: CompoundFilter, on_delete: Callable, parent=None):
+        """
+        Initialize a compound filter card widget.
+
+        Parameters
+        ----------
+        compound_filter_obj : CompoundFilter
+            The compound filter object to display.
+        on_delete : Callable
+            Callback function to call when filter is deleted.
+        parent : QWidget, optional
+            Parent widget. Defaults to None.
+
+        Returns
+        -------
+        None
+        """
         super().__init__(parent)
         self.compound_filter_obj = compound_filter_obj
         self.on_delete = on_delete
@@ -284,6 +376,20 @@ class DWLWFilteringWidget(QWidget):
     filteredParticlesUpdated = Signal()
 
     def __init__(self, source_data_file: str = "all_particles.csv", parent=None):
+        """
+        Initialize the filtering widget.
+
+        Parameters
+        ----------
+        source_data_file : str, optional
+            Name of the source data file to filter. Defaults to "all_particles.csv".
+        parent : QWidget, optional
+            Parent widget. Defaults to None.
+
+        Returns
+        -------
+        None
+        """
         super().__init__(parent)
         self.project_path = None
         self.filters: List[Filter] = []
@@ -304,6 +410,18 @@ class DWLWFilteringWidget(QWidget):
         self.setup_ui()
 
     def set_file_controller(self, file_controller):
+        """
+        Set the file controller for this widget.
+
+        Parameters
+        ----------
+        file_controller : FileController
+            The FileController instance to use.
+
+        Returns
+        -------
+        None
+        """
         self.file_controller = file_controller
         if file_controller:
             self.project_path = file_controller.project_path
@@ -311,10 +429,28 @@ class DWLWFilteringWidget(QWidget):
             self.update_available_parameters()
 
     def set_source_data_file(self, filename: str):
-        """Set the source data file to filter (e.g., 'all_particles.csv')."""
+        """
+        Set the source data file to filter (e.g., 'all_particles.csv').
+
+        Parameters
+        ----------
+        filename : str
+            Name of the source data file to filter.
+
+        Returns
+        -------
+        None
+        """
         self.source_data_file = filename
 
     def setup_ui(self):
+        """
+        Set up the user interface.
+
+        Returns
+        -------
+        None
+        """
         layout = QVBoxLayout(self)
         layout.setContentsMargins(5, 5, 5, 5)
         layout.setSpacing(5)
@@ -375,6 +511,13 @@ class DWLWFilteringWidget(QWidget):
         layout.addWidget(self.particle_labels)
 
     def update_available_parameters(self):
+        """
+        Update the list of available parameters from the data file.
+
+        Returns
+        -------
+        None
+        """
         if not self.file_controller:
             return
         try:
@@ -401,6 +544,13 @@ class DWLWFilteringWidget(QWidget):
             print(f"Error updating available parameters: {e}")
 
     def open_filter_creator(self):
+        """
+        Open the filter creator dialog.
+
+        Returns
+        -------
+        None
+        """
         self.update_available_parameters()
         if not self.available_parameters:
             QMessageBox.warning(
@@ -414,6 +564,13 @@ class DWLWFilteringWidget(QWidget):
             self.add_filter(dialog.created_filter)
 
     def open_compound_filter_creator(self):
+        """
+        Open the compound filter creator dialog.
+
+        Returns
+        -------
+        None
+        """
         self.update_available_parameters()
         if not self.available_parameters:
             QMessageBox.warning(
@@ -427,30 +584,85 @@ class DWLWFilteringWidget(QWidget):
             self.add_compound_filter(dialog.created_compound_filter)
 
     def add_filter(self, filter_obj: Filter):
+        """
+        Add a filter to the filter list.
+
+        Parameters
+        ----------
+        filter_obj : Filter
+            The filter object to add.
+
+        Returns
+        -------
+        None
+        """
         self.filters.append(filter_obj)
         self.update_filter_cards_ui()
         self.save_filters_to_disk()
         self.apply_filters_and_notify()
 
     def add_compound_filter(self, compound_filter_obj: CompoundFilter):
+        """
+        Add a compound filter to the filter list.
+
+        Parameters
+        ----------
+        compound_filter_obj : CompoundFilter
+            The compound filter object to add.
+
+        Returns
+        -------
+        None
+        """
         self.compound_filters.append(compound_filter_obj)
         self.update_filter_cards_ui()
         self.save_filters_to_disk()
         self.apply_filters_and_notify()
 
     def remove_filter(self, filter_id: str):
+        """
+        Remove a filter from the filter list.
+
+        Parameters
+        ----------
+        filter_id : str
+            ID of the filter to remove.
+
+        Returns
+        -------
+        None
+        """
         self.filters = [f for f in self.filters if f.filter_id != filter_id]
         self.update_filter_cards_ui()
         self.save_filters_to_disk()
         self.apply_filters_and_notify()
 
     def remove_compound_filter(self, filter_id: str):
+        """
+        Remove a compound filter from the filter list.
+
+        Parameters
+        ----------
+        filter_id : str
+            ID of the compound filter to remove.
+
+        Returns
+        -------
+        None
+        """
         self.compound_filters = [f for f in self.compound_filters if f.filter_id != filter_id]
         self.update_filter_cards_ui()
         self.save_filters_to_disk()
         self.apply_filters_and_notify()
 
     def update_filter_cards_ui(self):
+        """
+        Update the filter cards display in the UI.
+
+        Returns
+        -------
+        None
+        """
         while self.cards_layout.count() > 1:
             item = self.cards_layout.takeAt(0)
             if item.widget():
@@ -467,12 +679,26 @@ class DWLWFilteringWidget(QWidget):
         )
 
     def get_filters_ini_path(self) -> str:
-        """Get the path to the filters.ini file in the project root."""
+        """
+        Get the path to the filters.ini file in the project root.
+
+        Returns
+        -------
+        str
+            Path to the filters.ini file, or None if no project path is set.
+        """
         if not self.project_path:
             return None
         return os.path.join(self.project_path, "filters.ini")
 
     def save_filters_to_disk(self):
+        """
+        Save filters to disk in filters.ini file.
+
+        Returns
+        -------
+        None
+        """
         ini_path = self.get_filters_ini_path()
         if not ini_path:
             return
@@ -499,6 +725,13 @@ class DWLWFilteringWidget(QWidget):
             print(f"Error saving filters to disk: {e}")
 
     def load_filters_from_disk(self):
+        """
+        Load filters from disk from filters.ini file.
+
+        Returns
+        -------
+        None
+        """
         ini_path = self.get_filters_ini_path()
         if not ini_path or not os.path.exists(ini_path):
             self.filters = []
@@ -555,16 +788,45 @@ class DWLWFilteringWidget(QWidget):
             print(f"Error loading filters from disk: {e}")
 
     def apply_filters_and_notify(self):
+        """
+        Apply filters and notify listeners of the update.
+
+        Returns
+        -------
+        None
+        """
         self.apply_filters()
         self.filteredParticlesUpdated.emit()
 
     def update_particle_labels(self, all_particle_count, filtered_particle_count):
+        """
+        Update the particle count labels.
+
+        Parameters
+        ----------
+        all_particle_count : int
+            Total number of particles before filtering.
+        filtered_particle_count : int
+            Number of particles after filtering.
+
+        Returns
+        -------
+        None
+        """
         self.total_particles_label.setText(f"Particles Found: {all_particle_count}")
         self.particles_after_filter_label.setText(
             f"Particles After Filter(s): {filtered_particle_count}"
         )
 
     def apply_filters(self) -> Optional[pd.DataFrame]:
+        """
+        Apply all filters to the source data file.
+
+        Returns
+        -------
+        Optional[pd.DataFrame]
+            Filtered DataFrame, or None if file_controller is not set.
+        """
         if not self.file_controller:
             print("File controller not set")
             return None
@@ -602,7 +864,21 @@ class DWLWFilteringWidget(QWidget):
 
 
 def apply_single_filter(df: pd.DataFrame, filter_obj: Filter) -> pd.Series:
-    """Apply a single filter and return a boolean mask."""
+    """
+    Apply a single filter and return a boolean mask.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame to filter.
+    filter_obj : Filter
+        Filter object containing parameter, operator, and value.
+
+    Returns
+    -------
+    pd.Series
+        Boolean mask indicating which rows pass the filter.
+    """
     parameter = filter_obj.parameter
     operator = filter_obj.operator
     value = filter_obj.value
@@ -633,6 +909,23 @@ def apply_single_filter(df: pd.DataFrame, filter_obj: Filter) -> pd.Series:
 def apply_filters(
     df: pd.DataFrame, filters: List[Filter], compound_filters: List[CompoundFilter] = None
 ) -> pd.DataFrame:
+    """
+    Apply a list of filters and compound filters to a DataFrame.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame to filter.
+    filters : List[Filter]
+        List of simple filters (all are ANDed together).
+    compound_filters : List[CompoundFilter], optional
+        List of compound filters. Each is applied independently and ANDed with previous results.
+
+    Returns
+    -------
+    pd.DataFrame
+        Filtered DataFrame.
+    """
     if not filters and (not compound_filters or len(compound_filters) == 0):
         return df.copy()
     filtered_df = df.copy()

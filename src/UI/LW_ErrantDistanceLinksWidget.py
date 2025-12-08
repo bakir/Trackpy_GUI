@@ -3,9 +3,12 @@ Errant Trajectory Gallery Widget
 
 Description: GUI widget highlighting potentially errant linkings by overlaying red and blue frames with transparency.
              Boiler plate code built with Cursor.
+             This widget provides an image gallery interface for reviewing trajectory linking
+             quality through red-blue overlay visualizations.
 
-This widget provides an image gallery interface for reviewing trajectory linking
-quality through red-blue overlay visualizations.
+Copyright (c) 2025, Jacqueline Reynaga, Kevin Pillsbury, Bakir Husremovic
+License: BSD 3-Clause License
+Date: 2025-12-08
 """
 
 from PySide6.QtWidgets import (

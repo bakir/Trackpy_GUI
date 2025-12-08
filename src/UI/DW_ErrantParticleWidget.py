@@ -3,6 +3,10 @@ Errant particle gallery widget
 
 Description: Widget displaying errant particles to inform user if particle tracking parameters need adjustment.
              Generated boiler plate code using Cursor AI.
+
+Copyright (c) 2025, Jacqueline Reynaga, Kevin Pillsbury, Bakir Husremovic
+License: BSD 3-Clause License
+Date: 2025-12-08
 """
 
 import json

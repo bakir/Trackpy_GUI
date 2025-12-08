@@ -3,6 +3,10 @@ Video Frame display window for particle detection window
 
 Description: Widget displaying frames of the video with frame controls. Shows the particles tracked.
              Generated boiler plate code using Cursor.
+
+Copyright (c) 2025, Jacqueline Reynaga, Kevin Pillsbury, Bakir Husremovic
+License: BSD 3-Clause License
+Date: 2025-12-08
 """
 
 import cv2

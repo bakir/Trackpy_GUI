@@ -3,6 +3,10 @@ Particle Processing Module
 
 Description: Combined particle detection, tracking, and processing functions.
              Includes TrackPy wrapper functions and particle processing workflows.
+
+Copyright (c) 2025, Jacqueline Reynaga, Kevin Pillsbury, Bakir Husremovic
+License: BSD 3-Clause License
+Date: 2025-12-08
 """
 
 import cv2
@@ -20,7 +24,18 @@ file_controller = None
 
 
 def set_file_controller(controller):
-    """Set the file controller instance."""
+    """
+    Set the file controller instance.
+
+    Parameters
+    ----------
+    controller : FileController
+        The FileController instance to use for file operations.
+
+    Returns
+    -------
+    None
+    """
     global file_controller
     file_controller = controller
 
@@ -226,6 +241,15 @@ def save_errant_particle_crops_for_frame(params):
     Saves cropped images of the 10 most errant particles across ALL frames.
     Finds 5 most errant based on mass and 5 most errant based on feature size.
     Stores frame information in a single JSON file.
+
+    Parameters
+    ----------
+    params : dict
+        Detection parameters dictionary containing min_mass and other detection settings.
+
+    Returns
+    -------
+    None
     """
     if file_controller is None:
         return
@@ -318,7 +342,14 @@ def _apply_thresholding(gray1, gray2, threshold_percent, invert):
 
 
 def _get_invert_setting():
-    """Get invert setting from detection parameters."""
+    """
+    Get invert setting from detection parameters.
+
+    Returns
+    -------
+    bool
+        True if particles are dark on bright background, False otherwise.
+    """
     if (
         file_controller
         and hasattr(file_controller, "config_manager")
@@ -480,6 +511,27 @@ def create_errant_distance_links_gallery(
     """
     Finds the worst individual trajectory links and saves their metadata to a JSON file.
     This function no longer creates images directly. The UI is responsible for generation.
+
+    Parameters
+    ----------
+    trajectories_file : str
+        Path to the trajectories CSV file.
+    frames_folder : str, optional
+        Path to the frames folder (not used, kept for compatibility).
+    output_folder : str, optional
+        Path to the output folder for saving metadata. If None, uses file_controller default.
+    search_range : float, optional
+        Maximum distance a particle can move between frames. If None, uses config value.
+    memory : int, optional
+        Number of frames a particle can disappear. If None, uses config value.
+    min_deviation_multiplier : float, optional
+        Not used, kept for compatibility.
+    max_displays : int, optional
+        Maximum number of links to display. If None, uses config value.
+
+    Returns
+    -------
+    None
     """
     # Check if file_controller is available
     if file_controller is None:
@@ -674,7 +726,25 @@ def annotate_frame(
 
 
 def annotate_memory_link_frame(image, start_pos, end_pos, crop_origin):
-    """Draws crosses on a memory link frame."""
+    """
+    Draws crosses on a memory link frame to mark disappear and reappear locations.
+
+    Parameters
+    ----------
+    image : numpy array
+        The image to annotate (BGR format).
+    start_pos : tuple
+        (x, y) position where particle disappears.
+    end_pos : tuple
+        (x, y) position where particle reappears.
+    crop_origin : tuple
+        (x, y) origin of the crop region.
+
+    Returns
+    -------
+    numpy array
+        Annotated image with crosses drawn at disappear and reappear locations.
+    """
 
     # Function to draw a cross at a given point
     def draw_cross(img, point, color, size, thickness):
@@ -706,6 +776,20 @@ def find_and_save_high_memory_links(trajectories_file, memory_parameter, max_lin
     """
     Finds the highest memory links, saves padded and annotated cropped frames,
     and creates a single JSON metadata file for all links.
+
+    Parameters
+    ----------
+    trajectories_file : str
+        Path to the trajectories CSV file.
+    memory_parameter : int
+        Maximum memory value to consider for links.
+    max_links : int, optional
+        Maximum number of links to save. Defaults to 5.
+
+    Returns
+    -------
+    list
+        List of link metadata dictionaries.
     """
     if file_controller is None:
         print("File controller not set in particle_processing.")

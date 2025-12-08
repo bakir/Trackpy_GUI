@@ -2,6 +2,10 @@
 UI Utility Functions
 
 Description: Shared utility functions for UI components to reduce code duplication.
+
+Copyright (c) 2025, Jacqueline Reynaga, Kevin Pillsbury, Bakir Husremovic
+License: BSD 3-Clause License
+Date: 2025-12-08
 """
 
 from PySide6.QtWidgets import QWidget, QLabel, QHBoxLayout

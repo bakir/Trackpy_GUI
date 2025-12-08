@@ -4,6 +4,10 @@ File Controller Module
 Description: Centralized file and folder management for the particle tracking application.
              Handles all file operations including cleanup, creation, and data management.
              Now uses dependency injection for configuration.
+
+Copyright (c) 2025, Jacqueline Reynaga, Kevin Pillsbury, Bakir Husremovic
+License: BSD 3-Clause License
+Date: 2025-12-08
 """
 
 import os
@@ -31,7 +35,13 @@ class FileController:
         self._load_paths()
 
     def _load_paths(self):
-        """Load folder paths from configuration."""
+        """
+        Load folder paths from configuration.
+
+        Returns
+        -------
+        None
+        """
         self.errant_particles_folder = self.config_manager.get_path(
             "errant_particles_folder", self.project_path
         )
@@ -51,12 +61,34 @@ class FileController:
         )
 
     def set_project_path(self, project_path: str):
-        """Set the project path and reload folder paths."""
+        """
+        Set the project path and reload folder paths.
+
+        Parameters
+        ----------
+        project_path : str
+            The project root path.
+
+        Returns
+        -------
+        None
+        """
         self.project_path = project_path
         self._load_paths()
 
     def ensure_folder_exists(self, folder_path: str) -> None:
-        """Ensure a folder exists, create it if it doesn't."""
+        """
+        Ensure a folder exists, create it if it doesn't.
+
+        Parameters
+        ----------
+        folder_path : str
+            Path to the folder to ensure exists.
+
+        Returns
+        -------
+        None
+        """
         os.makedirs(folder_path, exist_ok=True)
 
     def _delete_file_if_exists(self, file_path: str) -> None:
@@ -66,7 +98,11 @@ class FileController:
         Parameters
         ----------
         file_path : str
-            Path to the file to delete
+            Path to the file to delete.
+
+        Returns
+        -------
+        None
         """
         if os.path.exists(file_path):
             try:
@@ -76,7 +112,18 @@ class FileController:
                 print(f"Warning: Could not delete existing file {file_path}: {e}")
 
     def delete_all_files_in_folder(self, folder_path: str) -> None:
-        """Delete all files in a folder, keeping the folder structure."""
+        """
+        Delete all files in a folder, keeping the folder structure.
+
+        Parameters
+        ----------
+        folder_path : str
+            Path to the folder to clean.
+
+        Returns
+        -------
+        None
+        """
         if not os.path.exists(folder_path):
             return
 
@@ -91,12 +138,17 @@ class FileController:
             print(f"Error cleaning folder {folder_path}: {e}")
 
     def cleanup_temp_folders(self, include_errant_particles: bool = False) -> None:
-        """Clean up temporary folders.
+        """
+        Clean up temporary folders.
 
         Parameters
         ----------
         include_errant_particles : bool, optional
             When True, also clears the errant particle gallery folder. Defaults to False.
+
+        Returns
+        -------
+        None
         """
         temp_folders = [self.errant_distance_links_folder]
 
@@ -140,7 +192,13 @@ class FileController:
         print("Cleanup completed.")
 
     def cleanup_errant_distance_links(self) -> None:
-        """Delete all files in the errant_distance_links folder."""
+        """
+        Delete all files in the errant_distance_links folder.
+
+        Returns
+        -------
+        None
+        """
         try:
             if os.path.exists(self.errant_distance_links_folder):
                 self.delete_all_files_in_folder(self.errant_distance_links_folder)
@@ -151,7 +209,21 @@ class FileController:
     def save_particles_data(
         self, particles_df: pd.DataFrame, filename: str = "all_particles.csv"
     ) -> str:
-        """Save particles data to the data folder."""
+        """
+        Save particles data to the data folder.
+
+        Parameters
+        ----------
+        particles_df : pd.DataFrame
+            DataFrame containing particle data to save.
+        filename : str, optional
+            Name of the file to save. Defaults to "all_particles.csv".
+
+        Returns
+        -------
+        str
+            Path to the saved file.
+        """
         self.ensure_folder_exists(self.data_folder)
         file_path = os.path.join(self.data_folder, filename)
         # Delete existing file to ensure clean overwrite
@@ -163,7 +235,21 @@ class FileController:
     def save_trajectories_data(
         self, trajectories_df: pd.DataFrame, filename: str = "trajectories.csv"
     ) -> str:
-        """Save trajectories data to the data folder."""
+        """
+        Save trajectories data to the data folder.
+
+        Parameters
+        ----------
+        trajectories_df : pd.DataFrame
+            DataFrame containing trajectory data to save.
+        filename : str, optional
+            Name of the file to save. Defaults to "trajectories.csv".
+
+        Returns
+        -------
+        str
+            Path to the saved file.
+        """
         self.ensure_folder_exists(self.data_folder)
         file_path = os.path.join(self.data_folder, filename)
         # Delete existing file to ensure clean overwrite
@@ -173,7 +259,19 @@ class FileController:
         return file_path
 
     def load_particles_data(self, filename: str = "all_particles.csv") -> pd.DataFrame:
-        """Load particles data from the data folder."""
+        """
+        Load particles data from the data folder.
+
+        Parameters
+        ----------
+        filename : str, optional
+            Name of the file to load. Defaults to "all_particles.csv".
+
+        Returns
+        -------
+        pd.DataFrame
+            Loaded particles data, or empty DataFrame if file doesn't exist.
+        """
         file_path = os.path.join(self.data_folder, filename)
         if os.path.exists(file_path):
             return pd.read_csv(file_path)
@@ -182,7 +280,19 @@ class FileController:
             return pd.DataFrame()
 
     def load_trajectories_data(self, filename: str = "trajectories.csv") -> pd.DataFrame:
-        """Load trajectories data from the data folder."""
+        """
+        Load trajectories data from the data folder.
+
+        Parameters
+        ----------
+        filename : str, optional
+            Name of the file to load. Defaults to "trajectories.csv".
+
+        Returns
+        -------
+        pd.DataFrame
+            Loaded trajectories data, or empty DataFrame if file doesn't exist.
+        """
         file_path = os.path.join(self.data_folder, filename)
         if os.path.exists(file_path):
             return pd.read_csv(file_path)
@@ -191,7 +301,19 @@ class FileController:
             return pd.DataFrame()
 
     def get_data_file_path(self, filename: str) -> str:
-        """Get the full path to a file in the data folder."""
+        """
+        Get the full path to a file in the data folder.
+
+        Parameters
+        ----------
+        filename : str
+            Name of the file.
+
+        Returns
+        -------
+        str
+            Full path to the file in the data folder.
+        """
         return os.path.join(self.data_folder, filename)
 
     def backup_particles_data(self, backup_filename: str = "old_all_particles.csv") -> bool:
@@ -345,28 +467,90 @@ class FileController:
             raise FileNotFoundError(f"Source file not found: {source_path}")
 
     def create_errant_distance_links_folder(self) -> str:
-        """Create and return the errant distance links folder path."""
+        """
+        Create and return the errant distance links folder path.
+
+        Returns
+        -------
+        str
+            Path to the errant distance links folder.
+        """
         self.ensure_folder_exists(self.errant_distance_links_folder)
         return self.errant_distance_links_folder
 
     def get_frame_path(self, frame_index: int) -> str:
-        """Get the path for a specific frame."""
+        """
+        Get the path for a specific frame.
+
+        Parameters
+        ----------
+        frame_index : int
+            Index of the frame (0-based).
+
+        Returns
+        -------
+        str
+            Path to the frame image file.
+        """
         return os.path.join(self.original_frames_folder, f"frame_{frame_index:05d}.jpg")
 
     def get_annotated_frame_path(self, frame_index: int) -> str:
-        """Get the path for a specific annotated frame."""
+        """
+        Get the path for a specific annotated frame.
+
+        Parameters
+        ----------
+        frame_index : int
+            Index of the frame (0-based).
+
+        Returns
+        -------
+        str
+            Path to the annotated frame image file.
+        """
         return os.path.join(self.annotated_frames_folder, f"frame_{frame_index:05d}.jpg")
 
     def frame_exists(self, frame_index: int) -> bool:
-        """Check if a frame exists."""
+        """
+        Check if a frame exists.
+
+        Parameters
+        ----------
+        frame_index : int
+            Index of the frame to check (0-based).
+
+        Returns
+        -------
+        bool
+            True if the frame file exists, False otherwise.
+        """
         return os.path.exists(self.get_frame_path(frame_index))
 
     def annotated_frame_exists(self, frame_index: int) -> bool:
-        """Check if an annotated frame exists."""
+        """
+        Check if an annotated frame exists.
+
+        Parameters
+        ----------
+        frame_index : int
+            Index of the frame to check (0-based).
+
+        Returns
+        -------
+        bool
+            True if the annotated frame file exists, False otherwise.
+        """
         return os.path.exists(self.get_annotated_frame_path(frame_index))
 
     def get_total_frames_count(self) -> int:
-        """Get the total number of frames in the original frames folder."""
+        """
+        Get the total number of frames in the original frames folder.
+
+        Returns
+        -------
+        int
+            Total number of frame files found.
+        """
         if not os.path.exists(self.original_frames_folder):
             return 0
 
@@ -378,7 +562,14 @@ class FileController:
         return len(frame_files)
 
     def get_all_frame_paths(self) -> list[str]:
-        """Get a sorted list of all frame paths."""
+        """
+        Get a sorted list of all frame paths.
+
+        Returns
+        -------
+        list[str]
+            Sorted list of paths to all frame files.
+        """
         if not os.path.exists(self.original_frames_folder):
             return []
 
@@ -390,7 +581,23 @@ class FileController:
         return frame_files
 
     def get_frame_files(self, start=None, end=None, step=None):
-        """Get a list of frame files, optionally filtered by range."""
+        """
+        Get a list of frame files, optionally filtered by range.
+
+        Parameters
+        ----------
+        start : int, optional
+            Starting frame index (inclusive). If None, starts from beginning.
+        end : int, optional
+            Ending frame index (inclusive). If None, goes to end.
+        step : int, optional
+            Step size between frames. If None, returns all frames in range.
+
+        Returns
+        -------
+        list
+            List of frame file paths matching the criteria.
+        """
         if not os.path.exists(self.original_frames_folder):
             return []
 

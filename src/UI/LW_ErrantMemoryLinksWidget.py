@@ -4,6 +4,10 @@ Trajectory Player Widget - Memory Link Gallery
 Description: Displays a gallery of high-memory links (particles that disappeared
 for many frames before reappearing). Allows navigation through links and frames
 within each link.
+
+Copyright (c) 2025, Jacqueline Reynaga, Kevin Pillsbury, Bakir Husremovic
+License: BSD 3-Clause License
+Date: 2025-12-08
 """
 
 from PySide6.QtWidgets import (

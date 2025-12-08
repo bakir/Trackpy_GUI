@@ -2,7 +2,11 @@
 """
 Main entry point for the Particle Tracking GUI application with project management.
 
-This file serves as the entry point and imports the main application from the src package.
+Description: This file serves as the entry point and imports the main application from the src package.
+
+Copyright (c) 2025, Jacqueline Reynaga, Kevin Pillsbury, Bakir Husremovic
+License: BSD 3-Clause License
+Date: 2025-12-08
 """
 
 import sys

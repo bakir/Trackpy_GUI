@@ -3,9 +3,12 @@ Linking Parameters Widget
 
 Description: GUI widget for configuring trajectory linking parameters.
              Boiler plate code generated with Cursor.
+             This widget provides user interface controls for adjusting trackpy linking
+             parameters and managing the trajectory linking and visualization workflow.
 
-This widget provides user interface controls for adjusting trackpy linking
-parameters and managing the trajectory linking and visualization workflow.
+Copyright (c) 2025, Jacqueline Reynaga, Kevin Pillsbury, Bakir Husremovic
+License: BSD 3-Clause License
+Date: 2025-12-08
 """
 
 from PySide6.QtWidgets import (

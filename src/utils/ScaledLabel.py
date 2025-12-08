@@ -1,3 +1,14 @@
+"""
+Scaled Label Module
+
+Description: A QLabel subclass that automatically scales its pixmap to fit the label's
+             size while maintaining aspect ratio.
+
+Copyright (c) 2025, Jacqueline Reynaga, Kevin Pillsbury, Bakir Husremovic
+License: BSD 3-Clause License
+Date: 2025-12-08
+"""
+
 from PySide6.QtWidgets import QLabel, QStyle, QStyleOption
 from PySide6.QtGui import QPixmap, QPainter
 from PySide6.QtCore import Qt
@@ -11,14 +22,33 @@ class ScaledLabel(QLabel):
     """
 
     def __init__(self, parent=None):
+        """
+        Initialize the ScaledLabel.
+
+        Parameters
+        ----------
+        parent : QWidget, optional
+            Parent widget. Defaults to None.
+
+        Returns
+        -------
+        None
+        """
         super().__init__(parent)
         self._pixmap = QPixmap()
 
     def setPixmap(self, pixmap):
         """
         Sets the pixmap for the label.
-        Args:
-            pixmap (QPixmap): The pixmap to display.
+
+        Parameters
+        ----------
+        pixmap : QPixmap
+            The pixmap to display.
+
+        Returns
+        -------
+        None
         """
         self._pixmap = pixmap
         self.update()  # Trigger a repaint
@@ -26,6 +56,15 @@ class ScaledLabel(QLabel):
     def paintEvent(self, event):
         """
         Overrides the paint event to draw the scaled pixmap.
+
+        Parameters
+        ----------
+        event : QPaintEvent
+            The paint event.
+
+        Returns
+        -------
+        None
         """
         if self._pixmap.isNull():
             # If no pixmap is set, draw the default QLabel content

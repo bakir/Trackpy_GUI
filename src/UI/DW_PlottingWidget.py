@@ -4,6 +4,9 @@ Graphing Panel for the ParticleDetectionWindow
 Description: Graphing panel showing the subpixel bias, filtering parameters,
              and histograms of all particles based on current tracking parameters.
 
+Copyright (c) 2025, Jacqueline Reynaga, Kevin Pillsbury, Bakir Husremovic
+License: BSD 3-Clause License
+Date: 2025-12-08
 """
 
 from PySide6.QtWidgets import (

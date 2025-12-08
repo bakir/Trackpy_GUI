@@ -3,6 +3,10 @@ Config Manager Module
 
 Description: Centralized configuration management with dependency injection.
              Handles both global template config and project-specific configs.
+
+Copyright (c) 2025, Jacqueline Reynaga, Kevin Pillsbury, Bakir Husremovic
+License: BSD 3-Clause License
+Date: 2025-12-08
 """
 
 import os
@@ -27,7 +31,13 @@ class ConfigManager:
         self._load_config()
 
     def _load_config(self):
-        """Load the configuration from file."""
+        """
+        Load the configuration from file.
+
+        Returns
+        -------
+        None
+        """
         if self.config_path and os.path.exists(self.config_path):
             # Load project-specific config
             self.config.read(self.config_path)
@@ -36,7 +46,13 @@ class ConfigManager:
             self._create_default_config()
 
     def _create_default_config(self):
-        """Create a default configuration."""
+        """
+        Create a default configuration.
+
+        Returns
+        -------
+        None
+        """
         self.config["Paths"] = {
             "data_folder": "data/",
             "errant_particles_folder": "errant_particles/",
@@ -111,11 +127,15 @@ class ConfigManager:
         Parameters
         ----------
         section : str
-            Configuration section name
+            Configuration section name.
         key : str
-            Configuration key name
+            Configuration key name.
         value : str
-            Value to set
+            Value to set.
+
+        Returns
+        -------
+        None
         """
         if not self.config.has_section(section):
             self.config.add_section(section)
@@ -129,6 +149,10 @@ class ConfigManager:
         ----------
         path : str, optional
             Path to save config. If None, uses current config_path.
+
+        Returns
+        -------
+        None
         """
         save_path = path or self.config_path
         if save_path:
@@ -166,7 +190,14 @@ class ConfigManager:
             return ""
 
     def get_detection_params(self) -> Dict[str, Any]:
-        """Get detection parameters as a dictionary."""
+        """
+        Get detection parameters as a dictionary.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Dictionary containing detection parameters (feature_size, min_mass, invert, threshold, frame_idx, scaling).
+        """
         return {
             "feature_size": int(self.get("Detection", "feature_size", 27)),
             "min_mass": float(self.get("Detection", "min_mass", 1300.0)),
@@ -177,7 +208,14 @@ class ConfigManager:
         }
 
     def get_linking_params(self) -> Dict[str, Any]:
-        """Get linking parameters as a dictionary."""
+        """
+        Get linking parameters as a dictionary.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Dictionary containing linking parameters (search_range, memory, min_trajectory_length, drift).
+        """
         return {
             "search_range": int(self.get("Linking", "search_range", 10)),
             "memory": int(self.get("Linking", "memory", 10)),
@@ -186,23 +224,59 @@ class ConfigManager:
         }
 
     def save_detection_params(self, params: Dict[str, Any]):
-        """Save detection parameters."""
+        """
+        Save detection parameters.
+
+        Parameters
+        ----------
+        params : Dict[str, Any]
+            Dictionary containing detection parameters to save.
+
+        Returns
+        -------
+        None
+        """
         for key, value in params.items():
             self.set("Detection", key, str(value))
         self.save()
 
     def save_linking_params(self, params: Dict[str, Any]):
-        """Save linking parameters."""
+        """
+        Save linking parameters.
+
+        Parameters
+        ----------
+        params : Dict[str, Any]
+            Dictionary containing linking parameters to save.
+
+        Returns
+        -------
+        None
+        """
         for key, value in params.items():
             self.set("Linking", key, str(value))
         self.save()
 
     def is_project_config(self) -> bool:
-        """Check if this is a project-specific config."""
+        """
+        Check if this is a project-specific config.
+
+        Returns
+        -------
+        bool
+            True if config_path exists and points to a file, False otherwise.
+        """
         return self.config_path is not None and os.path.exists(self.config_path)
 
     def get_metadata(self) -> Dict[str, str]:
-        """Get metadata as a dictionary."""
+        """
+        Get metadata as a dictionary.
+
+        Returns
+        -------
+        Dict[str, str]
+            Dictionary containing metadata (movie_taker, person_doing_analysis, movie_taken_date, movie_filename).
+        """
         return {
             "movie_taker": self.get("Metadata", "movie_taker", ""),
             "person_doing_analysis": self.get("Metadata", "person_doing_analysis", ""),
@@ -211,7 +285,14 @@ class ConfigManager:
         }
 
     def get_frame_range(self) -> Dict[str, int]:
-        """Get frame range parameters as a dictionary."""
+        """
+        Get frame range parameters as a dictionary.
+
+        Returns
+        -------
+        Dict[str, int]
+            Dictionary containing frame range (start_frame, end_frame, step_frame).
+        """
         return {
             "start_frame": int(self.get("Detection", "start_frame", 1)),
             "end_frame": int(self.get("Detection", "end_frame", 1)),
@@ -219,7 +300,22 @@ class ConfigManager:
         }
 
     def save_frame_range(self, start_frame: int, end_frame: int, step_frame: int):
-        """Save frame range parameters."""
+        """
+        Save frame range parameters.
+
+        Parameters
+        ----------
+        start_frame : int
+            Starting frame number.
+        end_frame : int
+            Ending frame number.
+        step_frame : int
+            Step size between frames.
+
+        Returns
+        -------
+        None
+        """
         self.set("Detection", "start_frame", str(start_frame))
         self.set("Detection", "end_frame", str(end_frame))
         self.set("Detection", "step_frame", str(step_frame))

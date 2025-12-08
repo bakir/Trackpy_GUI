@@ -3,6 +3,10 @@ Project Manager Module
 
 Description: Handles project creation, management, and configuration.
              Each project has its own folder structure and config file.
+
+Copyright (c) 2025, Jacqueline Reynaga, Kevin Pillsbury, Bakir Husremovic
+License: BSD 3-Clause License
+Date: 2025-12-08
 """
 
 import os
@@ -15,7 +19,13 @@ class ProjectManager:
     """Manages particle tracking projects with isolated folder structures."""
 
     def __init__(self):
-        """Initialize the project manager."""
+        """
+        Initialize the project manager.
+
+        Returns
+        -------
+        None
+        """
         self.current_project_path = None
         self.current_project_config = None
 
@@ -155,11 +165,25 @@ class ProjectManager:
             return False
 
     def get_project_config(self) -> str:
-        """Get the path to the current project's config file."""
+        """
+        Get the path to the current project's config file.
+
+        Returns
+        -------
+        str
+            Path to the config file, or None if no project is loaded.
+        """
         return self.current_project_config
 
     def get_project_path(self) -> str:
-        """Get the path to the current project folder."""
+        """
+        Get the path to the current project folder.
+
+        Returns
+        -------
+        str
+            Path to the project folder, or None if no project is loaded.
+        """
         return self.current_project_path
 
     def _create_default_project_config(
@@ -172,7 +196,30 @@ class ProjectManager:
         scaling: float = 1.0,
         movie_taken_date: str = "",
     ):
-        """Create a default config file for the project with absolute paths."""
+        """
+        Create a default config file for the project with absolute paths.
+
+        Parameters
+        ----------
+        config_path : str
+            Path where the config file will be created.
+        project_path : str
+            Path to the project root folder.
+        movie_taker : str, optional
+            Name of person who took the movie. Defaults to empty string.
+        person_doing_analysis : str, optional
+            Name of person doing analysis. Defaults to empty string.
+        video_filename : str, optional
+            Name of the video file. Defaults to empty string.
+        scaling : float, optional
+            Scaling value in microns per pixel. Defaults to 1.0.
+        movie_taken_date : str, optional
+            Date when movie was taken. Defaults to empty string.
+
+        Returns
+        -------
+        None
+        """
         config = configparser.ConfigParser()
 
         # Paths section with absolute paths
@@ -226,7 +273,20 @@ class ProjectManager:
             config.write(f)
 
     def _create_project_info(self, project_path: str, project_name: str):
-        """Create a project info file."""
+        """
+        Create a project info file.
+
+        Parameters
+        ----------
+        project_path : str
+            Path to the project folder.
+        project_name : str
+            Name of the project.
+
+        Returns
+        -------
+        None
+        """
         info_content = f"""# Project Information
 Project Name: {project_name}
 Created: {os.path.basename(project_path)}

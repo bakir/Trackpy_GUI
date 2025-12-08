@@ -4,6 +4,9 @@ Trajectory Plotting Widget
 Description: GUI widget for displaying trajectory plots, filtering plots, and
              drift for all trajectories found.
 
+Copyright (c) 2025, Jacqueline Reynaga, Kevin Pillsbury, Bakir Husremovic
+License: BSD 3-Clause License
+Date: 2025-12-08
 """
 
 from PySide6.QtWidgets import (

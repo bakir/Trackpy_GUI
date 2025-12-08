@@ -3,6 +3,10 @@ Start Screen Widget
 
 Description: Main start screen with project management options.
              Allows users to create new projects or open existing ones.
+
+Copyright (c) 2025, Jacqueline Reynaga, Kevin Pillsbury, Bakir Husremovic
+License: BSD 3-Clause License
+Date: 2025-12-08
 """
 
 from PySide6.QtWidgets import (
@@ -27,12 +31,30 @@ class SSWStartScreenWindow(QWidget):
     project_selected = Signal(str)  # Emits project path when project is selected
 
     def __init__(self, parent=None):
+        """
+        Initialize the start screen window.
+
+        Parameters
+        ----------
+        parent : QWidget, optional
+            Parent widget. Defaults to None.
+
+        Returns
+        -------
+        None
+        """
         super().__init__(parent)
         self.project_manager = ProjectManager()
         self.setup_ui()
 
     def setup_ui(self):
-        """Set up the user interface."""
+        """
+        Set up the user interface.
+
+        Returns
+        -------
+        None
+        """
         # Main layout
         main_layout = QVBoxLayout(self)
         main_layout.setSpacing(20)
@@ -80,7 +102,13 @@ class SSWStartScreenWindow(QWidget):
         main_layout.addStretch()
 
     def create_new_project(self):
-        """Open dialog to create a new project."""
+        """
+        Open dialog to create a new project.
+
+        Returns
+        -------
+        None
+        """
         dialog = NPWNewProjectWindow(parent=self.window())
         if dialog.exec() == NPWNewProjectWindow.Accepted:
             project_path = dialog.get_project_path()
@@ -109,7 +137,13 @@ class SSWStartScreenWindow(QWidget):
                 )
 
     def open_existing_project(self):
-        """Open dialog to select an existing project."""
+        """
+        Open dialog to select an existing project.
+
+        Returns
+        -------
+        None
+        """
         project_folder = QFileDialog.getExistingDirectory(
             self,
             "Select Project Folder",

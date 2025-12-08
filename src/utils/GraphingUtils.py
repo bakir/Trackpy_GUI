@@ -3,6 +3,10 @@ Graphing Utilities Module
 
 Description: Base classes and utilities for graphing widgets used in both
              ParticleDetectionWindow and TrajectoryLinkingWindow.
+
+Copyright (c) 2025, Jacqueline Reynaga, Kevin Pillsbury, Bakir Husremovic
+License: BSD 3-Clause License
+Date: 2025-12-08
 """
 
 from PySide6.QtWidgets import (

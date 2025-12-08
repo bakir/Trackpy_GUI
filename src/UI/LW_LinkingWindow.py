@@ -1,8 +1,12 @@
 """
 Trajectory Linking Window
 
-Description: Main window for Trajectory Linkning. Imports trajectory linking widgets.
+Description: Main window for Trajectory Linking. Imports trajectory linking widgets.
              Generated boiler plate code using Cursor.
+
+Copyright (c) 2025, Jacqueline Reynaga, Kevin Pillsbury, Bakir Husremovic
+License: BSD 3-Clause License
+Date: 2025-12-08
 """
 
 import pandas as pd

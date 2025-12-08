@@ -3,6 +3,10 @@ Main Application Controller with Project Management
 
 Description: Main application controller that manages the start screen and project-based workflow.
              Handles switching between start screen and main application windows.
+
+Copyright (c) 2025, Jacqueline Reynaga, Kevin Pillsbury, Bakir Husremovic
+License: BSD 3-Clause License
+Date: 2025-12-08
 """
 
 import sys
@@ -26,6 +30,13 @@ class ParticleTrackingAppController(QMainWindow):
     """Main application controller that manages project workflow and window switching."""
 
     def __init__(self):
+        """
+        Initialize the particle tracking application controller.
+
+        Returns
+        -------
+        None
+        """
         super().__init__()
         self.setWindowTitle("Particle Tracking GUI")
 
@@ -47,7 +58,13 @@ class ParticleTrackingAppController(QMainWindow):
         self.show_start_screen()
 
     def show_start_screen(self):
-        """Show the start screen for project selection."""
+        """
+        Show the start screen for project selection.
+
+        Returns
+        -------
+        None
+        """
         # Clean up any existing windows
         self.cleanup_windows()
 
@@ -64,14 +81,31 @@ class ParticleTrackingAppController(QMainWindow):
         self.center()
 
     def center(self):
-        """Center the window on the screen."""
+        """
+        Center the window on the screen.
+
+        Returns
+        -------
+        None
+        """
         screen = QGuiApplication.primaryScreen().geometry()
         x = (screen.width() - self.width()) / 2
         y = (screen.height() - self.height()) / 2
         self.move(int(x), int(y))
 
     def on_project_selected(self, project_path):
-        """Handle project selection from start screen."""
+        """
+        Handle project selection from start screen.
+
+        Parameters
+        ----------
+        project_path : str
+            Path to the selected project folder.
+
+        Returns
+        -------
+        None
+        """
         # Load the project
         if self.project_manager.load_project(project_path):
             # Initialize project-specific config and file controller
@@ -103,7 +137,13 @@ class ParticleTrackingAppController(QMainWindow):
             print(f"Failed to load project: {project_path}")
 
     def show_particle_detection_window(self):
-        """Show the particle detection window and hide others."""
+        """
+        Show the particle detection window and hide others.
+
+        Returns
+        -------
+        None
+        """
         # Clean up any existing windows
         self.cleanup_windows(False)
 
@@ -137,7 +177,13 @@ class ParticleTrackingAppController(QMainWindow):
         self.center()
 
     def show_trajectory_linking_window(self):
-        """Show the trajectory linking window and hide others."""
+        """
+        Show the trajectory linking window and hide others.
+
+        Returns
+        -------
+        None
+        """
         # Save the current window size and position before switching
         current_size = self.size()
         current_pos = self.pos()
@@ -164,13 +210,25 @@ class ParticleTrackingAppController(QMainWindow):
         self.move(current_pos)
 
     def on_next_to_trajectory_linking(self):
-        """Handle signal to switch from particle detection to trajectory linking."""
+        """
+        Handle signal to switch from particle detection to trajectory linking.
+
+        Returns
+        -------
+        None
+        """
         # The particle detection window will handle the "Next" button logic
         # (detecting particles in all frames), then we switch windows
         self.show_trajectory_linking_window()
 
     def on_back_to_particle_detection(self):
-        """Handle signal to switch from trajectory linking back to particle detection."""
+        """
+        Handle signal to switch from trajectory linking back to particle detection.
+
+        Returns
+        -------
+        None
+        """
         # Save the current window size and position before switching
         current_size = self.size()
         current_pos = self.pos()
@@ -183,7 +241,18 @@ class ParticleTrackingAppController(QMainWindow):
         self.move(current_pos)
 
     def cleanup_windows(self, clear_rb_gallery: bool = True):
-        """Clean up existing windows and optionally RB gallery."""
+        """
+        Clean up existing windows and optionally RB gallery.
+
+        Parameters
+        ----------
+        clear_rb_gallery : bool, optional
+            If True, also cleans up the red-blue gallery. Defaults to True.
+
+        Returns
+        -------
+        None
+        """
         if clear_rb_gallery:
             self.cleanup_errant_distance_links()
 
@@ -197,12 +266,29 @@ class ParticleTrackingAppController(QMainWindow):
             self.lw_linking_window = None
 
     def cleanup_errant_distance_links(self):
-        """Delete all files in the rb_gallery folder."""
+        """
+        Delete all files in the rb_gallery folder.
+
+        Returns
+        -------
+        None
+        """
         if self.file_controller:
             self.file_controller.cleanup_errant_distance_links()
 
     def closeEvent(self, event):
-        """Handle application close event."""
+        """
+        Handle application close event.
+
+        Parameters
+        ----------
+        event : QCloseEvent
+            The close event.
+
+        Returns
+        -------
+        None
+        """
         # Close any open windows but keep generated data on disk
         self.cleanup_windows(False)
         super().closeEvent(event)
@@ -441,7 +527,13 @@ class ParticleTrackingAppController(QMainWindow):
         return os.path.exists(save_particles_path) and os.path.exists(save_config_path)
 
     def _on_particles_updated(self):
-        """Handle particle analysis completion - update undo button state."""
+        """
+        Handle particle analysis completion - update undo button state.
+
+        Returns
+        -------
+        None
+        """
         # Note: State is saved BEFORE analysis in find_particles()
         # This just updates the button state after analysis completes
         if self.dw_detection_window and hasattr(
@@ -451,7 +543,14 @@ class ParticleTrackingAppController(QMainWindow):
 
 
 def main():
-    """Main application entry point."""
+    """
+    Main application entry point.
+
+    Returns
+    -------
+    int
+        Exit code from the application.
+    """
     app = QApplication(sys.argv)
 
     # Set the application style based on operating system
