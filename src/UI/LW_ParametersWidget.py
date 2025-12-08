@@ -29,7 +29,6 @@ import pandas as pd
 
 
 class LWParametersWidget(QWidget):
-    particlesDetected = Signal()
     trajectoriesLinked = Signal()
     trajectoryVisualizationCreated = Signal(str)  # Emits image path
     errantDistanceLinksGalleryCreated = Signal()  # Signal that errant distance links gallery was created
@@ -114,25 +113,14 @@ class LWParametersWidget(QWidget):
         self.layout.addWidget(self.progress_bar)
 
         # Buttons
-        self.buttons_layout = QVBoxLayout()
-
         self.find_trajectories_button = QPushButton("Find Trajectories")
         self.find_trajectories_button.clicked.connect(self.find_trajectories)
-        self.buttons_layout.addWidget(
-            self.find_trajectories_button, alignment=Qt.AlignRight
-        )
 
         self.back_button = QPushButton("Back")
         self.back_button.clicked.connect(self.go_back)
-        self.buttons_layout.addWidget(
-            self.back_button, alignment=Qt.AlignRight
-        )
 
         self.export_close_button = QPushButton("Export & Close")
         self.export_close_button.clicked.connect(self.export_and_close.emit)
-        self.buttons_layout.addWidget(
-            self.export_close_button, alignment=Qt.AlignRight
-        )
 
         # Buttons layout will be moved to parent window, so don't add it to main layout
         # The buttons will be accessed from LW_LinkingWindow
@@ -497,10 +485,6 @@ class LWParametersWidget(QWidget):
             print(f"❌ Error creating RB gallery: {e}")
             print(f"❌ Traceback:")
             traceback.print_exc()
-
-    def refresh_trajectories(self):
-        """Re-run the trajectory finding process."""
-        self.find_trajectories()
 
     def go_back(self):
         """Emit signal to go back to particle detection window."""

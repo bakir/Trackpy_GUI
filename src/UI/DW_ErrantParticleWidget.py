@@ -25,7 +25,6 @@ from ..utils.ScaledLabel import ScaledLabel
 class DWErrantParticleWidget(QWidget):
     """Widget for displaying errant particles."""
 
-    errant_particle_selected = Signal(int)
     update_required = Signal()
 
     def __init__(self, parent=None):
@@ -176,9 +175,6 @@ class DWErrantParticleWidget(QWidget):
     def _display_particle(self, index):
         """Update UI to display particle image and index if within bounds."""
         if 0 <= index < len(self.particle_data):
-            self.errant_particle_selected.emit(
-                -1
-            )  # Not currently used, just emitting for consistency
 
             particle_info = self.particle_data[index]
             image_file = particle_info.get("image_file")
@@ -216,7 +212,6 @@ class DWErrantParticleWidget(QWidget):
             if self.is_show_on_frame_checked():
                 self.update_required.emit()
         else:
-            self.errant_particle_selected.emit(-1)
             # out of bounds or no files
             if not self.particle_data:
                 self.photo_label.setText("No particle images found")

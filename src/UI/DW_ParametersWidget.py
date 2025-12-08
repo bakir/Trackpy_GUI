@@ -390,12 +390,6 @@ class DWParametersWidget(QWidget):
         df.to_csv(all_particles_path, index=False)
         self.graphing_panel.set_particles(df) # Update graph with raw data
 
-    def _apply_filters_and_refresh(self):
-        """Applies filters to generate filtered_particles.csv and notifies UI."""
-        # This method is now effectively replaced by calling graphing_panel.filtering_widget.apply_filters_and_notify()
-        # The logic is handled by the FilteringWidget itself.
-        pass
-
     def _update_frame_info(self):
         """Update the frame info display with frames where particles were detected."""
         if not self.file_controller:

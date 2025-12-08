@@ -67,11 +67,9 @@ class DWFrameGalleryWidget(QWidget):
     """Widget for displaying video frames from a folder of images"""
 
     frames_saved = Signal(int)
-    errant_particles_updated = Signal()
     frame_changed = Signal(
         int
     )  # Emits current frame number when frame changes
-    import_video_requested = Signal()  # New signal to request video import
 
     def __init__(self):
         super().__init__()
@@ -196,9 +194,7 @@ class DWFrameGalleryWidget(QWidget):
         self.total_frames = total_frames
         if self.total_frames > 0:
             self.frame_slider.setRange(0, self.total_frames - 1)
-        #     self.import_video_button.hide()
         # else:
-        #     self.import_video_button.show()
         self.display_frame(0)
         self.frames_saved.emit(self.total_frames)
 
@@ -207,10 +203,8 @@ class DWFrameGalleryWidget(QWidget):
         self.total_frames = num_frames
         if self.total_frames > 0:
             self.frame_slider.setRange(0, self.total_frames - 1)
-            # self.import_video_button.hide()
             self.video_loaded = True
         else:
-            # self.import_video_button.show()
             self.video_loaded = False
         self.display_frame(0)
 
@@ -277,8 +271,7 @@ class DWFrameGalleryWidget(QWidget):
         """
         if not (0 <= frame_number < self.total_frames):
             # if self.total_frames == 0:
-                # self.import_video_button.show()
-                # self.frame_label.setText("No video loaded")
+                    # self.frame_label.setText("No video loaded")
             self.update_frame_display()
             return
 

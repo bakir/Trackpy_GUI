@@ -187,7 +187,6 @@ class DWDetectionWindow(QMainWindow):
         self.errant_particle_gallery.update_required.connect(
             self.frame_player.handle_gallery_update
         )
-        self.frame_player.import_video_requested.connect(self.import_video)
         
         # Connect filtered data updates
         self.left_panel.filtering_widget.filteredParticlesUpdated.connect(
@@ -293,7 +292,6 @@ class DWDetectionWindow(QMainWindow):
             self.errant_particle_gallery.reset_state()
 
         self.left_panel.blank_plot()
-        # self.left_panel.refresh_plots()
         
         # Only apply filters if particle data actually exists
         # Check if all_particles.csv exists and has data before applying filters
@@ -321,40 +319,6 @@ class DWDetectionWindow(QMainWindow):
                 self.errant_particle_gallery.clear_gallery()
             except Exception as e:
                 print(f"Error clearing processed data: {e}")
-
-    def import_video(self):
-        if not self.file_controller:
-            print("File controller not set")
-            return
-
-        videos_folder = self.file_controller.videos_folder
-        file_path, _ = QFileDialog.getOpenFileName(
-            self,
-            "Select Video",
-            videos_folder,
-            "Video Files (*.avi *.mp4 *.mov *.mkv);;All Files (*)",
-        )
-        if not file_path:
-            return
-
-        self.file_controller.ensure_folder_exists(
-            self.file_controller.original_frames_folder
-        )
-        self.file_controller.ensure_folder_exists(
-            self.file_controller.annotated_frames_folder
-        )
-        try:
-            self.file_controller.delete_all_files_in_folder(
-                self.file_controller.original_frames_folder
-            )
-            self.file_controller.delete_all_files_in_folder(
-                self.file_controller.annotated_frames_folder
-            )
-            self.right_panel.clear_processed_frames()
-        except Exception as e:
-            print(f"Error cleaning up old frame folders: {e}")
-
-        self.frame_player.save_video_frames(file_path)
 
     def load_existing_frames(self, num_frames):
         """Load existing frames into the widgets."""

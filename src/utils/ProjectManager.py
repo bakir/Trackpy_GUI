@@ -167,62 +167,6 @@ class ProjectManager:
         """Get the path to the current project folder."""
         return self.current_project_path
 
-    def get_project_folders(self) -> dict:
-        """Get all project folder paths."""
-        if not self.current_project_path:
-            return {}
-
-        return {
-            "errant_particles": os.path.join(self.current_project_path, "errant_particles"),
-            "original_frames": os.path.join(
-                self.current_project_path, "original_frames"
-            ),
-            "annotated_frames": os.path.join(
-                self.current_project_path, "annotated_frames"
-            ),
-            "errant_distance_links": os.path.join(
-                self.current_project_path, "errant_distance_links"
-            ),
-            "data": os.path.join(self.current_project_path, "data"),
-            "videos": os.path.join(self.current_project_path, "videos"),
-        }
-
-    def _update_project_config_paths(
-        self, config_path: str, project_path: str
-    ):
-        """Update config file paths to be absolute paths relative to project folder."""
-        import configparser
-
-        config = configparser.ConfigParser()
-        config.read(config_path)
-
-        # Update paths to be absolute paths relative to project folder
-        if "Paths" in config:
-            config["Paths"]["errant_particles_folder"] = os.path.abspath(
-                os.path.join(project_path, "errant_particles")
-            )
-            config["Paths"]["original_frames_folder"] = os.path.abspath(
-                os.path.join(project_path, "original_frames")
-            )
-            config["Paths"]["annotated_frames_folder"] = os.path.abspath(
-                os.path.join(project_path, "annotated_frames")
-            )
-            config["Paths"]["errant_distance_links_folder"] = os.path.abspath(
-                os.path.join(project_path, "errant_distance_links")
-            )
-            config["Paths"]["data_folder"] = os.path.abspath(
-                os.path.join(project_path, "data")
-            )
-            config["Paths"]["videos_folder"] = os.path.abspath(
-                os.path.join(project_path, "videos")
-            )
-            config["Paths"]["errant_memory_links_folder"] = os.path.abspath(
-                os.path.join(project_path, "errant_memory_links")
-            )
-
-        with open(config_path, "w") as f:
-            config.write(f)
-
     def _create_default_project_config(
         self,
         config_path: str,

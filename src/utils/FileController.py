@@ -264,34 +264,3 @@ class FileController:
             return frame_files[::step]
         
         return frame_files
-
-    def export_data(
-        self, source_filename: str, target_format: str, save_path: str
-    ) -> bool:
-        """Export data from data folder to a user-specified location."""
-        source_file_path = os.path.join(self.data_folder, source_filename)
-
-        if not os.path.exists(source_file_path):
-            print("Could not find selected data")
-            return False
-
-        try:
-            # Read the source CSV with pandas
-            df = pd.read_csv(source_file_path)
-
-            if target_format == "csv":
-                # Save the DataFrame to a new CSV file, without the index column
-                df.to_csv(save_path, index=False)
-            elif target_format == "pkl":
-                # Save the DataFrame to a pickle file
-                df.to_pickle(save_path)
-            else:
-                print(f"Error: Unsupported export format '{target_format}'")
-                return False
-
-            print(f"Data successfully exported to: {save_path}")
-            return True
-
-        except Exception as e:
-            print(f"An error occurred during export: {e}")
-            return False

@@ -106,19 +106,6 @@ class DWPlottingWidget(GraphingUtils.GraphingPanelWidget):
         """Sets paritcle data and plots subpixel bias."""
         self.data = particles
         self.self_plot(self.get_subpixel_bias, self.sb_button)
-
-    # def refresh_plots(self):
-    #     """Reload data from all_particles.csv and refresh plots."""
-    #     if self.file_controller:
-    #         try:
-    #             self.data = self.file_controller.load_particles_data("all_particles.csv")
-    #             if not self.data.empty:
-    #                 self.self_plot(self.get_subpixel_bias, self.sb_button)
-    #             else:
-    #                 self.blank_plot()
-    #         except pd.errors.EmptyDataError:
-    #             self.data = pd.DataFrame()
-    #             self.blank_plot()
       
     def set_file_controller(self, file_controller):
         """Override to also set file controller for filtering widget."""

@@ -119,15 +119,7 @@ class LWPlottingWidget(GraphingUtils.GraphingPanelWidget):
             import cv2
             import pandas as pd
 
-            # Use particle data to match particle detection window
-            # if self.file_controller:
-            #     plot_data = self.file_controller.load_particles_data("all_particles.csv")
-            # else:
-            #     plot_data = self.data
-            
-            # if plot_data is None or plot_data.empty:
             self.check_for_empty_data()
-                # return None
 
             # Create the plot
             scaling = self.config_manager.get_detection_params().get("scaling", 1.0)
@@ -153,15 +145,7 @@ class LWPlottingWidget(GraphingUtils.GraphingPanelWidget):
             import cv2
             import pandas as pd
 
-            # Use particle data to match particle detection window
-            # if self.file_controller:
-            #     plot_data = self.file_controller.load_particles_data("all_particles.csv")
-            # else:
-            #     plot_data = self.data
-            
-            # if plot_data is None or plot_data.empty:
             self.check_for_empty_data()
-                # return None
 
             params = self.config_manager.get_detection_params()
             scaling = params.get("scaling")

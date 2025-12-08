@@ -208,13 +208,6 @@ class ConfigManager:
             self.config_path
         )
 
-    def get_config_type(self) -> str:
-        """Get the type of config (template or project)."""
-        if self.is_project_config():
-            return "project"
-        else:
-            return "template"
-
     def get_metadata(self) -> Dict[str, str]:
         """Get metadata as a dictionary."""
         return {
@@ -223,22 +216,6 @@ class ConfigManager:
             "movie_taken_date": self.get("Metadata", "movie_taken_date", ""),
             "movie_filename": self.get("Metadata", "movie_filename", ""),
         }
-    
-    def load_from_file(self, config_file_path: str):
-        """
-        Load configuration from an external config file, replacing current config.
-        
-        Parameters
-        ----------
-        config_file_path : str
-            Path to the config file to load
-        """
-        if os.path.exists(config_file_path):
-            self.config.read(config_file_path)
-            # Update config_path to the new file
-            self.config_path = config_file_path
-        else:
-            raise FileNotFoundError(f"Config file not found: {config_file_path}")
     
     def get_frame_range(self) -> Dict[str, int]:
         """Get frame range parameters as a dictionary."""
