@@ -369,16 +369,29 @@ class DWParametersWidget(QWidget):
                 if not particle_data.empty and "frame" in particle_data.columns:
                     frames = sorted(particle_data["frame"].unique())
                     if len(frames) > 0:
-                        # Convert to 1-indexed and format as range if consecutive, otherwise list
+                        # Convert to 1-indexed
                         frames_1indexed = [f + 1 for f in frames]
+                        total_frames_processed = len(frames_1indexed)
+                        min_frame = frames_1indexed[0]
+                        max_frame = frames_1indexed[-1]
+                        total_particles = len(particle_data)
+                        
+                        # Format frame range
                         if len(frames_1indexed) == 1:
-                            frame_text = f"Particles detected in frame {frames_1indexed[0]}"
-                        elif frames_1indexed[-1] - frames_1indexed[0] == len(frames_1indexed) - 1:
+                            frame_range_text = f"Frame {min_frame}"
+                        elif max_frame - min_frame == len(frames_1indexed) - 1:
                             # Consecutive frames
-                            frame_text = f"Particles detected in frames {frames_1indexed[0]}-{frames_1indexed[-1]}"
+                            frame_range_text = f"Frames {min_frame}-{max_frame}"
                         else:
                             # Non-consecutive frames
-                            frame_text = f"Particles detected in frames: {', '.join(map(str, frames_1indexed))}"
+                            frame_range_text = f"Frames {min_frame}-{max_frame} (non-consecutive)"
+                        
+                        # Create comprehensive info text
+                        frame_text = (
+                            f"Frames processed: {total_frames_processed} | "
+                            f"Range: {frame_range_text} | "
+                            f"Total particles: {total_particles}"
+                        )
                         self.frame_info_label.setText(frame_text)
                         return
             except Exception as e:

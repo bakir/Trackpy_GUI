@@ -343,28 +343,42 @@ class LWLinkingWindow(QMainWindow):
         return widget
 
     def _update_parameters_info(self):
-        """Update the parameters info display with current linking parameters and frame range."""
+        """Update the parameters info display with current linking parameters and detection parameters."""
         if not self.config_manager or not self.file_controller:
             return
         
         linking_params = self.config_manager.get_linking_params()
+        detection_params = self.config_manager.get_detection_params()
         
+        # Linking parameters
         search_range = linking_params.get("search_range", "-")
         memory = linking_params.get("memory", "-")
         min_trajectory_length = linking_params.get("min_trajectory_length", "-")
         drift = "Yes" if linking_params.get("drift", False) else "No"
         
+        # Detection parameters
+        feature_size = detection_params.get("feature_size", "-")
+        min_mass = detection_params.get("min_mass", "-")
+        threshold = detection_params.get("threshold", "-")
+        invert = "Yes" if detection_params.get("invert", False) else "No"
+        
         info_text = (
+            f"Linking Parameters:\n"
             f"Search range: {search_range}\n"
             f"Memory: {memory}\n"
             f"Min trajectory length: {min_trajectory_length}\n"
-            f"Subtract drift: {drift}"
+            f"Subtract drift: {drift}\n\n"
+            f"Detection Parameters:\n"
+            f"Feature size: {feature_size}\n"
+            f"Min mass: {min_mass}\n"
+            f"Threshold: {threshold}\n"
+            f"Invert: {invert}"
         )
         
         self.parameters_info_label.setText(info_text)
 
     def _update_frame_range_info(self):
-        """Update the frame range info display."""
+        """Update the frame range info display with comprehensive trajectory information."""
         if not self.file_controller:
             self.frame_range_label.setText("")
             return
@@ -379,9 +393,33 @@ class LWLinkingWindow(QMainWindow):
         try:
             df = pd.read_csv(trajectories_file)
             if df is not None and not df.empty and "frame" in df.columns:
-                min_frame = int(df["frame"].min()) + 1  # Convert to 1-indexed
-                max_frame = int(df["frame"].max()) + 1  # Convert to 1-indexed
-                self.frame_range_label.setText(f"Links found between frames {min_frame}-{max_frame}")
+                # Calculate statistics
+                frames = sorted(df["frame"].unique())
+                frames_1indexed = [int(f) + 1 for f in frames]  # Convert to 1-indexed
+                total_frames_used = len(frames_1indexed)
+                min_frame = frames_1indexed[0]
+                max_frame = frames_1indexed[-1]
+                total_trajectories = df["particle"].nunique() if "particle" in df.columns else 0
+                total_links = len(df)
+                
+                # Format frame range
+                if len(frames_1indexed) == 1:
+                    frame_range_text = f"Frame {min_frame}"
+                elif max_frame - min_frame == len(frames_1indexed) - 1:
+                    # Consecutive frames
+                    frame_range_text = f"Frames {min_frame}-{max_frame}"
+                else:
+                    # Non-consecutive frames
+                    frame_range_text = f"Frames {min_frame}-{max_frame} (non-consecutive)"
+                
+                # Create comprehensive info text
+                info_text = (
+                    f"Frames used: {total_frames_used} | "
+                    f"Range: {frame_range_text} | "
+                    f"Trajectories: {total_trajectories} | "
+                    f"Total links: {total_links}"
+                )
+                self.frame_range_label.setText(info_text)
             else:
                 self.frame_range_label.setText("")
         except Exception as e:
