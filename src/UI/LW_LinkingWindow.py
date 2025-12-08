@@ -16,6 +16,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QSplitter,
     QHBoxLayout,
+    QGroupBox,
+    QFrame,
 )
 from .LW_ErrantDistanceLinksWidget import *
 from .LW_ErrantMemoryLinksWidget import *
@@ -86,12 +88,7 @@ class LWLinkingWindow(QMainWindow):
 
         # Menu Bar
         menubar = self.menuBar()
-        file_menu = menubar.addMenu("File")
-
-        export_action = QAction("Export...", self)
-        export_action.triggered.connect(self.export_all_data)
-        file_menu.addAction(export_action)
-
+        # File menu removed - export is handled through parameters widget
         options_menu = menubar.addMenu("Options")
 
         # Left Panel - make it much wider to show bigger plots
@@ -296,7 +293,10 @@ class LWLinkingWindow(QMainWindow):
         title_label.setFont(title_font)
         layout.addWidget(title_label)
         
-        # Parameters display
+        # Parameters display in a group box with title
+        parameters_group = QGroupBox("Parameters")
+        parameters_layout = QVBoxLayout(parameters_group)
+        
         self.parameters_info_label = QLabel("No trajectories linked yet")
         self.parameters_info_label.setWordWrap(True)
         self.parameters_info_label.setStyleSheet("""
@@ -306,7 +306,9 @@ class LWLinkingWindow(QMainWindow):
                 border-radius: 4px;
             }
         """)
-        layout.addWidget(self.parameters_info_label)
+        parameters_layout.addWidget(self.parameters_info_label)
+        
+        layout.addWidget(parameters_group)
         
         return widget
 
@@ -362,16 +364,18 @@ class LWLinkingWindow(QMainWindow):
         threshold = detection_params.get("threshold", "-")
         invert = "Yes" if detection_params.get("invert", False) else "No"
         
+        # Create HTML formatted text with separator line
         info_text = (
-            f"Linking Parameters:\n"
-            f"Search range: {search_range}\n"
-            f"Memory: {memory}\n"
-            f"Min trajectory length: {min_trajectory_length}\n"
-            f"Subtract drift: {drift}\n\n"
-            f"Detection Parameters:\n"
-            f"Feature size: {feature_size}\n"
-            f"Min mass: {min_mass}\n"
-            f"Threshold: {threshold}\n"
+            f"<b>Linking Parameters:</b><br>"
+            f"Search range: {search_range}<br>"
+            f"Memory: {memory}<br>"
+            f"Min trajectory length: {min_trajectory_length}<br>"
+            f"Subtract drift: {drift}<br>"
+            f"<hr>"
+            f"<b>Detection Parameters:</b><br>"
+            f"Feature size: {feature_size}<br>"
+            f"Min mass: {min_mass}<br>"
+            f"Threshold: {threshold}<br>"
             f"Invert: {invert}"
         )
         

@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QSplitter,
     QHBoxLayout,
+    QGroupBox,
 )
 from PySide6 import QtWidgets
 
@@ -83,12 +84,7 @@ class DWDetectionWindow(QMainWindow):
 
         # Menu Bar
         menubar = self.menuBar()
-        file_menu = menubar.addMenu("File")
-
-        import_action = QAction("Import Video", self)
-        import_action.triggered.connect(self.import_video)
-        file_menu.addAction(import_action)
-
+        # File menu removed - video import is handled through frame player
         options_menu = menubar.addMenu("Options")
 
         # Left Panel - make it much wider to show bigger plots
@@ -292,7 +288,10 @@ class DWDetectionWindow(QMainWindow):
         title_label.setFont(title_font)
         layout.addWidget(title_label)
         
-        # Parameters display
+        # Parameters display in a group box with title
+        parameters_group = QGroupBox("Parameters")
+        parameters_layout = QVBoxLayout(parameters_group)
+        
         self.parameters_info_label = QLabel("No particles detected yet")
         self.parameters_info_label.setWordWrap(True)
         self.parameters_info_label.setStyleSheet("""
@@ -302,7 +301,9 @@ class DWDetectionWindow(QMainWindow):
                 border-radius: 4px;
             }
         """)
-        layout.addWidget(self.parameters_info_label)
+        parameters_layout.addWidget(self.parameters_info_label)
+        
+        layout.addWidget(parameters_group)
         
         return widget
 
