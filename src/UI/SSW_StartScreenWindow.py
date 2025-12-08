@@ -68,13 +68,11 @@ class SSWStartScreenWindow(QWidget):
 
         # New Project button
         self.new_project_btn = QPushButton("Create New Project")
-        self.new_project_btn.setMinimumHeight(50)
         self.new_project_btn.clicked.connect(self.create_new_project)
         button_layout.addWidget(self.new_project_btn)
 
         # Open Project button
         self.open_project_btn = QPushButton("Open Existing Project")
-        self.open_project_btn.setMinimumHeight(50)
         self.open_project_btn.clicked.connect(self.open_existing_project)
         button_layout.addWidget(self.open_project_btn)
 

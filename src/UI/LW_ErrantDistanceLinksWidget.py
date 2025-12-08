@@ -60,12 +60,12 @@ class LWErrantDistanceLinksWidget(QWidget):
 
         # Navigation controls
         self.nav_layout = QHBoxLayout()
-        self.prev_button = QPushButton("<")
+        self.prev_button = QPushButton("◀")
         self.trajectory_display = QLineEdit("0 / 0")
         self.curr_link_idx = 0
         self.trajectory_display.setReadOnly(False)
         self.trajectory_display.setAlignment(Qt.AlignCenter)
-        self.next_button = QPushButton("->")
+        self.next_button = QPushButton("▶")
         self.prev_button.clicked.connect(self.prev_link)
         self.next_button.clicked.connect(self.next_link)
         self.trajectory_display.returnPressed.connect(

@@ -91,16 +91,28 @@ class LWErrantMemoryLinksWidget(QWidget):
         nav_layout = QHBoxLayout()
         nav_layout.addStretch()
 
-        # Memory Link navigation
-        nav_layout.addWidget(QLabel("Memory Link:"))
+        # Memory Link navigation (switch between videos)
+        link_group_label = QLabel("Switch Video:")
+        link_group_label.setStyleSheet("font-weight: bold;")
+        nav_layout.addWidget(link_group_label)
         self.prev_link_button = QPushButton("◀◀")
-        self.prev_link_button.setFixedSize(40, 30)
+        self.prev_link_button.setToolTip("Previous memory link (previous video)")
         self.prev_link_button.clicked.connect(self.previous_link)
         nav_layout.addWidget(self.prev_link_button)
+        self.next_link_button = QPushButton("▶▶")
+        self.next_link_button.setToolTip("Next memory link (next video)")
+        self.next_link_button.clicked.connect(self.next_link)
+        nav_layout.addWidget(self.next_link_button)
 
-        # Frame navigation
+        # Add spacing between groups
+        nav_layout.addSpacing(30)
+
+        # Frame navigation (play through frames in current video)
+        frame_group_label = QLabel("Play Video:")
+        frame_group_label.setStyleSheet("font-weight: bold;")
+        nav_layout.addWidget(frame_group_label)
         self.prev_frame_button = QPushButton("◀")
-        self.prev_frame_button.setFixedSize(40, 30)
+        self.prev_frame_button.setToolTip("Previous frame")
         self.prev_frame_button.clicked.connect(self.previous_frame)
         nav_layout.addWidget(self.prev_frame_button)
 
@@ -110,14 +122,9 @@ class LWErrantMemoryLinksWidget(QWidget):
         nav_layout.addWidget(self.frame_display)
 
         self.next_frame_button = QPushButton("▶")
-        self.next_frame_button.setFixedSize(40, 30)
+        self.next_frame_button.setToolTip("Next frame")
         self.next_frame_button.clicked.connect(self.next_frame)
         nav_layout.addWidget(self.next_frame_button)
-
-        self.next_link_button = QPushButton("▶▶")
-        self.next_link_button.setFixedSize(40, 30)
-        self.next_link_button.clicked.connect(self.next_link)
-        nav_layout.addWidget(self.next_link_button)
 
         nav_layout.addStretch()
         self.layout.addLayout(nav_layout)

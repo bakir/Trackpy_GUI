@@ -151,7 +151,6 @@ class DWFrameGalleryWidget(QWidget):
         nav_layout.addWidget(self.annotate_toggle)
 
         self.prev_button = QPushButton("◀")
-        self.prev_button.setFixedSize(40, 30)
         self.prev_button.clicked.connect(self.previous_frame)
         nav_layout.addWidget(self.prev_button)
 
@@ -162,7 +161,6 @@ class DWFrameGalleryWidget(QWidget):
         nav_layout.addWidget(self.frame_input)
 
         self.next_button = QPushButton("▶")
-        self.next_button.setFixedSize(40, 30)
         self.next_button.clicked.connect(self.next_frame)
         nav_layout.addWidget(self.next_button)
 
