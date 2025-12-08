@@ -59,19 +59,11 @@ class LWLinkingWindow(QMainWindow):
 
     def load_initial_overlay(self):
         """Ensure the memory links are loaded when the window opens."""
-        if hasattr(self, "frame_player") and self.frame_player:
-            self.frame_player.refresh_links()
-        if (
-            hasattr(self, "errant_particle_gallery")
-            and self.errant_particle_gallery
-        ):
-            self.errant_particle_gallery.refresh_errant_distance_links()
         if hasattr(self, "left_panel"):
             self.left_panel.set_config_manager(self.config_manager)
             self.left_panel.set_file_controller(self.file_controller)
-        # Update parameters info and frame range if trajectories exist
-        self._update_parameters_info()
-        self._update_frame_range_info()
+        # Use centralized refresh function to load initial state
+        self.refresh_linking_ui(update_plots=True, update_info=True)
 
     def setup_ui(self):
         # Main Widget
@@ -159,24 +151,16 @@ class LWLinkingWindow(QMainWindow):
             }
         """)
 
-        # Connect trajectory linking signal to refresh memory links when trajectories are found
+        # Connect trajectory linking signal to refresh UI when trajectories are found
+        # Use centralized refresh function
         self.right_panel.trajectoriesLinked.connect(
-            self.frame_player.refresh_links
-        )
-        # Update parameters info and frame range when trajectories are linked
-        self.right_panel.trajectoriesLinked.connect(
-            self._update_parameters_info
-        )
-        self.right_panel.trajectoriesLinked.connect(
-            self._update_frame_range_info
+            lambda: self.refresh_linking_ui(update_plots=True, update_info=True)
         )
 
-        # Connect filtered data updates to refresh relevant widgets
+        # Connect filtered data updates to automatically re-run find_trajectories when filters change
+        # This ensures trajectories are re-linked with the filtered particle data
         self.left_panel.filteredTrajectoriesUpdated.connect(
-            self.frame_player.refresh_links
-        )
-        self.left_panel.filteredTrajectoriesUpdated.connect(
-            self.errant_particle_gallery.refresh_errant_distance_links
+            self._on_filters_changed
         )
 
         # Connect back button signal to return to detection window
@@ -287,14 +271,14 @@ class LWLinkingWindow(QMainWindow):
         layout.setSpacing(5)
         
         # Title
-        title_label = QLabel("Linking Parameters Used")
+        title_label = QLabel("Parameters")
         title_font = title_label.font()
         title_font.setBold(True)
         title_label.setFont(title_font)
         layout.addWidget(title_label)
         
-        # Parameters display in a group box with title
-        parameters_group = QGroupBox("Parameters")
+        # Parameters display in a group box (no title to avoid redundancy)
+        parameters_group = QGroupBox()
         parameters_layout = QVBoxLayout(parameters_group)
         
         self.parameters_info_label = QLabel("No trajectories linked yet")
@@ -344,6 +328,90 @@ class LWLinkingWindow(QMainWindow):
         
         return widget
 
+    def refresh_linking_ui(self, trajectories_df=None, config_manager=None, update_plots=True, update_info=True):
+        """
+        Centralized function to refresh all UI elements after loading new trajectory data.
+        
+        This is used by:
+        - Find Trajectories (after linking completes)
+        - Filter application (when filters change)
+        - Undo functionality (when restoring trajectories)
+        
+        Parameters
+        ----------
+        trajectories_df : pd.DataFrame, optional
+            The trajectory data to display. If None, loads from trajectories.csv
+        config_manager : ConfigManager, optional
+            Config manager to use. If None, uses existing config_manager.
+        update_plots : bool, default True
+            If True, updates trajectory plots and visualizations
+        update_info : bool, default True
+            If True, updates parameters info and frame range displays
+        """
+        # Update config manager if provided
+        if config_manager:
+            self.set_config_manager(config_manager)
+        
+        # Determine trajectory data source: provided -> stored in right_panel -> load from file
+        if trajectories_df is None and hasattr(self, 'right_panel'):
+            if hasattr(self.right_panel, 'linked_trajectories') and self.right_panel.linked_trajectories is not None:
+                trajectories_df = self.right_panel.linked_trajectories
+        
+        # Load trajectories from file if still not available
+        if trajectories_df is None and self.file_controller:
+            trajectories_path = os.path.join(self.file_controller.data_folder, "trajectories.csv")
+            if os.path.exists(trajectories_path):
+                try:
+                    trajectories_df = pd.read_csv(trajectories_path)
+                except Exception as e:
+                    print(f"Error loading trajectories: {e}")
+                    trajectories_df = pd.DataFrame()
+            else:
+                trajectories_df = pd.DataFrame()
+        
+        # Update trajectory plots if requested
+        if update_plots:
+            # If we have trajectory data, update the plotting widget
+            if trajectories_df is not None and not trajectories_df.empty and hasattr(self, 'right_panel'):
+                # Update trajectory plotting widget
+                if hasattr(self.right_panel, 'trajectory_plotting'):
+                    self.right_panel.trajectory_plotting.get_linked_particles(trajectories_df)
+                
+                # Store trajectories in right panel if not already stored
+                if hasattr(self.right_panel, 'linked_trajectories'):
+                    self.right_panel.linked_trajectories = trajectories_df
+            
+            # Refresh frame player links (always refresh, even if no data)
+            if hasattr(self, 'frame_player') and self.frame_player:
+                self.frame_player.refresh_links()
+            
+            # Refresh errant distance links gallery (always refresh, even if no data)
+            if hasattr(self, 'errant_particle_gallery') and self.errant_particle_gallery:
+                self.errant_particle_gallery.refresh_errant_distance_links()
+        
+        # Update info displays if requested
+        if update_info:
+            self._update_parameters_info()
+            self._update_frame_range_info()
+    
+    def _on_filters_changed(self):
+        """Handle filter changes - automatically re-run find_trajectories with filtered data."""
+        # Only auto-run if trajectories have been found at least once
+        # Check if trajectories.csv exists or if linked_trajectories is set
+        if hasattr(self, 'right_panel') and hasattr(self.right_panel, 'linked_trajectories'):
+            if self.right_panel.linked_trajectories is not None:
+                # Trajectories exist, so automatically re-run find_trajectories
+                # This will use the newly filtered particles
+                if hasattr(self.right_panel, 'find_trajectories'):
+                    self.right_panel.find_trajectories()
+        elif self.file_controller:
+            # Check if trajectories file exists
+            trajectories_path = os.path.join(self.file_controller.data_folder, "trajectories.csv")
+            if os.path.exists(trajectories_path):
+                # Trajectories exist, so automatically re-run find_trajectories
+                if hasattr(self, 'right_panel') and hasattr(self.right_panel, 'find_trajectories'):
+                    self.right_panel.find_trajectories()
+    
     def _update_parameters_info(self):
         """Update the parameters info display with current linking parameters and detection parameters."""
         if not self.config_manager or not self.file_controller:
@@ -366,13 +434,13 @@ class LWLinkingWindow(QMainWindow):
         
         # Create HTML formatted text with separator line
         info_text = (
-            f"<b>Linking Parameters:</b><br>"
+            f"<b>Linking:</b><br>"
             f"Search range: {search_range}<br>"
             f"Memory: {memory}<br>"
             f"Min trajectory length: {min_trajectory_length}<br>"
             f"Subtract drift: {drift}<br>"
             f"<hr>"
-            f"<b>Detection Parameters:</b><br>"
+            f"<b>Detection:</b><br>"
             f"Feature size: {feature_size}<br>"
             f"Min mass: {min_mass}<br>"
             f"Threshold: {threshold}<br>"

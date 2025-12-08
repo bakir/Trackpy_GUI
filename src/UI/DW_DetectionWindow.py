@@ -369,14 +369,14 @@ class DWDetectionWindow(QMainWindow):
         layout.setSpacing(5)
         
         # Title
-        title_label = QLabel("Detection Parameters Used")
+        title_label = QLabel("Parameters")
         title_font = title_label.font()
         title_font.setBold(True)
         title_label.setFont(title_font)
         layout.addWidget(title_label)
         
-        # Parameters display in a group box with title
-        parameters_group = QGroupBox("Parameters")
+        # Parameters display in a group box (no title to avoid redundancy)
+        parameters_group = QGroupBox()
         parameters_layout = QVBoxLayout(parameters_group)
         
         self.parameters_info_label = QLabel("No particles detected yet")

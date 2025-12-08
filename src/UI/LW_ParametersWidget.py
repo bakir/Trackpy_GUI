@@ -281,10 +281,12 @@ class LWParametersWidget(QWidget):
             if self.sub_drift.isChecked():
                 trajectories_filtered = self.calc_drift(trajectories_filtered)
 
-            self.linked_trajectories = trajectories_filtered # Store the filtered linked trajectories
-            self.trajectory_plotting.get_linked_particles(trajectories_filtered) # Pass unfiltered data to plotting
+            # Store the filtered linked trajectories
+            self.linked_trajectories = trajectories_filtered
+            
             print(trajectories_all.head())
             print(trajectories_filtered.head())
+            
             # Save filtered trajectories.csv
             trajectories_file = os.path.join(data_folder, "trajectories.csv")
             trajectories_filtered.to_csv(trajectories_file, index=False)
@@ -307,6 +309,8 @@ class LWParametersWidget(QWidget):
             QApplication.processEvents()
             ParticleProcessing.find_and_save_high_memory_links(trajectories_file, memory, max_links=5)
 
+            # Emit signal - this will trigger centralized refresh_linking_ui() function
+            # which will update plots, info displays, and refresh all UI elements
             self.trajectoriesLinked.emit()
             self.errantDistanceLinksGalleryCreated.emit()
             
