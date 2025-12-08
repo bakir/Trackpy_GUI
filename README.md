@@ -48,19 +48,19 @@ We recommend `conda` for managing and building the required environment for this
 
 ![Create new project](assets/new_project.png)
 
-Selecting "Open Existing Project" will allow you to select previous project files.
+    Selecting "Open Existing Project" will allow you to select previous project files.
 
 3. You will now be taken into the Particle Detection Window where you have all the tools necessary to find the correct particle detection parameters. 
 
 ![Particle detection window](assets/particle_detection_window.png)
 
-When it first appears you may need to resize the window in order to see things more clearly. If you click title bar at the top of the window twice in a row the window will automatically resize to fit your screen, or you can drag the bottom corners out to make it bigger. There are also black vertical lines that can reseize the indiviual columns in the window if you drag them horizontally.
+    When it first appears you may need to resize the window in order to see things more clearly. If you click title bar at the top of the window twice in a row the window will automatically resize to fit your screen, or you can drag the bottom corners out to make it bigger. There are also black vertical lines that can reseize the indiviual columns in the window if you drag them horizontally.
 
-When the window opens the video will be loaded into the frame player in the center of the screen and the project metadata will be shown in the bottom right. You can see how many frames are present and visualize the video using the slider directly beneath it. You can also jump to specific frames by inputting a frame into the "Select frame" area. The arrows on either side will of the frame input will show the next or previous frame.
+    When the window opens the video will be loaded into the frame player in the center of the screen and the project metadata will be shown in the bottom right. You can see how many frames are present and visualize the video using the slider directly beneath it. You can also jump to specific frames by inputting a frame into the "Select frame" area. The arrows on either side will of the frame input will show the next or previous frame.
 
 4. You can now input your particle detection parameters in the top right corner. If you are unsure of what the parameters are you can hover you mouse over the blue ⓘ icon to get more information. Once you are ready to detect particles, above the project metadata, you can input which frames you would like to process. You can select the start and end frame. The step field indicates steps between the frames being analyzed (for step=2, you will count 1, 3, 5...). 
 
-![Detection parameters](assets/detection_parameters.png)
+![Detection parameters](assets/detection_params.png)
 
 5. Clicking "Find Particles" will then analyze the given frames using the detection parameters you have inputted. It is suggested that you start finding good detection parameters with a small number of frames as finding particles can take a long time. Once you have good parameters on a small batch, you can try scaling up to include more frames.
 
@@ -100,11 +100,11 @@ When the window opens the video will be loaded into the frame player in the cent
 
 ![Red blue explination](assets/red_blue_explination.png)
 
-If you are not seeing any particles try adjusting the threshold, which determines at what values pixels will turn white or red/blue, as the best value will be different for every video and likely for every frame as well. For example, at this threshold there is not much information to gained:
+    If you are not seeing any particles try adjusting the threshold, which determines at what values pixels will turn white or red/blue, as the best value will be different for every video and likely for every frame as well. For example, at this threshold there is not much information to gained:
 
 ![Bad threshold](assets/bad_threshold.png)
 
-But at this threshold we can see that the particles overlap and are likely the same particle:
+    But at this threshold we can see that the particles overlap and are likely the same particle:
 
 ![Good threshold](assets/good_threshold.png)
 
