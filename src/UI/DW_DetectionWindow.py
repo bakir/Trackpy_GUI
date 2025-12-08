@@ -131,6 +131,10 @@ class DWDetectionWindow(QMainWindow):
         self.metadata_widget = self._create_metadata_widget()
         right_panel_layout.addWidget(self.metadata_widget)
         
+        # Next button below metadata
+        right_panel_layout.addStretch()
+        right_panel_layout.addWidget(self.right_panel.next_button, alignment=Qt.AlignRight)
+        
         splitter.addWidget(right_panel_container)
 
         # Set initial sizes for smooth resizing - give left panel more space for plots

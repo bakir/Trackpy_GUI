@@ -134,7 +134,8 @@ class LWParametersWidget(QWidget):
             self.export_close_button, alignment=Qt.AlignRight
         )
 
-        self.layout.addLayout(self.buttons_layout)
+        # Buttons layout will be moved to parent window, so don't add it to main layout
+        # The buttons will be accessed from LW_LinkingWindow
 
         # Load existing values
         self.load_params()

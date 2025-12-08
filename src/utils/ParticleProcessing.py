@@ -1034,13 +1034,14 @@ def annotate_memory_link_frame(image, start_pos, end_pos, crop_origin):
     end_x_rel = end_pos[0] - crop_origin[0]
     end_y_rel = end_pos[1] - crop_origin[1]
     
-    # Draw crosses: yellow for disappear location, bright green for reappear location
-    yellow_color = (0, 255, 255)  # BGR for Yellow
-    green_color = (0, 255, 0)  # BGR for Bright Green
+    # Draw crosses: dark yellow for disappear location, green for reappear location
+    # Colors match legend: Disappears #EBC83F, Reappears #228B22 (lighter green)
+    dark_yellow_color = (63, 200, 235)  # BGR for #EBC83F (Dark Yellow)
+    green_color = (34, 139, 34)  # BGR for #228B22 (Green - slightly lighter than dark green)
     cross_size = 5
     cross_thickness = 1 # Use 1 for a finer cross
 
-    draw_cross(image, (start_x_rel, start_y_rel), yellow_color, cross_size, cross_thickness)
+    draw_cross(image, (start_x_rel, start_y_rel), dark_yellow_color, cross_size, cross_thickness)
     draw_cross(image, (end_x_rel, end_y_rel), green_color, cross_size, cross_thickness)
     
     return image

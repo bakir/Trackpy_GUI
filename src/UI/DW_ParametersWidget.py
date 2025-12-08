@@ -163,16 +163,31 @@ class DWParametersWidget(QWidget):
         self.all_frames_button.clicked.connect(self.set_all_frames)
         self.save_button = QPushButton("Find Particles")
         self.save_button.clicked.connect(self.find_particles)
-        self.next_button = QPushButton("Next")
-        self.next_button.clicked.connect(self.next_step)
         
         buttons_row_layout.addWidget(self.all_frames_button)
         buttons_row_layout.addStretch()
         buttons_row_layout.addWidget(self.save_button)
-        buttons_row_layout.addWidget(self.next_button)
         bottom_controls_layout.addLayout(buttons_row_layout)
         
+        # Frame info display (shows which frames particles were detected in)
+        self.frame_info_label = QLabel("")
+        self.frame_info_label.setAlignment(Qt.AlignCenter)
+        self.frame_info_label.setWordWrap(True)
+        self.frame_info_label.setStyleSheet("""
+            QLabel {
+                background-color: #f0f0f0;
+                padding: 8px;
+                border-radius: 4px;
+                margin-top: 5px;
+            }
+        """)
+        bottom_controls_layout.addWidget(self.frame_info_label)
+        
         self.layout.addLayout(bottom_controls_layout)
+        
+        # Next button will be added by parent window below metadata
+        self.next_button = QPushButton("Next")
+        self.next_button.clicked.connect(self.next_step)
         self.load_params()
 
         # Connect signals for saving parameters
@@ -188,6 +203,7 @@ class DWParametersWidget(QWidget):
     def set_file_controller(self, file_controller):
         self.file_controller = file_controller
         self.set_total_frames(len(self.file_controller.get_frame_files()))
+        self._update_frame_info()
 
     def set_total_frames(self, num_frames):
         self.total_frames = num_frames
@@ -310,6 +326,9 @@ class DWParametersWidget(QWidget):
             self.allParticlesUpdated.emit()
             self.graphing_panel.filtering_widget.apply_filters_and_notify()
         
+        # Update frame info display
+        self._update_frame_info()
+        
         # Hide progress bar and clear message after a moment
         self.progress_bar.setVisible(False)
         QTimer.singleShot(2000, lambda: self.progress_display.setText(""))
@@ -336,6 +355,37 @@ class DWParametersWidget(QWidget):
         # This method is now effectively replaced by calling graphing_panel.filtering_widget.apply_filters_and_notify()
         # The logic is handled by the FilteringWidget itself.
         pass
+
+    def _update_frame_info(self):
+        """Update the frame info display with frames where particles were detected."""
+        if not self.file_controller:
+            self.frame_info_label.setText("")
+            return
+        
+        all_particles_path = os.path.join(self.file_controller.data_folder, "all_particles.csv")
+        if os.path.exists(all_particles_path):
+            try:
+                particle_data = pd.read_csv(all_particles_path)
+                if not particle_data.empty and "frame" in particle_data.columns:
+                    frames = sorted(particle_data["frame"].unique())
+                    if len(frames) > 0:
+                        # Convert to 1-indexed and format as range if consecutive, otherwise list
+                        frames_1indexed = [f + 1 for f in frames]
+                        if len(frames_1indexed) == 1:
+                            frame_text = f"Particles detected in frame {frames_1indexed[0]}"
+                        elif frames_1indexed[-1] - frames_1indexed[0] == len(frames_1indexed) - 1:
+                            # Consecutive frames
+                            frame_text = f"Particles detected in frames {frames_1indexed[0]}-{frames_1indexed[-1]}"
+                        else:
+                            # Non-consecutive frames
+                            frame_text = f"Particles detected in frames: {', '.join(map(str, frames_1indexed))}"
+                        self.frame_info_label.setText(frame_text)
+                        return
+            except Exception as e:
+                print(f"Error reading frame info from particles: {e}")
+        
+        # No particles detected yet
+        self.frame_info_label.setText("")
 
     def next_step(self):
         self.save_params()

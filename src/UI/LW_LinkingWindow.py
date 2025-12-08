@@ -40,6 +40,8 @@ class LWLinkingWindow(QMainWindow):
             self.frame_player.set_config_manager(config_manager)
         if hasattr(self, "errant_particle_gallery"):
             self.errant_particle_gallery.set_config_manager(config_manager)
+        # Update metadata display
+        self._update_metadata_display()
 
     def set_file_controller(self, file_controller):
         """Set the file controller for this window."""
@@ -65,6 +67,9 @@ class LWLinkingWindow(QMainWindow):
         if hasattr(self, "left_panel"):
             self.left_panel.set_config_manager(self.config_manager)
             self.left_panel.set_file_controller(self.file_controller)
+        # Update parameters info and frame range if trajectories exist
+        self._update_parameters_info()
+        self._update_frame_range_info()
 
     def setup_ui(self):
         # Main Widget
@@ -106,11 +111,35 @@ class LWLinkingWindow(QMainWindow):
 
         splitter.addWidget(self.middle_panel)
 
-        # Right Panel
+        # Right Panel - Create container widget
+        right_panel_container = QWidget()
+        right_panel_container.setMinimumWidth(200)
+        right_panel_layout = QVBoxLayout(right_panel_container)
+        right_panel_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Linking parameters widget
         self.right_panel = LWParametersWidget(self.left_panel)
-        self.right_panel.setMinimumWidth(200)
-        self.right_layout = QVBoxLayout(self.right_panel)
-        splitter.addWidget(self.right_panel)
+        right_panel_layout.addWidget(self.right_panel)
+        
+        # Frame range info widget (shows frames links were found between)
+        self.frame_range_widget = self._create_frame_range_widget()
+        right_panel_layout.addWidget(self.frame_range_widget)
+        
+        # Parameters info box (shows parameters used for current results)
+        self.parameters_info_widget = self._create_parameters_info_widget()
+        right_panel_layout.addWidget(self.parameters_info_widget)
+        
+        # Metadata display widget
+        self.metadata_widget = self._create_metadata_widget()
+        right_panel_layout.addWidget(self.metadata_widget)
+        
+        # Add stretch to push buttons to bottom
+        right_panel_layout.addStretch()
+        
+        # Extract buttons from parameters widget and add them at the bottom
+        self._move_buttons_to_bottom(right_panel_layout)
+        
+        splitter.addWidget(right_panel_container)
 
         # Set initial sizes for smooth resizing - give left panel more space for plots
         # This prevents the splitter from jumping when clicked
@@ -136,6 +165,13 @@ class LWLinkingWindow(QMainWindow):
         # Connect trajectory linking signal to refresh memory links when trajectories are found
         self.right_panel.trajectoriesLinked.connect(
             self.frame_player.refresh_links
+        )
+        # Update parameters info and frame range when trajectories are linked
+        self.right_panel.trajectoriesLinked.connect(
+            self._update_parameters_info
+        )
+        self.right_panel.trajectoriesLinked.connect(
+            self._update_frame_range_info
         )
 
         # Connect filtered data updates to refresh relevant widgets
@@ -220,3 +256,172 @@ class LWLinkingWindow(QMainWindow):
             and self.errant_particle_gallery
         ):
             self.errant_particle_gallery.reset_state()
+
+    def _create_frame_range_widget(self):
+        """Create the frame range info display widget."""
+        from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel
+        
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(5)
+        
+        # Frame range display (initially empty, will show when trajectories are found)
+        self.frame_range_label = QLabel("")
+        self.frame_range_label.setWordWrap(True)
+        self.frame_range_label.setStyleSheet("""
+            QLabel {
+                background-color: #f0f0f0;
+                padding: 8px;
+                border-radius: 4px;
+            }
+        """)
+        layout.addWidget(self.frame_range_label)
+        
+        return widget
+
+    def _create_parameters_info_widget(self):
+        """Create the parameters info display widget."""
+        from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel
+        
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(5)
+        
+        # Title
+        title_label = QLabel("Linking Parameters Used")
+        title_font = title_label.font()
+        title_font.setBold(True)
+        title_label.setFont(title_font)
+        layout.addWidget(title_label)
+        
+        # Parameters display
+        self.parameters_info_label = QLabel("No trajectories linked yet")
+        self.parameters_info_label.setWordWrap(True)
+        self.parameters_info_label.setStyleSheet("""
+            QLabel {
+                background-color: #f0f0f0;
+                padding: 8px;
+                border-radius: 4px;
+            }
+        """)
+        layout.addWidget(self.parameters_info_label)
+        
+        return widget
+
+    def _create_metadata_widget(self):
+        """Create the metadata display widget."""
+        from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel
+        
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(5)
+        
+        # Title
+        title_label = QLabel("Project Metadata")
+        title_font = title_label.font()
+        title_font.setBold(True)
+        title_label.setFont(title_font)
+        layout.addWidget(title_label)
+        
+        # Metadata fields
+        self.movie_taker_label = QLabel()
+        self.person_doing_analysis_label = QLabel()
+        self.movie_taken_date_label = QLabel()
+        self.movie_filename_label = QLabel()
+        self.movie_filename_label.setWordWrap(True)
+        
+        layout.addWidget(self.movie_taker_label)
+        layout.addWidget(self.person_doing_analysis_label)
+        layout.addWidget(self.movie_taken_date_label)
+        layout.addWidget(self.movie_filename_label)
+        
+        layout.addStretch()
+        
+        return widget
+
+    def _update_parameters_info(self):
+        """Update the parameters info display with current linking parameters and frame range."""
+        if not self.config_manager or not self.file_controller:
+            return
+        
+        linking_params = self.config_manager.get_linking_params()
+        
+        search_range = linking_params.get("search_range", "-")
+        memory = linking_params.get("memory", "-")
+        min_trajectory_length = linking_params.get("min_trajectory_length", "-")
+        drift = "Yes" if linking_params.get("drift", False) else "No"
+        
+        info_text = (
+            f"Search range: {search_range}\n"
+            f"Memory: {memory}\n"
+            f"Min trajectory length: {min_trajectory_length}\n"
+            f"Subtract drift: {drift}"
+        )
+        
+        self.parameters_info_label.setText(info_text)
+
+    def _update_frame_range_info(self):
+        """Update the frame range info display."""
+        if not self.file_controller:
+            self.frame_range_label.setText("")
+            return
+        
+        # Only show frame range if trajectories exist
+        trajectories_file = os.path.join(self.file_controller.data_folder, "trajectories.csv")
+        
+        if not os.path.exists(trajectories_file):
+            self.frame_range_label.setText("")
+            return
+        
+        try:
+            df = pd.read_csv(trajectories_file)
+            if df is not None and not df.empty and "frame" in df.columns:
+                min_frame = int(df["frame"].min()) + 1  # Convert to 1-indexed
+                max_frame = int(df["frame"].max()) + 1  # Convert to 1-indexed
+                self.frame_range_label.setText(f"Links found between frames {min_frame}-{max_frame}")
+            else:
+                self.frame_range_label.setText("")
+        except Exception as e:
+            print(f"Error reading trajectories for frame range: {e}")
+            self.frame_range_label.setText("")
+
+    def _update_metadata_display(self):
+        """Update the metadata display with current config values."""
+        if not self.config_manager:
+            return
+        
+        metadata = self.config_manager.get_metadata()
+        
+        movie_taker = metadata.get("movie_taker", "") or "-"
+        person_doing_analysis = metadata.get("person_doing_analysis", "") or "-"
+        movie_taken_date = metadata.get("movie_taken_date", "") or "-"
+        movie_filename = metadata.get("movie_filename", "") or "-"
+        
+        self.movie_taker_label.setText(f"Movie Taker: {movie_taker}")
+        self.person_doing_analysis_label.setText(f"Person Doing Analysis: {person_doing_analysis}")
+        self.movie_taken_date_label.setText(f"Movie Taken Date: {movie_taken_date}")
+        self.movie_filename_label.setText(f"Movie Filename: {movie_filename}")
+
+    def _move_buttons_to_bottom(self, layout):
+        """Extract buttons from parameters widget and add them to the bottom of the layout."""
+        # Get buttons from the parameters widget
+        find_trajectories_button = self.right_panel.find_trajectories_button
+        back_button = self.right_panel.back_button
+        export_close_button = self.right_panel.export_close_button
+        
+        # Create a container widget for buttons at the bottom
+        buttons_container = QWidget()
+        buttons_layout = QVBoxLayout(buttons_container)
+        buttons_layout.setContentsMargins(10, 10, 10, 10)
+        buttons_layout.setSpacing(5)
+        
+        # Add buttons to the new layout
+        buttons_layout.addWidget(find_trajectories_button, alignment=Qt.AlignRight)
+        buttons_layout.addWidget(back_button, alignment=Qt.AlignRight)
+        buttons_layout.addWidget(export_close_button, alignment=Qt.AlignRight)
+        
+        # Add buttons container to the main layout
+        layout.addWidget(buttons_container)

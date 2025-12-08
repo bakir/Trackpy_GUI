@@ -66,12 +66,12 @@ class LWErrantMemoryLinksWidget(QWidget):
         # Create legend items
         disappears_item = create_legend_item(
             "Disappears",
-            "yellow",
+            "#EBC83F",  # Dark Yellow
             "The last location of the particle before it disappears from the linking data for a few frames"
         )
         reappears_item = create_legend_item(
             "Reappears",
-            "green",
+            "#228B22",  # Green (slightly lighter than dark green)
             "The first location of the particle after it reappears in the linking data after being absent for a few frames"
         )
         
