@@ -360,6 +360,107 @@ def _get_invert_setting():
     return False
 
 
+def calculate_optimal_annotation_color(image, invert=False):
+    """
+    Calculate the optimal annotation color for maximum contrast with the video background.
+
+    Parameters
+    ----------
+    image : numpy array
+        The video frame image in BGR format.
+    invert : bool, optional
+        Whether particles are dark on bright background. Defaults to False.
+
+    Returns
+    -------
+    tuple
+        BGR color tuple (B, G, R) for maximum contrast annotation circles.
+    """
+    if image is None or image.size == 0:
+        # Default to yellow if image is invalid
+        return (0, 255, 255)
+
+    # Convert to grayscale for brightness analysis
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    # Find the dominant background brightness
+    # If invert=False, particles are bright on dark background, so background is dark
+    # If invert=True, particles are dark on bright background, so background is bright
+    if invert:
+        # Background is bright - find the brightest regions
+        # Use 90th percentile to avoid outliers
+        brightness_threshold = np.percentile(gray.flatten(), 90)
+        background_mask = gray >= brightness_threshold
+    else:
+        # Background is dark - find the darkest regions
+        # Use 10th percentile to avoid outliers
+        brightness_threshold = np.percentile(gray.flatten(), 10)
+        background_mask = gray <= brightness_threshold
+
+    # Extract background colors from original BGR image
+    background_pixels = image[background_mask]
+
+    if len(background_pixels) == 0:
+        # Fallback: use median of entire image
+        background_pixels = image.reshape(-1, 3)
+
+    # Calculate dominant background color (median to avoid outliers)
+    dominant_bg_color = np.median(background_pixels, axis=0).astype(np.uint8)
+    bg_b, bg_g, bg_r = dominant_bg_color
+
+    # Calculate brightness of background color
+    bg_brightness = 0.299 * bg_r + 0.587 * bg_g + 0.114 * bg_b
+
+    # Choose annotation color with maximum contrast
+    # High contrast colors: complementary colors or opposite brightness
+    if bg_brightness > 128:
+        # Bright background - use dark, saturated colors
+        # Try complementary colors based on dominant hue
+        if bg_r > bg_g and bg_r > bg_b:
+            # Reddish background - use cyan/green
+            annotation_color = (255, 255, 0)  # Cyan in BGR
+        elif bg_g > bg_r and bg_g > bg_b:
+            # Greenish background - use magenta/red
+            annotation_color = (0, 0, 255)  # Red in BGR
+        elif bg_b > bg_r and bg_b > bg_g:
+            # Bluish background - use yellow
+            annotation_color = (0, 255, 255)  # Yellow in BGR
+        else:
+            # Neutral/gray background - use bright saturated color
+            # Try yellow first (good contrast with most backgrounds)
+            annotation_color = (0, 255, 255)  # Yellow in BGR
+    else:
+        # Dark background - use bright, saturated colors
+        if bg_r > bg_g and bg_r > bg_b:
+            # Reddish dark background - use cyan
+            annotation_color = (255, 255, 0)  # Cyan in BGR
+        elif bg_g > bg_r and bg_g > bg_b:
+            # Greenish dark background - use magenta
+            annotation_color = (255, 0, 255)  # Magenta in BGR
+        elif bg_b > bg_r and bg_b > bg_g:
+            # Bluish dark background - use yellow
+            annotation_color = (0, 255, 255)  # Yellow in BGR
+        else:
+            # Neutral/gray dark background - use bright yellow
+            annotation_color = (0, 255, 255)  # Yellow in BGR
+
+    # Calculate contrast ratio to verify
+    annotation_brightness = (
+        0.299 * annotation_color[2] + 0.587 * annotation_color[1] + 0.114 * annotation_color[0]
+    )
+    contrast_ratio = abs(annotation_brightness - bg_brightness) / 255.0
+
+    # If contrast is low, try alternative colors
+    if contrast_ratio < 0.3:
+        # Low contrast - try opposite brightness
+        if bg_brightness > 128:
+            annotation_color = (0, 0, 0)  # Black
+        else:
+            annotation_color = (255, 255, 255)  # White
+
+    return tuple(annotation_color)
+
+
 def _create_rb_overlay_from_thresholds(thresh1, thresh2, height, width):
     """
     Create red-blue overlay from thresholded images.
@@ -706,12 +807,17 @@ def annotate_frame(
             return None
 
         annotated_image = image.copy()
+
+        # Get invert setting and calculate optimal annotation color
+        invert = _get_invert_setting()
+        annotation_color = calculate_optimal_annotation_color(image, invert)
+
         for _, particle in frame_particles.iterrows():
             cv2.circle(
                 annotated_image,
                 (int(particle.x), int(particle.y)),
                 int(feature_size / 2) + 2,
-                (0, 255, 255),
+                annotation_color,
                 2,
             )
 

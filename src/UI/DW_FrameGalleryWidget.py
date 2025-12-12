@@ -301,12 +301,23 @@ class DWFrameGalleryWidget(QWidget):
                     if not particle_data.empty:
                         particles_in_frame = particle_data[particle_data["frame"] == frame_number]
                         if not particles_in_frame.empty:
+                            # Get invert setting and calculate optimal annotation color
+                            from ..utils.ParticleProcessing import (
+                                _get_invert_setting,
+                                calculate_optimal_annotation_color,
+                            )
+
+                            invert = _get_invert_setting()
+                            annotation_color = calculate_optimal_annotation_color(
+                                image_to_modify, invert
+                            )
+
                             for _, particle in particles_in_frame.iterrows():
                                 cv2.circle(
                                     image_to_modify,
                                     (int(particle["x"]), int(particle["y"])),
                                     int(self.feature_size / 1.5),
-                                    (0, 255, 255),  # Yellow
+                                    annotation_color,
                                     2,
                                 )
 
