@@ -193,22 +193,29 @@ def _process_errant_particle(
     particle_image = image_to_crop[y_min:y_max, x_min:x_max]
     particle_image = cv2.resize(particle_image, (final_display_size, final_display_size))
 
-    # Draw crosshair at center
+    # Draw crosshair at center with same color as annotation circles
+    # Calculate color from the full frame to match annotation circles
     center_x = final_display_size // 2
     center_y = final_display_size // 2
     cross_size = 5
+
+    # Get invert setting and calculate optimal cross color using the original full frame
+    # This matches the color used for annotation circles on the full frame
+    invert = _get_invert_setting()
+    cross_color = calculate_optimal_annotation_color(image_to_crop, invert)
+
     cv2.line(
         particle_image,
         (center_x - cross_size, center_y),
         (center_x + cross_size, center_y),
-        (255, 255, 255),
+        cross_color,
         1,
     )
     cv2.line(
         particle_image,
         (center_x, center_y - cross_size),
         (center_x, center_y + cross_size),
-        (255, 255, 255),
+        cross_color,
         1,
     )
 
