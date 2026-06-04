@@ -19,6 +19,9 @@ from .ConfigManager import ConfigManager
 class FileController:
     """Centralized controller for all file and folder operations."""
 
+    DRIFT_CSV = "drift.csv"
+    TRAJECTORIES_DRIFT_SUBTRACTED_CSV = "trajectories_drift_subtracted.csv"
+
     def __init__(self, config_manager: ConfigManager, project_path: str = None):
         """
         Initialize the file controller with configuration.
@@ -257,6 +260,58 @@ class FileController:
         trajectories_df.to_csv(file_path, index=False)
         print(f"Saved trajectories data to: {file_path}")
         return file_path
+
+    def save_drift_data(self, drift_df: pd.DataFrame, filename: str = DRIFT_CSV) -> str:
+        """
+        Save per-frame drift (x, y) to the data folder.
+
+        Parameters
+        ----------
+        drift_df : pd.DataFrame
+            Drift indexed by frame with columns x and y (trackpy format).
+        filename : str, optional
+            Output filename. Defaults to drift.csv.
+
+        Returns
+        -------
+        str
+            Path to the saved file.
+        """
+        self.ensure_folder_exists(self.data_folder)
+        file_path = os.path.join(self.data_folder, filename)
+        self._delete_file_if_exists(file_path)
+        drift_save = drift_df.copy()
+        if drift_save.index.name is None:
+            drift_save.index.name = "frame"
+        drift_save.reset_index().to_csv(file_path, index=False)
+        print(f"Saved drift data to: {file_path}")
+        return file_path
+
+    def load_drift_data(self, filename: str = DRIFT_CSV) -> pd.DataFrame:
+        """
+        Load drift data for use with trackpy.subtract_drift.
+
+        Returns
+        -------
+        pd.DataFrame
+            Drift indexed by frame with x and y columns, or empty if missing.
+        """
+        file_path = os.path.join(self.data_folder, filename)
+        if not os.path.exists(file_path):
+            print(f"Drift file not found: {file_path}")
+            return pd.DataFrame()
+        df = pd.read_csv(file_path)
+        if "frame" in df.columns:
+            df = df.set_index("frame")
+        if "x" not in df.columns or "y" not in df.columns:
+            print(f"Drift file missing x/y columns: {file_path}")
+            return pd.DataFrame()
+        return df[["x", "y"]]
+
+    def delete_data_file(self, filename: str) -> None:
+        """Remove a file from the data folder if it exists."""
+        file_path = os.path.join(self.data_folder, filename)
+        self._delete_file_if_exists(file_path)
 
     def load_particles_data(self, filename: str = "all_particles.csv") -> pd.DataFrame:
         """

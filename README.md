@@ -123,7 +123,7 @@ We recommend `conda` for managing and building the required environment for this
 
 ![Good threshold](readme_assets/good_threshold.png)
 
-16. Similar to the Particle Detection Window, the Trajectory Linking Window has a plotting section and a filtering section. When "Find Trajectories" is pressed a plot of the particle trajectories across all frames will be plotted. This helps to visualize all of the trajectories. The drift plot calculates the overall drifting motion from all of the particles. If "Subtract Drift" in the linking parameters is checked then the drift will be subtracted from the particle positions. The same filtering plots from the Particle Detection Window are present, as some people like to filter after the trajectories have been found. The filtering section on this screen is the same as it was on the previous screen.
+16. Similar to the Particle Detection Window, the Trajectory Linking Window has a plotting section and a filtering section. When "Find Trajectories" is pressed a plot of the particle trajectories across all frames will be plotted. This helps to visualize all of the trajectories. The drift plot calculates the overall drifting motion from all of the particles. Each linking run also saves `drift.csv`, raw linked `trajectories.csv`, and drift-corrected `trajectories_drift_subtracted.csv` in the project data folder (all are included on export). The same filtering plots from the Particle Detection Window are present, as some people like to filter after the trajectories have been found. The filtering section on this screen is the same as it was on the previous screen.
 
 ![Trajectory plotting and filtering](readme_assets/trajectory_plots_filters.png)
 
