@@ -20,7 +20,7 @@ We recommend `conda` for managing and building the required environment for this
 
 4.  **Install Dependencies Into Conda Environment:**
     ```bash
-    conda install -c conda-forge ffmpeg PySide6 trackpy opencv numpy pandas scipy matplotlib pims imageio pillow
+    conda install -c conda-forge ffmpeg PySide6 trackpy opencv numpy pandas scipy matplotlib pyqtgraph pims imageio pillow
     ```
 
 5.  **Terminal**
