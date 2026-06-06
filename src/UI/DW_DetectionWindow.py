@@ -175,10 +175,9 @@ class DWDetectionWindow(QMainWindow):
         # Connect signals
         # Only update feature size when parameters change, don't clear gallery
         self.right_panel.parameter_changed.connect(self.frame_player.update_feature_size)
-        # Clear gallery only when Find Particles is clicked
+        # Clear gallery when Find Particles starts (does not touch particle CSV files)
         self.right_panel.particles_found.connect(self.clear_processed_data)
-        # Update parameters info when particles are found
-        self.right_panel.particles_found.connect(self._update_parameters_info)
+        # Parameters info updates when detection completes via refresh_detection_ui
         self.frame_player.frames_saved.connect(self.right_panel.set_total_frames)
         self.errant_particle_gallery.update_required.connect(
             self.frame_player.handle_gallery_update

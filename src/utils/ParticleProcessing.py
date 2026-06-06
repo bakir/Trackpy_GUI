@@ -82,7 +82,7 @@ def locate_particles(frame, feature_size=15, min_mass=100, invert=False, thresho
 # =============================================================================
 
 
-def find_particles_in_frames(image_paths, params=None, progress_callback=None):
+def find_particles_in_frames(image_paths, params=None, progress_callback=None, cancel_check=None):
     """
     Finds particles in a series of images and returns the data.
 
@@ -94,11 +94,14 @@ def find_particles_in_frames(image_paths, params=None, progress_callback=None):
         Detection parameters.
     progress_callback : Signal, optional
         A signal to emit progress updates.
+    cancel_check : callable, optional
+        If provided, called before each frame; return True to stop early.
 
     Returns
     -------
-    pandas.DataFrame
-        A DataFrame containing the found particles.
+    pandas.DataFrame or None
+        A DataFrame containing the found particles, an empty DataFrame if none
+        were found, or None if detection was cancelled.
     """
     if params is None:
         params = get_detection_params()
@@ -113,6 +116,11 @@ def find_particles_in_frames(image_paths, params=None, progress_callback=None):
     all_features = []
 
     for image_path in image_paths:
+        if cancel_check and cancel_check():
+            if progress_callback:
+                progress_callback.emit("Cancelled.")
+            return None
+
         basename = os.path.basename(image_path)
         name_part = os.path.splitext(basename)[0]
         frame_number_str = name_part.split("_")[-1]
