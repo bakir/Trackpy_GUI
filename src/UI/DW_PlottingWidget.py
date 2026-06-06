@@ -110,8 +110,10 @@ class DWPlottingWidget(GraphingUtils.GraphingPanelWidget):
             if not self.check_for_empty_data():
                 return False
             self._clear_plot()
-            plot = self.plot_container.addPlot(row=0, col=0, title="Mass (Brightness)")
-            self._add_histogram(plot, self.data["mass"].values, self.bins, xlabel="Mass")
+            plot, fonts = self._add_scaled_plot(title="Mass (Brightness)")
+            self._add_histogram(
+                plot, self.data["mass"].values, self.bins, xlabel="Mass", fonts=fonts
+            )
             return True
         except Exception as e:
             print(f"Error in particle locating or plotting: {e}")
@@ -122,8 +124,10 @@ class DWPlottingWidget(GraphingUtils.GraphingPanelWidget):
             if not self.check_for_empty_data():
                 return False
             self._clear_plot()
-            plot = self.plot_container.addPlot(row=0, col=0, title="Eccentricity")
-            self._add_histogram(plot, self.data["ecc"].values, self.bins, xlabel="Eccentricity")
+            plot, fonts = self._add_scaled_plot(title="Eccentricity")
+            self._add_histogram(
+                plot, self.data["ecc"].values, self.bins, xlabel="Eccentricity", fonts=fonts
+            )
             return True
         except Exception as e:
             print(f"Error in particle locating or plotting: {e}")
@@ -135,12 +139,13 @@ class DWPlottingWidget(GraphingUtils.GraphingPanelWidget):
                 return False
 
             self._clear_plot()
+            fonts = self._get_plot_font_sizes()
             pos_columns = ["x", "y"]
             if "z" in self.data.columns:
                 pos_columns.append("z")
 
             for index, column in enumerate(pos_columns):
-                plot = self.plot_container.addPlot(
+                plot, _ = self._add_scaled_plot(
                     row=0,
                     col=index,
                     title=f"{column} fractional part",
@@ -151,9 +156,10 @@ class DWPlottingWidget(GraphingUtils.GraphingPanelWidget):
                     fractional,
                     bins=20,
                     xlabel=f"{column} % 1",
+                    fonts=fonts,
                 )
 
-            title = pg.LabelItem("Subpixel Bias", color="k", size="16pt")
+            title = pg.LabelItem("Subpixel Bias", color="k", size=fonts["title_pt"])
             self.plot_container.addItem(title, row=1, col=0, colspan=len(pos_columns))
             return True
         except Exception as e:

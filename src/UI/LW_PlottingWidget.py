@@ -96,23 +96,24 @@ class LWPlottingWidget(GraphingUtils.GraphingPanelWidget):
             drift = tp.compute_drift(self.data, smoothing=15) * scaling
 
             self._clear_plot()
-            plot = self.plot_container.addPlot(row=0, col=0, title="Drift")
-            self._style_plot(plot, xlabel="Frame", ylabel="Drift")
+            plot, fonts = self._add_scaled_plot(title="Drift")
+            self._style_plot(plot, xlabel="Frame", ylabel="Drift", fonts=fonts)
+            line_width = self._get_scaled_pen_width(2.0)
 
             frames = drift.index.values.astype(float)
             plot.plot(
                 frames,
                 drift["x"].values,
-                pen=pg.mkPen(color=(0, 0, 200), width=2),
+                pen=pg.mkPen(color=(0, 0, 200), width=line_width),
                 name="x",
             )
             plot.plot(
                 frames,
                 drift["y"].values,
-                pen=pg.mkPen(color=(200, 0, 0), width=2),
+                pen=pg.mkPen(color=(200, 0, 0), width=line_width),
                 name="y",
             )
-            plot.addLegend(offset=(10, 10))
+            plot.addLegend(offset=(10, 10), labelTextSize=fonts["label_pt"])
             return True
         except Exception as e:
             print(f"Error in particle locating or plotting: {e}")
@@ -126,12 +127,14 @@ class LWPlottingWidget(GraphingUtils.GraphingPanelWidget):
             scaling = self.config_manager.get_detection_params().get("scaling", 1.0) or 1.0
 
             self._clear_plot()
-            plot = self.plot_container.addPlot(row=0, col=0, title="Trajectories")
+            plot, fonts = self._add_scaled_plot(title="Trajectories")
             self._style_plot(
                 plot,
                 xlabel="X [microns per px]",
                 ylabel="Y [microns per px]",
+                fonts=fonts,
             )
+            line_width = self._get_scaled_pen_width(1.5)
 
             particle_count = self.data["particle"].nunique()
             for index, (_, particle_data) in enumerate(self.data.groupby("particle")):
@@ -140,7 +143,7 @@ class LWPlottingWidget(GraphingUtils.GraphingPanelWidget):
                 plot.plot(
                     sorted_data["x"].values * scaling,
                     sorted_data["y"].values * scaling,
-                    pen=pg.mkPen(color, width=1.5),
+                    pen=pg.mkPen(color, width=line_width),
                 )
             return True
         except Exception as e:

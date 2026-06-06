@@ -10,10 +10,13 @@ Date: 2025-12-08
 """
 
 from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QHBoxLayout, QPushButton
+from PySide6.QtGui import QFont
 from PySide6.QtCore import Qt
 import numpy as np
 import pandas as pd
 import pyqtgraph as pg
+
+from .SizingUtils import get_plot_font_sizes, scaled_length
 
 
 pg.setConfigOptions(antialias=True, background="w", foreground="k")
@@ -60,10 +63,31 @@ class GraphingPanelWidget(QWidget):
         self.layout.addWidget(self.plot_container, 20)
         self.blank_plot()
 
+    def _get_plot_font_sizes(self):
+        return get_plot_font_sizes()
+
+    def _get_scaled_scatter_size(self):
+        fonts = self._get_plot_font_sizes()
+        return scaled_length(6, fonts["scale"])
+
+    def _get_scaled_pen_width(self, base=1.5):
+        fonts = self._get_plot_font_sizes()
+        return scaled_length(base, fonts["scale"], minimum=1.0)
+
+    def _add_scaled_plot(self, row=0, col=0, colspan=1, title=None):
+        fonts = self._get_plot_font_sizes()
+        plot = self.plot_container.addPlot(row=row, col=col, colspan=colspan)
+        if title:
+            plot.setTitle(title, color="k", size=fonts["title_pt"])
+        return plot, fonts
+
     def blank_plot(self):
         if hasattr(self, "plot_container"):
             self.plot_container.clear()
-            label = pg.LabelItem("No plot to display.", color="k", size="14pt")
+            fonts = self._get_plot_font_sizes()
+            label = pg.LabelItem(
+                "No plot to display.", color="k", size=fonts["subtitle_pt"]
+            )
             self.plot_container.addItem(label, row=0, col=0)
 
     def has_plot_data(self):
@@ -85,19 +109,27 @@ class GraphingPanelWidget(QWidget):
     def _clear_plot(self):
         self.plot_container.clear()
 
-    def _style_plot(self, plot, xlabel=None, ylabel=None):
-        plot.showGrid(x=True, y=True, alpha=0.25)
-        plot.getAxis("bottom").setPen(pg.mkPen("k"))
-        plot.getAxis("left").setPen(pg.mkPen("k"))
-        plot.getAxis("bottom").setTextPen(pg.mkPen("k"))
-        plot.getAxis("left").setTextPen(pg.mkPen("k"))
-        if xlabel:
-            plot.setLabel("bottom", xlabel, color="k")
-        if ylabel:
-            plot.setLabel("left", ylabel, color="k")
+    def _style_plot(self, plot, xlabel=None, ylabel=None, fonts=None):
+        if fonts is None:
+            fonts = self._get_plot_font_sizes()
 
-    def _add_histogram(self, plot, values, bins, xlabel=None, ylabel="Count"):
-        self._style_plot(plot, xlabel=xlabel, ylabel=ylabel)
+        plot.showGrid(x=True, y=True, alpha=0.25)
+        tick_font = QFont()
+        tick_font.setPointSizeF(fonts["tick"])
+
+        for axis_name in ("bottom", "left"):
+            axis = plot.getAxis(axis_name)
+            axis.setPen(pg.mkPen("k"))
+            axis.setTextPen(pg.mkPen("k"))
+            axis.setStyle(tickFont=tick_font)
+
+        if xlabel:
+            plot.setLabel("bottom", xlabel, color="k", size=fonts["label_pt"])
+        if ylabel:
+            plot.setLabel("left", ylabel, color="k", size=fonts["label_pt"])
+
+    def _add_histogram(self, plot, values, bins, xlabel=None, ylabel="Count", fonts=None):
+        self._style_plot(plot, xlabel=xlabel, ylabel=ylabel, fonts=fonts)
         counts, edges = np.histogram(values, bins=bins)
         if len(counts) == 0:
             return
@@ -114,15 +146,15 @@ class GraphingPanelWidget(QWidget):
 
     def _plot_scatter_panel(self, x, y, title, xlabel, ylabel):
         self._clear_plot()
-        plot = self.plot_container.addPlot(row=0, col=0, title=title)
-        self._style_plot(plot, xlabel=xlabel, ylabel=ylabel)
+        plot, fonts = self._add_scaled_plot(title=title)
+        self._style_plot(plot, xlabel=xlabel, ylabel=ylabel, fonts=fonts)
         plot.addItem(
             pg.ScatterPlotItem(
                 x=np.asarray(x),
                 y=np.asarray(y),
                 pen=None,
                 brush=pg.mkBrush(0, 0, 0, 30),
-                size=6,
+                size=self._get_scaled_scatter_size(),
             )
         )
         return True
