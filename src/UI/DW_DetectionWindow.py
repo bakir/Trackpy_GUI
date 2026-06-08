@@ -191,6 +191,7 @@ class DWDetectionWindow(QMainWindow):
             self.errant_particle_gallery.regenerate_errant_particles
         )
         self.left_panel.pointSelected.connect(self.frame_player.highlight_particle)
+        self.left_panel.plotSwitched.connect(self.frame_player.clear_scatter_highlight)
         self.right_panel.particles_found.connect(self.frame_player.clear_scatter_highlight)
 
         # Update undo button state

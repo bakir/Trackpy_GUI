@@ -45,6 +45,7 @@ class GraphingPanelWidget(QWidget):
     """Base widget for graphing panels with interactive PyQtGraph plots."""
 
     pointSelected = Signal(dict)
+    plotSwitched = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -52,7 +53,9 @@ class GraphingPanelWidget(QWidget):
         self._scatter_item = None
         self._scatter_x_col = None
         self._scatter_y_col = None
+        self._scatter_pass_mask = None
         self._selected_scatter_index = None
+        self._active_scatter_id = None
 
     def set_config_manager(self, config_manager):
         self.config_manager = config_manager
@@ -104,12 +107,34 @@ class GraphingPanelWidget(QWidget):
             plot.setTitle(title, color="k", size=fonts["title_pt"])
         return plot, fonts
 
+    def _teardown_scatter_item(self):
+        """Disconnect scatter signals before the item is destroyed."""
+        if self._scatter_item is not None:
+            try:
+                self._scatter_item.sigClicked.disconnect(self._on_scatter_clicked)
+            except (TypeError, RuntimeError):
+                pass
+            try:
+                self._scatter_item.sigHovered.disconnect(self._on_scatter_hovered)
+            except (TypeError, RuntimeError):
+                pass
+        self._scatter_item = None
+        self._active_scatter_id = None
+
+    def _prepare_for_new_plot(self):
+        """Fully reset the plot area before drawing a different plot."""
+        self._teardown_scatter_item()
+        self._scatter_plot_df = None
+        self._scatter_x_col = None
+        self._scatter_y_col = None
+        self._scatter_pass_mask = None
+        self._selected_scatter_index = None
+        if hasattr(self, "plot_container"):
+            self.plot_container.clear()
+
     def blank_plot(self):
         if hasattr(self, "plot_container"):
-            self._scatter_plot_df = None
-            self._scatter_item = None
-            self._selected_scatter_index = None
-            self.plot_container.clear()
+            self._prepare_for_new_plot()
             fonts = self._get_plot_font_sizes()
             label = pg.LabelItem(
                 "No plot to display.", color="k", size=fonts["subtitle_pt"]
@@ -187,8 +212,15 @@ class GraphingPanelWidget(QWidget):
             return None
         return compute_filter_pass_mask(plot_df, fw.filters, fw.compound_filters)
 
+    def _scatter_is_active(self):
+        return (
+            self._scatter_item is not None
+            and self._active_scatter_id is not None
+            and id(self._scatter_item) == self._active_scatter_id
+        )
+
     def _update_scatter_highlight(self):
-        if self._scatter_item is None or self._scatter_plot_df is None:
+        if not self._scatter_is_active() or self._scatter_plot_df is None:
             return
         if self._scatter_x_col is None or self._scatter_y_col is None:
             return
@@ -202,7 +234,7 @@ class GraphingPanelWidget(QWidget):
         self._scatter_item.setData(spots=spots)
 
     def _on_scatter_clicked(self, _plot, points):
-        if not points or self._scatter_plot_df is None:
+        if not self._scatter_is_active() or not points or self._scatter_plot_df is None:
             return
         row_index = points[0].data()
         if row_index is None:
@@ -210,7 +242,7 @@ class GraphingPanelWidget(QWidget):
         self._select_scatter_point(int(row_index))
 
     def _on_scatter_hovered(self, _plot, points):
-        if self._scatter_plot_df is None:
+        if not self._scatter_is_active() or self._scatter_plot_df is None:
             return
         if points:
             row = self._scatter_plot_df.iloc[int(points[0].data())]
@@ -228,7 +260,12 @@ class GraphingPanelWidget(QWidget):
             )
 
     def _select_scatter_point(self, row_index):
-        if self._scatter_plot_df is None or row_index not in self._scatter_plot_df.index:
+        if (
+            not self._scatter_is_active()
+            or self._scatter_plot_df is None
+            or row_index < 0
+            or row_index >= len(self._scatter_plot_df)
+        ):
             return
         self._selected_scatter_index = row_index
         self._update_scatter_highlight()
@@ -239,12 +276,7 @@ class GraphingPanelWidget(QWidget):
         self.pointSelected.emit(row.to_dict())
 
     def _clear_plot(self):
-        self._scatter_plot_df = None
-        self._scatter_item = None
-        self._scatter_x_col = None
-        self._scatter_y_col = None
-        self._selected_scatter_index = None
-        self.plot_container.clear()
+        self._prepare_for_new_plot()
 
     def has_plot_data(self):
         return self.data is not None and not self.data.empty
@@ -256,7 +288,13 @@ class GraphingPanelWidget(QWidget):
         return True
 
     def self_plot(self, plotting_function, button, page=None):
-        success = plotting_function(page)
+        self._prepare_for_new_plot()
+        self.plotSwitched.emit()
+        try:
+            success = plotting_function(page)
+        except Exception as e:
+            print(f"Error in particle locating or plotting: {e}")
+            success = False
         if not success:
             self.blank_plot()
             return
@@ -298,7 +336,6 @@ class GraphingPanelWidget(QWidget):
         )
 
     def _plot_scatter_panel(self, plot_df, x_col, y_col, title, xlabel, ylabel):
-        self._clear_plot()
         self._reset_selection_label()
         pass_mask = self._get_filter_pass_mask_for_plot(plot_df)
         plot_df = plot_df.reset_index(drop=True)
@@ -324,6 +361,7 @@ class GraphingPanelWidget(QWidget):
         scatter.sigHovered.connect(self._on_scatter_hovered)
         plot.addItem(scatter)
         self._scatter_item = scatter
+        self._active_scatter_id = id(scatter)
         if pass_mask is not None:
             removed = int((~pass_mask).sum())
             kept = int(pass_mask.sum())

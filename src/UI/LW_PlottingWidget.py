@@ -98,7 +98,6 @@ class LWPlottingWidget(GraphingUtils.GraphingPanelWidget):
             scaling = self.config_manager.get_detection_params().get("scaling", 1.0)
             drift = tp.compute_drift(self.data, smoothing=15) * scaling
 
-            self._clear_plot()
             plot, fonts = self._add_scaled_plot(title="Drift")
             self._style_plot(plot, xlabel="Frame", ylabel="Drift", fonts=fonts)
             line_width = self._get_scaled_pen_width(2.0)
@@ -129,7 +128,6 @@ class LWPlottingWidget(GraphingUtils.GraphingPanelWidget):
 
             scaling = self.config_manager.get_detection_params().get("scaling", 1.0) or 1.0
 
-            self._clear_plot()
             plot, fonts = self._add_scaled_plot(title="Trajectories")
             self._style_plot(
                 plot,

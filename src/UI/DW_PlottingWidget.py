@@ -112,7 +112,6 @@ class DWPlottingWidget(GraphingUtils.GraphingPanelWidget):
         try:
             if not self.check_for_empty_data():
                 return False
-            self._clear_plot()
             plot, fonts = self._add_scaled_plot(title="Mass (Brightness)")
             self._add_histogram(
                 plot, self.data["mass"].values, self.bins, xlabel="Mass", fonts=fonts
@@ -126,7 +125,6 @@ class DWPlottingWidget(GraphingUtils.GraphingPanelWidget):
         try:
             if not self.check_for_empty_data():
                 return False
-            self._clear_plot()
             plot, fonts = self._add_scaled_plot(title="Eccentricity")
             self._add_histogram(
                 plot, self.data["ecc"].values, self.bins, xlabel="Eccentricity", fonts=fonts
@@ -141,7 +139,6 @@ class DWPlottingWidget(GraphingUtils.GraphingPanelWidget):
             if not self.check_for_empty_data():
                 return False
 
-            self._clear_plot()
             fonts = self._get_plot_font_sizes()
             pos_columns = ["x", "y"]
             if "z" in self.data.columns:
