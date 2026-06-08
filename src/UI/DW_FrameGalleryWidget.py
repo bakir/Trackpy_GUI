@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
     QCheckBox,
 )
 from ..utils.InteractiveFrameViewer import InteractiveFrameViewer
+from ..utils.ParticleProcessing import apply_frame_view_processing
 
 
 class SaveFramesThread(QThread):
@@ -105,9 +106,12 @@ class DWFrameGalleryWidget(QWidget):
         layout = QVBoxLayout(self)
 
         self.frame_viewer = InteractiveFrameViewer()
+        self.frame_viewer.viewOptionsChanged.connect(self._on_view_options_changed)
         layout.addWidget(self.frame_viewer, 1)
 
-        viewer_hint = QLabel("Scroll to zoom, drag to pan (same as plot panels).")
+        viewer_hint = QLabel(
+            "Scroll to zoom, drag to pan. Right-click the frame for view options."
+        )
         viewer_hint.setAlignment(Qt.AlignCenter)
         viewer_hint.setStyleSheet("color: #666; font-size: 11px;")
         layout.addWidget(viewer_hint)
@@ -161,6 +165,12 @@ class DWFrameGalleryWidget(QWidget):
         self.current_particles_in_frame = None
         self.video_loaded = False
         self.scatter_highlight_info = None
+        self._raw_frame_bgr = None
+        self._raw_frame_number = None
+
+    def _on_view_options_changed(self):
+        if self._raw_frame_bgr is not None and 0 <= self.current_frame_idx < self.total_frames:
+            self.display_frame(self.current_frame_idx, reset_view=False)
 
     def _load_frame_bgr(self, frame_path):
         image = cv2.imread(frame_path)
@@ -270,11 +280,29 @@ class DWFrameGalleryWidget(QWidget):
         original_frame_path = os.path.join(
             self.original_frames_folder, f"frame_{frame_number:05d}.jpg"
         )
-        image_bgr = self._load_frame_bgr(original_frame_path)
-        if image_bgr is None:
-            self.frame_viewer.set_message("Frame not found")
-            self.update_frame_display()
-            return
+        if (
+            frame_number == self._raw_frame_number
+            and self._raw_frame_bgr is not None
+        ):
+            raw_bgr = self._raw_frame_bgr
+        else:
+            raw_bgr = self._load_frame_bgr(original_frame_path)
+            if raw_bgr is None:
+                self.frame_viewer.set_message("Frame not found")
+                self._raw_frame_bgr = None
+                self._raw_frame_number = None
+                self.update_frame_display()
+                return
+            self._raw_frame_bgr = raw_bgr
+            self._raw_frame_number = frame_number
+
+        view_opts = self.frame_viewer.get_view_options()
+        image_bgr = apply_frame_view_processing(
+            raw_bgr,
+            greyscale=view_opts["greyscale"],
+            threshold_enabled=view_opts["threshold_enabled"],
+            threshold_percent=view_opts["threshold_percent"],
+        )
 
         show_annotations = self.annotate_toggle.isChecked()
         highlight_info = None
