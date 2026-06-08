@@ -68,6 +68,7 @@ class DWFrameGalleryWidget(QWidget):
 
     frames_saved = Signal(int)
     frame_changed = Signal(int)  # Emits current frame number when frame changes
+    particleClickedOnFrame = Signal(dict)
 
     def __init__(self):
         super().__init__()
@@ -107,6 +108,7 @@ class DWFrameGalleryWidget(QWidget):
 
         self.frame_viewer = InteractiveFrameViewer()
         self.frame_viewer.viewOptionsChanged.connect(self._on_view_options_changed)
+        self.frame_viewer.particleClicked.connect(self._on_viewer_particle_click)
         layout.addWidget(self.frame_viewer, 1)
 
         viewer_hint = QLabel(
@@ -171,6 +173,40 @@ class DWFrameGalleryWidget(QWidget):
     def _on_view_options_changed(self):
         if self._raw_frame_bgr is not None and 0 <= self.current_frame_idx < self.total_frames:
             self.display_frame(self.current_frame_idx, reset_view=False)
+
+    def _on_viewer_particle_click(self, x, y):
+        """Find the nearest particle on the current frame and sync to scatter plots."""
+        if not self.file_controller:
+            return
+        try:
+            particles = self.file_controller.load_particles_data("all_particles.csv")
+        except Exception:
+            return
+        if particles.empty:
+            return
+
+        frame_particles = particles[particles["frame"] == self.current_frame_idx]
+        if frame_particles.empty:
+            return
+
+        radius = max(self.feature_size / 1.5, 5.0)
+        dx = frame_particles["x"] - x
+        dy = frame_particles["y"] - y
+        dist_sq = dx * dx + dy * dy
+        nearest_idx = dist_sq.idxmin()
+        if float(dist_sq.loc[nearest_idx]) > radius * radius:
+            return
+
+        particle = frame_particles.loc[nearest_idx].to_dict()
+        self.scatter_highlight_info = {
+            "frame": int(particle["frame"]),
+            "x": float(particle["x"]),
+            "y": float(particle["y"]),
+        }
+        if not self.annotate_toggle.isChecked():
+            self.annotate_toggle.setChecked(True)
+        self.display_frame(self.current_frame_idx, reset_view=False)
+        self.particleClickedOnFrame.emit(particle)
 
     def _load_frame_bgr(self, frame_path):
         image = cv2.imread(frame_path)

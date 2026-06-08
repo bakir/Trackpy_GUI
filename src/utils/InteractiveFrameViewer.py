@@ -28,6 +28,7 @@ class InteractiveFrameViewer(QWidget):
     """Displays a single frame with pan/zoom via PyQtGraph."""
 
     viewOptionsChanged = Signal()
+    particleClicked = Signal(float, float)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -68,6 +69,7 @@ class InteractiveFrameViewer(QWidget):
 
         self.image_item = pg.ImageItem()
         self.plot.addItem(self.image_item)
+        self.plot.scene().sigMouseClicked.connect(self._on_scene_mouse_clicked)
 
         self.stack.setCurrentWidget(self.placeholder_label)
 
@@ -174,6 +176,16 @@ class InteractiveFrameViewer(QWidget):
         if not self._has_image:
             return
         self.plot.autoRange(padding=0.02)
+
+    def _on_scene_mouse_clicked(self, event):
+        """Map a viewer click to image coordinates and emit for particle hit-testing."""
+        if not self._has_image or event.button() != Qt.MouseButton.LeftButton:
+            return
+        scene_pos = event.scenePos()
+        if not self.plot.vb.sceneBoundingRect().contains(scene_pos):
+            return
+        mouse_point = self.plot.vb.mapSceneToView(scene_pos)
+        self.particleClicked.emit(float(mouse_point.x()), float(mouse_point.y()))
 
     def clear(self):
         self._has_image = False

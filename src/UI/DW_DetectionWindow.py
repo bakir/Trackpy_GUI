@@ -192,7 +192,12 @@ class DWDetectionWindow(QMainWindow):
         )
         self.left_panel.pointSelected.connect(self.frame_player.highlight_particle)
         self.left_panel.plotSwitched.connect(self.frame_player.clear_scatter_highlight)
+        self.left_panel.plotSwitched.connect(self.left_panel.clear_linked_particle)
+        self.frame_player.particleClickedOnFrame.connect(
+            self.left_panel.select_particle_from_frame
+        )
         self.right_panel.particles_found.connect(self.frame_player.clear_scatter_highlight)
+        self.right_panel.particles_found.connect(self.left_panel.clear_linked_particle)
 
         # Update undo button state
         self.update_undo_button_state()

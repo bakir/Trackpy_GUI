@@ -56,6 +56,7 @@ class GraphingPanelWidget(QWidget):
         self._scatter_pass_mask = None
         self._selected_scatter_index = None
         self._active_scatter_id = None
+        self._linked_particle = None
 
     def set_config_manager(self, config_manager):
         self.config_manager = config_manager
@@ -167,6 +168,30 @@ class GraphingPanelWidget(QWidget):
             parts.append(f"ecc={row['ecc']:.3f}")
         return f"{prefix}: " + " | ".join(parts)
 
+    def _find_row_index_for_particle(self, plot_df, particle):
+        if particle is None or plot_df is None or plot_df.empty:
+            return None
+        frame = int(particle["frame"])
+        px = float(particle["x"])
+        py = float(particle["y"])
+        tol = 0.5
+        best_index = None
+        best_dist = None
+        for i, (_, row) in enumerate(plot_df.iterrows()):
+            if int(row["frame"]) != frame:
+                continue
+            dist = (float(row["x"]) - px) ** 2 + (float(row["y"]) - py) ** 2
+            if dist <= tol * tol:
+                return i
+            if best_dist is None or dist < best_dist:
+                best_dist = dist
+                best_index = i
+        if best_index is not None and best_dist is not None:
+            max_dist = max(self._get_scaled_scatter_size(), 8.0) ** 2
+            if best_dist <= max_dist:
+                return best_index
+        return None
+
     def _build_scatter_spots(
         self, plot_df, x_col, y_col, selected_index=None, pass_mask=None
     ):
@@ -174,14 +199,14 @@ class GraphingPanelWidget(QWidget):
         selected_size = size * 1.6
         kept_brush = pg.mkBrush(0, 0, 0, 45)
         removed_brush = pg.mkBrush(220, 60, 60, 170)
-        selected_brush = pg.mkBrush(30, 120, 220, 230)
+        selected_brush = pg.mkBrush(0, 200, 0, 230)
         spots = []
         for i, (_, row) in enumerate(plot_df.iterrows()):
             is_selected = selected_index is not None and i == selected_index
             passes = True if pass_mask is None else bool(pass_mask.iloc[i])
             if is_selected:
                 brush = selected_brush
-                pen = pg.mkPen(30, 120, 220, width=2)
+                pen = pg.mkPen(0, 160, 0, width=2)
                 point_size = selected_size
             elif passes:
                 brush = kept_brush
@@ -268,8 +293,13 @@ class GraphingPanelWidget(QWidget):
         ):
             return
         self._selected_scatter_index = row_index
-        self._update_scatter_highlight()
         row = self._scatter_plot_df.iloc[row_index]
+        self._linked_particle = {
+            "frame": int(row["frame"]),
+            "x": float(row["x"]),
+            "y": float(row["y"]),
+        }
+        self._update_scatter_highlight()
         self.selection_info_label.setText(
             self._format_particle_info(row, self._scatter_x_col, self._scatter_y_col)
         )
@@ -287,9 +317,10 @@ class GraphingPanelWidget(QWidget):
             return False
         return True
 
-    def self_plot(self, plotting_function, button, page=None):
+    def self_plot(self, plotting_function, button, page=None, emit_plot_switched=True):
         self._prepare_for_new_plot()
-        self.plotSwitched.emit()
+        if emit_plot_switched:
+            self.plotSwitched.emit()
         try:
             success = plotting_function(page)
         except Exception as e:
@@ -299,6 +330,50 @@ class GraphingPanelWidget(QWidget):
             self.blank_plot()
             return
         button.switch_button_color()
+
+    def clear_linked_particle(self):
+        """Clear the particle linked between the frame viewer and scatter plots."""
+        self._linked_particle = None
+        self._selected_scatter_index = None
+        if self._scatter_is_active():
+            self._update_scatter_highlight()
+        elif hasattr(self, "selection_info_label"):
+            self._reset_selection_label()
+
+    def select_particle_from_frame(self, particle_dict):
+        """Highlight a particle picked on the frame across filtering scatter plots."""
+        if not particle_dict or "frame" not in particle_dict:
+            return
+        self._linked_particle = {
+            "frame": int(particle_dict["frame"]),
+            "x": float(particle_dict["x"]),
+            "y": float(particle_dict["y"]),
+        }
+        self.selection_info_label.setText(
+            self._format_particle_info(particle_dict, prefix="Frame selection")
+        )
+
+        active = GraphingButton.highlighted_button
+        filter_buttons = {
+            getattr(self, "mass_size_button", None),
+            getattr(self, "mass_ecc_button", None),
+            getattr(self, "size_ecc_button", None),
+        }
+        page = getattr(self, "_filter_plot_page", "detection")
+        if active in filter_buttons:
+            plotters = {
+                self.mass_size_button: self.get_mass_size,
+                self.mass_ecc_button: self.get_mass_ecc,
+                self.size_ecc_button: self.get_size_ecc,
+            }
+            self.self_plot(plotters[active], active, page, emit_plot_switched=False)
+        elif hasattr(self, "mass_size_button"):
+            self.self_plot(
+                self.get_mass_size,
+                self.mass_size_button,
+                page,
+                emit_plot_switched=False,
+            )
 
     def _style_plot(self, plot, xlabel=None, ylabel=None, fonts=None):
         if fonts is None:
@@ -336,7 +411,8 @@ class GraphingPanelWidget(QWidget):
         )
 
     def _plot_scatter_panel(self, plot_df, x_col, y_col, title, xlabel, ylabel):
-        self._reset_selection_label()
+        if self._linked_particle is None:
+            self._reset_selection_label()
         pass_mask = self._get_filter_pass_mask_for_plot(plot_df)
         plot_df = plot_df.reset_index(drop=True)
         if pass_mask is not None:
@@ -345,14 +421,20 @@ class GraphingPanelWidget(QWidget):
         self._scatter_x_col = x_col
         self._scatter_y_col = y_col
         self._scatter_pass_mask = pass_mask
-        self._selected_scatter_index = None
+        self._selected_scatter_index = self._find_row_index_for_particle(
+            plot_df, self._linked_particle
+        )
 
         plot, fonts = self._add_scaled_plot(title=title)
         self._style_plot(plot, xlabel=xlabel, ylabel=ylabel, fonts=fonts)
 
         scatter = pg.ScatterPlotItem(
             spots=self._build_scatter_spots(
-                plot_df, x_col, y_col, pass_mask=pass_mask
+                plot_df,
+                x_col,
+                y_col,
+                selected_index=self._selected_scatter_index,
+                pass_mask=pass_mask,
             ),
             hoverable=True,
             tip=None,
@@ -365,9 +447,20 @@ class GraphingPanelWidget(QWidget):
         if pass_mask is not None:
             removed = int((~pass_mask).sum())
             kept = int(pass_mask.sum())
-            self.selection_info_label.setText(
+            filter_text = (
                 f"Filtering plot: {kept} kept (dark), {removed} removed (red). "
                 "Click a point to inspect."
+            )
+            if self._linked_particle is not None and self._selected_scatter_index is not None:
+                row = plot_df.iloc[self._selected_scatter_index]
+                filter_text += " " + self._format_particle_info(
+                    row, x_col, y_col, prefix="Highlighted"
+                )
+            self.selection_info_label.setText(filter_text)
+        elif self._linked_particle is not None and self._selected_scatter_index is not None:
+            row = plot_df.iloc[self._selected_scatter_index]
+            self.selection_info_label.setText(
+                self._format_particle_info(row, x_col, y_col, prefix="Frame selection")
             )
         return True
 
@@ -390,7 +483,7 @@ class GraphingPanelWidget(QWidget):
         }
         for button, (plotter, page) in filter_plotters.items():
             if button is not None and active is button:
-                self.self_plot(plotter, button, page)
+                self.self_plot(plotter, button, page, emit_plot_switched=False)
                 return
 
     def _plot_dataframe(self, df, page):
@@ -407,19 +500,25 @@ class GraphingPanelWidget(QWidget):
 
         self.mass_ecc_button = GraphingButton(text="Mass vs Eccentricity", parent=self)
         self.mass_ecc_button.clicked.connect(
-            lambda: self.self_plot(self.get_mass_ecc, self.mass_ecc_button, page)
+            lambda: self.self_plot(
+                self.get_mass_ecc, self.mass_ecc_button, page, emit_plot_switched=False
+            )
         )
         self.filter_layout.addWidget(self.mass_ecc_button, alignment=Qt.AlignTop)
 
         self.mass_size_button = GraphingButton(text="Mass vs Size", parent=self)
         self.mass_size_button.clicked.connect(
-            lambda: self.self_plot(self.get_mass_size, self.mass_size_button, page)
+            lambda: self.self_plot(
+                self.get_mass_size, self.mass_size_button, page, emit_plot_switched=False
+            )
         )
         self.filter_layout.addWidget(self.mass_size_button, alignment=Qt.AlignTop)
 
         self.size_ecc_button = GraphingButton(text="Size vs Eccentricity", parent=self)
         self.size_ecc_button.clicked.connect(
-            lambda: self.self_plot(self.get_size_ecc, self.size_ecc_button, page)
+            lambda: self.self_plot(
+                self.get_size_ecc, self.size_ecc_button, page, emit_plot_switched=False
+            )
         )
         self.filter_layout.addWidget(self.size_ecc_button, alignment=Qt.AlignTop)
 
