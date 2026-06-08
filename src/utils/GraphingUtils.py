@@ -11,7 +11,7 @@ Date: 2025-12-08
 
 from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QHBoxLayout, QPushButton
 from PySide6.QtGui import QFont
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 import numpy as np
 import pandas as pd
 import pyqtgraph as pg
@@ -43,8 +43,15 @@ class GraphingButton(QPushButton):
 class GraphingPanelWidget(QWidget):
     """Base widget for graphing panels with interactive PyQtGraph plots."""
 
+    pointSelected = Signal(dict)
+
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._scatter_plot_df = None
+        self._scatter_item = None
+        self._scatter_x_col = None
+        self._scatter_y_col = None
+        self._selected_scatter_index = None
 
     def set_config_manager(self, config_manager):
         self.config_manager = config_manager
@@ -61,6 +68,21 @@ class GraphingPanelWidget(QWidget):
         self.plot_container = pg.GraphicsLayoutWidget()
         self.plot_container.setBackground("w")
         self.layout.addWidget(self.plot_container, 20)
+
+        self.selection_info_label = QLabel("Click a point to inspect particle coordinates.")
+        self.selection_info_label.setWordWrap(True)
+        self.selection_info_label.setAlignment(Qt.AlignCenter)
+        self.selection_info_label.setStyleSheet(
+            """
+            QLabel {
+                background-color: #f0f0f0;
+                padding: 6px;
+                border-radius: 4px;
+            }
+        """
+        )
+        self.layout.addWidget(self.selection_info_label)
+
         self.blank_plot()
 
     def _get_plot_font_sizes(self):
@@ -83,12 +105,118 @@ class GraphingPanelWidget(QWidget):
 
     def blank_plot(self):
         if hasattr(self, "plot_container"):
+            self._scatter_plot_df = None
+            self._scatter_item = None
+            self._selected_scatter_index = None
             self.plot_container.clear()
             fonts = self._get_plot_font_sizes()
             label = pg.LabelItem(
                 "No plot to display.", color="k", size=fonts["subtitle_pt"]
             )
             self.plot_container.addItem(label, row=0, col=0)
+            self._reset_selection_label()
+
+    def _reset_selection_label(self):
+        if hasattr(self, "selection_info_label"):
+            self.selection_info_label.setText("Click a point to inspect particle coordinates.")
+
+    def _format_particle_info(self, row, x_col=None, y_col=None, prefix="Selected"):
+        parts = []
+        if x_col is not None and y_col is not None and x_col in row and y_col in row:
+            parts.append(f"plot {x_col}={row[x_col]:.3f}")
+            parts.append(f"{y_col}={row[y_col]:.3f}")
+        if "frame" in row:
+            parts.append(f"frame={int(row['frame']) + 1}")
+        if "x" in row:
+            parts.append(f"x={row['x']:.2f}")
+        if "y" in row:
+            parts.append(f"y={row['y']:.2f}")
+        if "particle" in row:
+            parts.append(f"particle={int(row['particle'])}")
+        if "mass" in row:
+            parts.append(f"mass={row['mass']:.2f}")
+        if "size" in row:
+            parts.append(f"size={row['size']:.2f}")
+        if "ecc" in row:
+            parts.append(f"ecc={row['ecc']:.3f}")
+        return f"{prefix}: " + " | ".join(parts)
+
+    def _build_scatter_spots(self, plot_df, x_col, y_col, selected_index=None):
+        size = self._get_scaled_scatter_size()
+        selected_size = size * 1.6
+        default_brush = pg.mkBrush(0, 0, 0, 30)
+        selected_brush = pg.mkBrush(220, 40, 40, 220)
+        spots = []
+        for index, row in plot_df.iterrows():
+            is_selected = selected_index is not None and index == selected_index
+            spots.append(
+                {
+                    "pos": (float(row[x_col]), float(row[y_col])),
+                    "data": int(index),
+                    "brush": selected_brush if is_selected else default_brush,
+                    "size": selected_size if is_selected else size,
+                    "pen": pg.mkPen(220, 40, 40, width=2) if is_selected else None,
+                }
+            )
+        return spots
+
+    def _update_scatter_highlight(self):
+        if self._scatter_item is None or self._scatter_plot_df is None:
+            return
+        if self._scatter_x_col is None or self._scatter_y_col is None:
+            return
+        spots = self._build_scatter_spots(
+            self._scatter_plot_df,
+            self._scatter_x_col,
+            self._scatter_y_col,
+            self._selected_scatter_index,
+        )
+        self._scatter_item.setData(spots=spots)
+
+    def _on_scatter_clicked(self, _plot, points):
+        if not points or self._scatter_plot_df is None:
+            return
+        row_index = points[0].data()
+        if row_index is None:
+            return
+        self._select_scatter_point(int(row_index))
+
+    def _on_scatter_hovered(self, _plot, points):
+        if self._scatter_plot_df is None:
+            return
+        if points:
+            row = self._scatter_plot_df.iloc[int(points[0].data())]
+            self.selection_info_label.setText(
+                self._format_particle_info(
+                    row, self._scatter_x_col, self._scatter_y_col, prefix="Hover"
+                )
+            )
+        elif self._selected_scatter_index is None:
+            self._reset_selection_label()
+        else:
+            row = self._scatter_plot_df.iloc[self._selected_scatter_index]
+            self.selection_info_label.setText(
+                self._format_particle_info(row, self._scatter_x_col, self._scatter_y_col)
+            )
+
+    def _select_scatter_point(self, row_index):
+        if self._scatter_plot_df is None or row_index not in self._scatter_plot_df.index:
+            return
+        self._selected_scatter_index = row_index
+        self._update_scatter_highlight()
+        row = self._scatter_plot_df.iloc[row_index]
+        self.selection_info_label.setText(
+            self._format_particle_info(row, self._scatter_x_col, self._scatter_y_col)
+        )
+        self.pointSelected.emit(row.to_dict())
+
+    def _clear_plot(self):
+        self._scatter_plot_df = None
+        self._scatter_item = None
+        self._scatter_x_col = None
+        self._scatter_y_col = None
+        self._selected_scatter_index = None
+        self.plot_container.clear()
 
     def has_plot_data(self):
         return self.data is not None and not self.data.empty
@@ -105,9 +233,6 @@ class GraphingPanelWidget(QWidget):
             self.blank_plot()
             return
         button.switch_button_color()
-
-    def _clear_plot(self):
-        self.plot_container.clear()
 
     def _style_plot(self, plot, xlabel=None, ylabel=None, fonts=None):
         if fonts is None:
@@ -144,19 +269,27 @@ class GraphingPanelWidget(QWidget):
             )
         )
 
-    def _plot_scatter_panel(self, x, y, title, xlabel, ylabel):
+    def _plot_scatter_panel(self, plot_df, x_col, y_col, title, xlabel, ylabel):
         self._clear_plot()
+        self._reset_selection_label()
+        plot_df = plot_df.reset_index(drop=True)
+        self._scatter_plot_df = plot_df
+        self._scatter_x_col = x_col
+        self._scatter_y_col = y_col
+        self._selected_scatter_index = None
+
         plot, fonts = self._add_scaled_plot(title=title)
         self._style_plot(plot, xlabel=xlabel, ylabel=ylabel, fonts=fonts)
-        plot.addItem(
-            pg.ScatterPlotItem(
-                x=np.asarray(x),
-                y=np.asarray(y),
-                pen=None,
-                brush=pg.mkBrush(0, 0, 0, 30),
-                size=self._get_scaled_scatter_size(),
-            )
+
+        scatter = pg.ScatterPlotItem(
+            spots=self._build_scatter_spots(plot_df, x_col, y_col),
+            hoverable=True,
+            tip=None,
         )
+        scatter.sigClicked.connect(self._on_scatter_clicked)
+        scatter.sigHovered.connect(self._on_scatter_hovered)
+        plot.addItem(scatter)
+        self._scatter_item = scatter
         return True
 
     def _plot_dataframe(self, df, page):
@@ -197,8 +330,9 @@ class GraphingPanelWidget(QWidget):
                 return False
             plot_df = self._plot_dataframe(self.data, page)
             return self._plot_scatter_panel(
-                plot_df["mass"],
-                plot_df["size"],
+                plot_df,
+                "mass",
+                "size",
                 "Mass vs Size",
                 "Mass",
                 "Size",
@@ -213,8 +347,9 @@ class GraphingPanelWidget(QWidget):
                 return False
             plot_df = self._plot_dataframe(self.data, page)
             return self._plot_scatter_panel(
-                plot_df["mass"],
-                plot_df["ecc"],
+                plot_df,
+                "mass",
+                "ecc",
                 "Mass vs Eccentricity",
                 "Mass",
                 "Eccentricity",
@@ -229,8 +364,9 @@ class GraphingPanelWidget(QWidget):
                 return False
             plot_df = self._plot_dataframe(self.data, page)
             return self._plot_scatter_panel(
-                plot_df["size"],
-                plot_df["ecc"],
+                plot_df,
+                "size",
+                "ecc",
                 "Size vs Eccentricity",
                 "Size",
                 "Eccentricity",

@@ -165,6 +165,7 @@ class DWFrameGalleryWidget(QWidget):
         self.feature_size = 15
         self.current_particles_in_frame = None
         self.video_loaded = False
+        self.scatter_highlight_info = None
 
     def save_video_frames(self, video_path):
         """Save video frames to disk in a background thread"""
@@ -283,8 +284,17 @@ class DWFrameGalleryWidget(QWidget):
             if info and info.get("frame") == frame_number:
                 highlight_info = info
 
+        scatter_highlight = None
+        if (
+            self.scatter_highlight_info
+            and self.scatter_highlight_info.get("frame") == frame_number
+        ):
+            scatter_highlight = self.scatter_highlight_info
+
         # 3. Decide if annotation is needed
-        needs_annotation = show_annotations or highlight_info is not None
+        needs_annotation = (
+            show_annotations or highlight_info is not None or scatter_highlight is not None
+        )
         pixmap_path = original_frame_path
 
         if needs_annotation and self.file_controller:
@@ -321,7 +331,7 @@ class DWFrameGalleryWidget(QWidget):
                                     2,
                                 )
 
-                # Annotate with highlight box
+                # Annotate with highlight box from errant particle gallery
                 if highlight_info:
                     x, y = int(highlight_info["x"]), int(highlight_info["y"])
                     crop_radius = 25  # 50x50 box
@@ -330,6 +340,18 @@ class DWFrameGalleryWidget(QWidget):
                         (x - crop_radius, y - crop_radius),
                         (x + crop_radius, y + crop_radius),
                         (255, 0, 0),
+                        3,
+                    )
+
+                # Annotate particle selected from scatter plot
+                if scatter_highlight:
+                    x, y = int(scatter_highlight["x"]), int(scatter_highlight["y"])
+                    crop_radius = 25
+                    cv2.rectangle(
+                        image_to_modify,
+                        (x - crop_radius, y - crop_radius),
+                        (x + crop_radius, y + crop_radius),
+                        (0, 200, 0),
                         3,
                     )
 
@@ -352,6 +374,29 @@ class DWFrameGalleryWidget(QWidget):
 
         self.update_frame_display()
         self.frame_changed.emit(frame_number)
+
+    def highlight_particle(self, particle_info):
+        """Jump to and highlight a particle selected from a scatter plot."""
+        if not particle_info or "frame" not in particle_info:
+            self.clear_scatter_highlight()
+            return
+
+        frame_number = int(particle_info["frame"])
+        self.scatter_highlight_info = {
+            "frame": frame_number,
+            "x": float(particle_info["x"]),
+            "y": float(particle_info["y"]),
+        }
+        if not self.annotate_toggle.isChecked():
+            self.annotate_toggle.setChecked(True)
+        self.display_frame(frame_number)
+
+    def clear_scatter_highlight(self):
+        """Remove scatter-plot particle highlight from the frame view."""
+        if self.scatter_highlight_info is None:
+            return
+        self.scatter_highlight_info = None
+        self.display_frame(self.current_frame_idx)
 
     def update_frame_display(self):
         """Update the frame display and input"""
