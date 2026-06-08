@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
     QDialog,
     QComboBox,
     QLineEdit,
+    QDoubleSpinBox,
     QMessageBox,
     QScrollArea,
     QFrame,
@@ -293,81 +294,144 @@ class CompoundFilterCreatorDialog(QDialog):
 
 
 class FilterCard(QFrame):
-    """Widget representing a single filter card."""
+    """Editable widget representing a single filter card."""
 
-    def __init__(self, filter_obj: Filter, on_delete: Callable, parent=None):
-        """
-        Initialize a filter card widget.
-
-        Parameters
-        ----------
-        filter_obj : Filter
-            The filter object to display.
-        on_delete : Callable
-            Callback function to call when filter is deleted.
-        parent : QWidget, optional
-            Parent widget. Defaults to None.
-
-        Returns
-        -------
-        None
-        """
+    def __init__(
+        self,
+        filter_obj: Filter,
+        available_parameters: List[str],
+        on_delete: Callable,
+        on_changed: Callable,
+        parent=None,
+    ):
         super().__init__(parent)
         self.filter_obj = filter_obj
         self.on_delete = on_delete
+        self.on_changed = on_changed
         self.setFrameStyle(QFrame.Box)
         layout = QHBoxLayout(self)
         layout.setContentsMargins(8, 4, 8, 4)
-        filter_text = f"{filter_obj.parameter} {filter_obj.operator} {filter_obj.value}"
-        label = QLabel(filter_text)
-        label_font = QFont()
-        label_font.setBold(True)
-        label.setFont(label_font)
-        layout.addWidget(label)
+
+        self.parameter_combo = QComboBox()
+        self.parameter_combo.addItems(available_parameters)
+        if filter_obj.parameter in available_parameters:
+            self.parameter_combo.setCurrentText(filter_obj.parameter)
+
+        self.operator_combo = QComboBox()
+        self.operator_combo.addItems(["<", "<=", ">", ">=", "==", "!="])
+        self.operator_combo.setCurrentText(filter_obj.operator)
+
+        self.value_spin = QDoubleSpinBox()
+        self.value_spin.setRange(-1e12, 1e12)
+        self.value_spin.setDecimals(4)
+        self.value_spin.setSingleStep(1.0)
+        self.value_spin.setValue(float(filter_obj.value))
+
+        self.parameter_combo.currentTextChanged.connect(self._sync_filter)
+        self.operator_combo.currentTextChanged.connect(self._sync_filter)
+        self.value_spin.valueChanged.connect(self._sync_filter)
+
+        layout.addWidget(self.parameter_combo)
+        layout.addWidget(self.operator_combo)
+        layout.addWidget(self.value_spin)
+
         delete_button = QPushButton("×")
         delete_button.setFixedSize(24, 24)
         delete_button.clicked.connect(lambda: self.on_delete(filter_obj.filter_id))
         layout.addWidget(delete_button)
 
+    def _sync_filter(self):
+        self.filter_obj.parameter = self.parameter_combo.currentText()
+        self.filter_obj.operator = self.operator_combo.currentText()
+        self.filter_obj.value = float(self.value_spin.value())
+        self.on_changed()
+
 
 class CompoundFilterCard(QFrame):
-    """Widget representing a compound filter card."""
+    """Editable widget representing a compound filter card."""
 
-    def __init__(self, compound_filter_obj: CompoundFilter, on_delete: Callable, parent=None):
-        """
-        Initialize a compound filter card widget.
-
-        Parameters
-        ----------
-        compound_filter_obj : CompoundFilter
-            The compound filter object to display.
-        on_delete : Callable
-            Callback function to call when filter is deleted.
-        parent : QWidget, optional
-            Parent widget. Defaults to None.
-
-        Returns
-        -------
-        None
-        """
+    def __init__(
+        self,
+        compound_filter_obj: CompoundFilter,
+        available_parameters: List[str],
+        on_delete: Callable,
+        on_changed: Callable,
+        parent=None,
+    ):
         super().__init__(parent)
         self.compound_filter_obj = compound_filter_obj
         self.on_delete = on_delete
+        self.on_changed = on_changed
         self.setFrameStyle(QFrame.Box)
-        layout = QHBoxLayout(self)
+        layout = QVBoxLayout(self)
         layout.setContentsMargins(8, 4, 8, 4)
-        f1 = compound_filter_obj.filter1
-        f2 = compound_filter_obj.filter2
-        filter_text = f"({f1.parameter} {f1.operator} {f1.value}) {compound_filter_obj.operator} ({f2.parameter} {f2.operator} {f2.value})"
-        label = QLabel(filter_text)
-        label_font = QFont()
-        label_font.setBold(True)
-        label.setFont(label_font)
-        layout.addWidget(label)
+
+        row1 = QHBoxLayout()
+        self.parameter1_combo = QComboBox()
+        self.parameter1_combo.addItems(available_parameters)
+        self.parameter1_combo.setCurrentText(compound_filter_obj.filter1.parameter)
+        self.operator1_combo = QComboBox()
+        self.operator1_combo.addItems(["<", "<=", ">", ">=", "==", "!="])
+        self.operator1_combo.setCurrentText(compound_filter_obj.filter1.operator)
+        self.value1_spin = QDoubleSpinBox()
+        self.value1_spin.setRange(-1e12, 1e12)
+        self.value1_spin.setDecimals(4)
+        self.value1_spin.setValue(float(compound_filter_obj.filter1.value))
+        row1.addWidget(self.parameter1_combo)
+        row1.addWidget(self.operator1_combo)
+        row1.addWidget(self.value1_spin)
+        layout.addLayout(row1)
+
+        row_op = QHBoxLayout()
+        row_op.addWidget(QLabel("Combine with:"))
+        self.compound_operator_combo = QComboBox()
+        self.compound_operator_combo.addItems(["AND", "OR", "XOR"])
+        self.compound_operator_combo.setCurrentText(compound_filter_obj.operator)
+        row_op.addWidget(self.compound_operator_combo)
+        row_op.addStretch()
+        layout.addLayout(row_op)
+
+        row2 = QHBoxLayout()
+        self.parameter2_combo = QComboBox()
+        self.parameter2_combo.addItems(available_parameters)
+        self.parameter2_combo.setCurrentText(compound_filter_obj.filter2.parameter)
+        self.operator2_combo = QComboBox()
+        self.operator2_combo.addItems(["<", "<=", ">", ">=", "==", "!="])
+        self.operator2_combo.setCurrentText(compound_filter_obj.filter2.operator)
+        self.value2_spin = QDoubleSpinBox()
+        self.value2_spin.setRange(-1e12, 1e12)
+        self.value2_spin.setDecimals(4)
+        self.value2_spin.setValue(float(compound_filter_obj.filter2.value))
+        row2.addWidget(self.parameter2_combo)
+        row2.addWidget(self.operator2_combo)
+        row2.addWidget(self.value2_spin)
+
         delete_button = QPushButton("×")
         delete_button.setFixedSize(24, 24)
-        delete_button.clicked.connect(lambda: self.on_delete(compound_filter_obj.filter_id))
-        layout.addWidget(delete_button)
+        delete_button.clicked.connect(
+            lambda: self.on_delete(compound_filter_obj.filter_id)
+        )
+        row2.addWidget(delete_button)
+        layout.addLayout(row2)
+
+        self.parameter1_combo.currentTextChanged.connect(self._sync_filter)
+        self.operator1_combo.currentTextChanged.connect(self._sync_filter)
+        self.value1_spin.valueChanged.connect(self._sync_filter)
+        self.compound_operator_combo.currentTextChanged.connect(self._sync_filter)
+        self.parameter2_combo.currentTextChanged.connect(self._sync_filter)
+        self.operator2_combo.currentTextChanged.connect(self._sync_filter)
+        self.value2_spin.valueChanged.connect(self._sync_filter)
+
+    def _sync_filter(self):
+        cf = self.compound_filter_obj
+        cf.filter1.parameter = self.parameter1_combo.currentText()
+        cf.filter1.operator = self.operator1_combo.currentText()
+        cf.filter1.value = float(self.value1_spin.value())
+        cf.filter2.parameter = self.parameter2_combo.currentText()
+        cf.filter2.operator = self.operator2_combo.currentText()
+        cf.filter2.value = float(self.value2_spin.value())
+        cf.operator = self.compound_operator_combo.currentText()
+        self.on_changed()
 
 
 class DWLWFilteringWidget(QWidget):
@@ -465,6 +529,14 @@ class DWLWFilteringWidget(QWidget):
         title_font.setPointSize(12)
         title.setFont(title_font)
         layout.addWidget(title)
+
+        self.filter_info_label = QLabel(
+            "Each filter removes all particles that do NOT meet its condition. "
+            "On filtering plots, kept particles are dark and removed particles are red."
+        )
+        self.filter_info_label.setWordWrap(True)
+        self.filter_info_label.setStyleSheet("color: #555555; font-style: italic;")
+        layout.addWidget(self.filter_info_label)
 
         add_button = QPushButton("+ Add Filter")
         add_button.clicked.connect(self.open_filter_creator)
@@ -655,6 +727,11 @@ class DWLWFilteringWidget(QWidget):
         self.save_filters_to_disk()
         self.apply_filters_and_notify()
 
+    def on_filter_edited(self):
+        """Persist and apply filters after inline edits."""
+        self.save_filters_to_disk()
+        self.apply_filters_and_notify()
+
     def update_filter_cards_ui(self):
         """
         Update the filter cards display in the UI.
@@ -667,11 +744,20 @@ class DWLWFilteringWidget(QWidget):
             item = self.cards_layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
+        params = self.available_parameters or ["mass", "size", "ecc"]
         for filter_obj in self.filters:
-            card = FilterCard(filter_obj, self.remove_filter, self)
+            card = FilterCard(
+                filter_obj, params, self.remove_filter, self.on_filter_edited, self
+            )
             self.cards_layout.insertWidget(self.cards_layout.count() - 1, card)
         for compound_filter_obj in self.compound_filters:
-            card = CompoundFilterCard(compound_filter_obj, self.remove_compound_filter, self)
+            card = CompoundFilterCard(
+                compound_filter_obj,
+                params,
+                self.remove_compound_filter,
+                self.on_filter_edited,
+                self,
+            )
             self.cards_layout.insertWidget(self.cards_layout.count() - 1, card)
         total_filters = len(self.filters) + len(self.compound_filters)
         self.status_label.setText(
@@ -861,6 +947,18 @@ class DWLWFilteringWidget(QWidget):
         print(f"  Filtered: {len(filtered_data)} particles")
         self.update_particle_labels(original_count, len(filtered_data))
         return filtered_data
+
+
+def compute_filter_pass_mask(
+    df: pd.DataFrame, filters: List[Filter], compound_filters: List[CompoundFilter] = None
+) -> pd.Series:
+    """Return a boolean mask (aligned to df.index) for rows that pass all filters."""
+    if df.empty:
+        return pd.Series(dtype=bool)
+    if not filters and (not compound_filters or len(compound_filters) == 0):
+        return pd.Series(True, index=df.index)
+    filtered = apply_filters(df, filters, compound_filters or [])
+    return pd.Series(df.index.isin(filtered.index), index=df.index)
 
 
 def apply_single_filter(df: pd.DataFrame, filter_obj: Filter) -> pd.Series:

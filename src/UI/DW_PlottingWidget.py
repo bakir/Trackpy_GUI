@@ -75,6 +75,9 @@ class DWPlottingWidget(GraphingUtils.GraphingPanelWidget):
         self.layout.addWidget(self.graphing_buttons)
 
         self.filtering_widget = DWLWFilteringWidget(source_data_file="all_particles.csv")
+        self.filtering_widget.filteredParticlesUpdated.connect(
+            self.refresh_active_filter_plot
+        )
         self.layout.addWidget(self.filtering_widget)
         self.layout.addStretch(1)
 

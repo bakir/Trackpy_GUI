@@ -65,6 +65,9 @@ class LWPlottingWidget(GraphingUtils.GraphingPanelWidget):
         self.filtering_widget.filteredParticlesUpdated.connect(
             self.filteredTrajectoriesUpdated.emit
         )
+        self.filtering_widget.filteredParticlesUpdated.connect(
+            self.refresh_active_filter_plot
+        )
         self.layout.addWidget(self.filtering_widget)
         self.layout.addStretch(1)
 

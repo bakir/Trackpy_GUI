@@ -17,6 +17,7 @@ import pandas as pd
 import pyqtgraph as pg
 
 from .SizingUtils import get_plot_font_sizes, scaled_length
+from ..UI.DW_LW_FilteringWidget import compute_filter_pass_mask
 
 
 pg.setConfigOptions(antialias=True, background="w", foreground="k")
@@ -141,24 +142,50 @@ class GraphingPanelWidget(QWidget):
             parts.append(f"ecc={row['ecc']:.3f}")
         return f"{prefix}: " + " | ".join(parts)
 
-    def _build_scatter_spots(self, plot_df, x_col, y_col, selected_index=None):
+    def _build_scatter_spots(
+        self, plot_df, x_col, y_col, selected_index=None, pass_mask=None
+    ):
         size = self._get_scaled_scatter_size()
         selected_size = size * 1.6
-        default_brush = pg.mkBrush(0, 0, 0, 30)
-        selected_brush = pg.mkBrush(220, 40, 40, 220)
+        kept_brush = pg.mkBrush(0, 0, 0, 45)
+        removed_brush = pg.mkBrush(220, 60, 60, 170)
+        selected_brush = pg.mkBrush(30, 120, 220, 230)
         spots = []
-        for index, row in plot_df.iterrows():
-            is_selected = selected_index is not None and index == selected_index
+        for i, (_, row) in enumerate(plot_df.iterrows()):
+            is_selected = selected_index is not None and i == selected_index
+            passes = True if pass_mask is None else bool(pass_mask.iloc[i])
+            if is_selected:
+                brush = selected_brush
+                pen = pg.mkPen(30, 120, 220, width=2)
+                point_size = selected_size
+            elif passes:
+                brush = kept_brush
+                pen = None
+                point_size = size
+            else:
+                brush = removed_brush
+                pen = pg.mkPen(180, 40, 40, width=1)
+                point_size = size
             spots.append(
                 {
                     "pos": (float(row[x_col]), float(row[y_col])),
-                    "data": int(index),
-                    "brush": selected_brush if is_selected else default_brush,
-                    "size": selected_size if is_selected else size,
-                    "pen": pg.mkPen(220, 40, 40, width=2) if is_selected else None,
+                    "data": i,
+                    "brush": brush,
+                    "size": point_size,
+                    "pen": pen,
                 }
             )
         return spots
+
+    def _get_filter_pass_mask_for_plot(self, plot_df):
+        if not hasattr(self, "filtering_widget") or self.filtering_widget is None:
+            return None
+        fw = self.filtering_widget
+        if not fw.filters and not fw.compound_filters:
+            return None
+        if plot_df is None or plot_df.empty:
+            return None
+        return compute_filter_pass_mask(plot_df, fw.filters, fw.compound_filters)
 
     def _update_scatter_highlight(self):
         if self._scatter_item is None or self._scatter_plot_df is None:
@@ -170,6 +197,7 @@ class GraphingPanelWidget(QWidget):
             self._scatter_x_col,
             self._scatter_y_col,
             self._selected_scatter_index,
+            self._scatter_pass_mask,
         )
         self._scatter_item.setData(spots=spots)
 
@@ -272,17 +300,23 @@ class GraphingPanelWidget(QWidget):
     def _plot_scatter_panel(self, plot_df, x_col, y_col, title, xlabel, ylabel):
         self._clear_plot()
         self._reset_selection_label()
+        pass_mask = self._get_filter_pass_mask_for_plot(plot_df)
         plot_df = plot_df.reset_index(drop=True)
+        if pass_mask is not None:
+            pass_mask = pass_mask.reset_index(drop=True)
         self._scatter_plot_df = plot_df
         self._scatter_x_col = x_col
         self._scatter_y_col = y_col
+        self._scatter_pass_mask = pass_mask
         self._selected_scatter_index = None
 
         plot, fonts = self._add_scaled_plot(title=title)
         self._style_plot(plot, xlabel=xlabel, ylabel=ylabel, fonts=fonts)
 
         scatter = pg.ScatterPlotItem(
-            spots=self._build_scatter_spots(plot_df, x_col, y_col),
+            spots=self._build_scatter_spots(
+                plot_df, x_col, y_col, pass_mask=pass_mask
+            ),
             hoverable=True,
             tip=None,
         )
@@ -290,7 +324,36 @@ class GraphingPanelWidget(QWidget):
         scatter.sigHovered.connect(self._on_scatter_hovered)
         plot.addItem(scatter)
         self._scatter_item = scatter
+        if pass_mask is not None:
+            removed = int((~pass_mask).sum())
+            kept = int(pass_mask.sum())
+            self.selection_info_label.setText(
+                f"Filtering plot: {kept} kept (dark), {removed} removed (red). "
+                "Click a point to inspect."
+            )
         return True
+
+    def refresh_active_filter_plot(self):
+        """Re-draw the active filtering scatter plot after filter edits."""
+        active = GraphingButton.highlighted_button
+        filter_plotters = {
+            getattr(self, "mass_size_button", None): (
+                self.get_mass_size,
+                getattr(self, "_filter_plot_page", "detection"),
+            ),
+            getattr(self, "mass_ecc_button", None): (
+                self.get_mass_ecc,
+                getattr(self, "_filter_plot_page", "detection"),
+            ),
+            getattr(self, "size_ecc_button", None): (
+                self.get_size_ecc,
+                getattr(self, "_filter_plot_page", "detection"),
+            ),
+        }
+        for button, (plotter, page) in filter_plotters.items():
+            if button is not None and active is button:
+                self.self_plot(plotter, button, page)
+                return
 
     def _plot_dataframe(self, df, page):
         if page == "detection":
@@ -298,6 +361,7 @@ class GraphingPanelWidget(QWidget):
         return df.groupby(["particle"]).mean()
 
     def filtering_buttons(self, button_layout, page):
+        self._filter_plot_page = page
         self.filter = QWidget()
         self.filter_layout = QVBoxLayout(self.filter)
         self.filter_label = QLabel("Filtering")
