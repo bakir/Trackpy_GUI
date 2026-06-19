@@ -217,7 +217,7 @@ class ConfigManager:
             Dictionary containing linking parameters (search_range, memory, min_trajectory_length, drift).
         """
         return {
-            "search_range": int(self.get("Linking", "search_range", 10)),
+            "search_range": float(self.get("Linking", "search_range", 10)),
             "memory": int(self.get("Linking", "memory", 10)),
             "min_trajectory_length": int(self.get("Linking", "min_trajectory_length", 10)),
             "drift": self.get("Linking", "drift", "false").lower() == "true",

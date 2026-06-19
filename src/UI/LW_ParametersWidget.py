@@ -62,9 +62,10 @@ class LWParametersWidget(QWidget):
         self.form = QFormLayout()
 
         # Inputs for trajectory linking parameters
-        self.search_range_input = QSpinBox()
-        self.search_range_input.setRange(1, 1000)
-        self.search_range_input.setSingleStep(1)
+        self.search_range_input = QDoubleSpinBox()
+        self.search_range_input.setDecimals(2)
+        self.search_range_input.setRange(0.01, 1000.0)
+        self.search_range_input.setSingleStep(0.5)
         self.search_range_input.setToolTip(
             "Maximum distance a particle can move between frames (pixels)."
         )
@@ -154,7 +155,7 @@ class LWParametersWidget(QWidget):
         if not self.config_manager:
             return
         params = self.config_manager.get_linking_params()
-        self.search_range_input.setValue(int(params.get("search_range", 10)))
+        self.search_range_input.setValue(float(params.get("search_range", 10)))
         self.memory_input.setValue(int(params.get("memory", 10)))
         self.min_trajectory_length_input.setValue(int(params.get("min_trajectory_length", 10)))
 
@@ -162,7 +163,7 @@ class LWParametersWidget(QWidget):
         if not self.config_manager:
             return
         params = {
-            "search_range": int(self.search_range_input.value()),
+            "search_range": float(self.search_range_input.value()),
             "memory": int(self.memory_input.value()),
             "min_trajectory_length": int(self.min_trajectory_length_input.value()),
         }
@@ -234,7 +235,7 @@ class LWParametersWidget(QWidget):
         QApplication.processEvents()  # Update UI immediately
 
         try:
-            search_range = int(linking_params.get("search_range", 10))
+            search_range = float(linking_params.get("search_range", 10))
             memory = int(linking_params.get("memory", 10))
             min_trajectory_length = int(linking_params.get("min_trajectory_length", 10))
 
