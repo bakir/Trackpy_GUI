@@ -82,7 +82,7 @@ def locate_particles(frame, feature_size=15, min_mass=100, invert=False, thresho
 # =============================================================================
 
 
-def find_particles_in_frames(image_paths, params=None, progress_callback=None):
+def find_particles_in_frames(image_paths, params=None, progress_callback=None, cancel_check=None):
     """
     Finds particles in a series of images and returns the data.
 
@@ -94,11 +94,14 @@ def find_particles_in_frames(image_paths, params=None, progress_callback=None):
         Detection parameters.
     progress_callback : Signal, optional
         A signal to emit progress updates.
+    cancel_check : callable, optional
+        If provided, called before each frame; return True to stop early.
 
     Returns
     -------
-    pandas.DataFrame
-        A DataFrame containing the found particles.
+    pandas.DataFrame or None
+        A DataFrame containing the found particles, an empty DataFrame if none
+        were found, or None if detection was cancelled.
     """
     if params is None:
         params = get_detection_params()
@@ -113,6 +116,11 @@ def find_particles_in_frames(image_paths, params=None, progress_callback=None):
     all_features = []
 
     for image_path in image_paths:
+        if cancel_check and cancel_check():
+            if progress_callback:
+                progress_callback.emit("Cancelled.")
+            return None
+
         basename = os.path.basename(image_path)
         name_part = os.path.splitext(basename)[0]
         frame_number_str = name_part.split("_")[-1]
@@ -309,6 +317,57 @@ def save_errant_particle_crops_for_frame(params):
         json.dump(errant_particles_data, f, indent=4)
 
 
+def _threshold_single_gray(gray, threshold_percent):
+    """
+    Percentile threshold on one grayscale image (same logic as RB errant overlays).
+
+    Returns a single-channel image with white background and dark particles.
+    """
+    percentile = 100 - threshold_percent
+    threshold_val = np.percentile(gray.flatten(), percentile)
+    _, thresh = cv2.threshold(gray, threshold_val, 255, cv2.THRESH_BINARY_INV)
+    if np.sum(thresh == 255) < (thresh.size * 0.5):
+        thresh = cv2.bitwise_not(thresh)
+    return thresh
+
+
+def apply_frame_view_processing(
+    image_bgr, greyscale=False, threshold_enabled=False, threshold_percent=50
+):
+    """
+    Apply display-only view transforms for the interactive frame viewer.
+
+    Parameters
+    ----------
+    image_bgr : np.ndarray
+        Source frame in BGR order.
+    greyscale : bool
+        Show luminance only.
+    threshold_enabled : bool
+        Apply percentile threshold preview.
+    threshold_percent : float
+        0–100 slider value (higher = more pixels treated as background).
+
+    Returns
+    -------
+    np.ndarray
+        Processed BGR image.
+    """
+    if image_bgr is None or image_bgr.size == 0:
+        return image_bgr
+
+    if threshold_enabled:
+        gray = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2GRAY)
+        thresh = _threshold_single_gray(gray, threshold_percent)
+        return cv2.cvtColor(thresh, cv2.COLOR_GRAY2BGR)
+
+    if greyscale:
+        gray = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2GRAY)
+        return cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+
+    return image_bgr.copy()
+
+
 def _apply_thresholding(gray1, gray2, threshold_percent, invert):
     """
     Apply thresholding to two grayscale images.
@@ -327,24 +386,8 @@ def _apply_thresholding(gray1, gray2, threshold_percent, invert):
     tuple
         (thresh1, thresh2) thresholded images with white background and dark particles
     """
-    percentile = 100 - threshold_percent
-    threshold_val1 = np.percentile(gray1.flatten(), percentile)
-    threshold_val2 = np.percentile(gray2.flatten(), percentile)
-
-    # Both invert and non-invert cases use THRESH_BINARY_INV
-    # The logic is the same regardless of invert setting
-    _, thresh1 = cv2.threshold(gray1, threshold_val1, 255, cv2.THRESH_BINARY_INV)
-    _, thresh2 = cv2.threshold(gray2, threshold_val2, 255, cv2.THRESH_BINARY_INV)
-
-    # Ensure background is white (255) and particles are dark (0)
-    white_pixels1 = np.sum(thresh1 == 255)
-    white_pixels2 = np.sum(thresh2 == 255)
-
-    if white_pixels1 < (thresh1.size * 0.5):
-        thresh1 = cv2.bitwise_not(thresh1)
-    if white_pixels2 < (thresh2.size * 0.5):
-        thresh2 = cv2.bitwise_not(thresh2)
-
+    thresh1 = _threshold_single_gray(gray1, threshold_percent)
+    thresh2 = _threshold_single_gray(gray2, threshold_percent)
     return thresh1, thresh2
 
 

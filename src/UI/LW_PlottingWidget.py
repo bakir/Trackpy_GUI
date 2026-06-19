@@ -9,26 +9,15 @@ License: BSD 3-Clause License
 Date: 2025-12-08
 """
 
-from PySide6.QtWidgets import (
-    QWidget,
-    QLabel,
-    QVBoxLayout,
-    QHBoxLayout,
-    QPushButton,
-)
+from PySide6.QtWidgets import QWidget, QLabel, QVBoxLayout, QHBoxLayout
 from PySide6.QtCore import Qt, Signal
-import matplotlib.pyplot as plt
-from matplotlib.figure import Figure
-import os
-from copy import copy
-from ..utils import ParticleProcessing
+import numpy as np
 import pandas as pd
+import pyqtgraph as pg
+import trackpy as tp
 
 from ..utils import GraphingUtils
 from .DW_LW_FilteringWidget import DWLWFilteringWidget
-import trackpy as tp
-import cv2
-import pandas as pd
 
 
 class LWPlottingWidget(GraphingUtils.GraphingPanelWidget):
@@ -39,11 +28,9 @@ class LWPlottingWidget(GraphingUtils.GraphingPanelWidget):
 
         self.setup_plot_display()
 
-        # Buttons
         self.graphing_buttons = QWidget()
         self.button_layout = QHBoxLayout(self.graphing_buttons)
 
-        # Trajectories
         self.trajectories = QWidget()
         self.trajectory_layout = QVBoxLayout(self.trajectories)
         self.trajectory_label = QLabel("Trajectories")
@@ -58,10 +45,8 @@ class LWPlottingWidget(GraphingUtils.GraphingPanelWidget):
         self.button_layout.addWidget(self.trajectories)
         self.trajectory_layout.addStretch(1)
 
-        # Filtering - use "detection" page type to match particle detection window
         self.filtering_buttons(self.button_layout, "detection")
 
-        # Drift
         self.drift = QWidget()
         self.drift_layout = QVBoxLayout(self.drift)
         self.drift_label = QLabel("Drift")
@@ -76,34 +61,29 @@ class LWPlottingWidget(GraphingUtils.GraphingPanelWidget):
 
         self.layout.addWidget(self.graphing_buttons)
 
-        # Add filtering widget below the graphs
-        # Use all_particles.csv to match particle detection window
         self.filtering_widget = DWLWFilteringWidget(source_data_file="all_particles.csv")
         self.filtering_widget.filteredParticlesUpdated.connect(
             self.filteredTrajectoriesUpdated.emit
         )
+        self.filtering_widget.filteredParticlesUpdated.connect(
+            self.refresh_active_filter_plot
+        )
         self.layout.addWidget(self.filtering_widget)
-
-        # Add stretch below the buttons
         self.layout.addStretch(1)
 
     def get_linked_particles(self, linked_particles):
-        """Sets linking data and plots trajectories."""
         self.data = linked_particles
         self.self_plot(self.get_trajectories, self.trajectory_button)
 
     def set_file_controller(self, file_controller):
-        """Override to also set file controller for filtering widget."""
         super().set_file_controller(file_controller)
         if hasattr(self, "filtering_widget"):
             self.filtering_widget.set_file_controller(file_controller)
             if file_controller and hasattr(file_controller, "project_path"):
                 self.filtering_widget.project_path = file_controller.project_path
-        # Load particle data when file controller is set (to match particle detection window)
         self.load_particle_data()
 
     def load_particle_data(self):
-        """Load particle data from file controller if available."""
         if self.file_controller:
             try:
                 self.data = self.file_controller.load_particles_data("all_particles.csv")
@@ -111,48 +91,62 @@ class LWPlottingWidget(GraphingUtils.GraphingPanelWidget):
                 self.data = pd.DataFrame()
 
     def get_drift(self, page=None):
-        """Creates a plot of all particles drift"""
         try:
-            self.check_for_empty_data()
+            if not self.check_for_empty_data():
+                return False
 
-            # Create the plot
             scaling = self.config_manager.get_detection_params().get("scaling", 1.0)
             drift = tp.compute_drift(self.data, smoothing=15) * scaling
-            ax = drift.plot()
 
-            ax.set_xlabel("Frame")
+            plot, fonts = self._add_scaled_plot(title="Drift")
+            self._style_plot(plot, xlabel="Frame", ylabel="Drift", fonts=fonts)
+            line_width = self._get_scaled_pen_width(2.0)
 
-            temp_fig = plt.gcf()
-            temp_fig.suptitle("Drift")
-
-            # Return the figure instead of the DataFrame
-            return temp_fig
-
+            frames = drift.index.values.astype(float)
+            plot.plot(
+                frames,
+                drift["x"].values,
+                pen=pg.mkPen(color=(0, 0, 200), width=line_width),
+                name="x",
+            )
+            plot.plot(
+                frames,
+                drift["y"].values,
+                pen=pg.mkPen(color=(200, 0, 0), width=line_width),
+                name="y",
+            )
+            plot.addLegend(offset=(10, 10), labelTextSize=fonts["label_pt"])
+            return True
         except Exception as e:
             print(f"Error in particle locating or plotting: {e}")
-            return None
+            return False
 
     def get_trajectories(self, page=None):
-        """Creates a plot of all particle trajectories."""
         try:
-            self.check_for_empty_data()
+            if not self.check_for_empty_data():
+                return False
 
-            params = self.config_manager.get_detection_params()
-            scaling = params.get("scaling")
+            scaling = self.config_manager.get_detection_params().get("scaling", 1.0) or 1.0
 
-            # Create the plot
-            fig, ax = plt.subplots()
-            tp.plot_traj(self.data, mpp=scaling, ax=ax)
+            plot, fonts = self._add_scaled_plot(title="Trajectories")
+            self._style_plot(
+                plot,
+                xlabel="X [microns per px]",
+                ylabel="Y [microns per px]",
+                fonts=fonts,
+            )
+            line_width = self._get_scaled_pen_width(1.5)
 
-            ax.set_xlabel("X [microns per px]")
-            ax.set_ylabel("Y [microns per px]")
-
-            temp_fig = plt.gcf()
-            temp_fig.suptitle("Trajectories")
-
-            # Return the figure instead of the DataFrame
-            return temp_fig
-
+            particle_count = self.data["particle"].nunique()
+            for index, (_, particle_data) in enumerate(self.data.groupby("particle")):
+                sorted_data = particle_data.sort_values("frame")
+                color = pg.intColor(index, hues=max(10, particle_count))
+                plot.plot(
+                    sorted_data["x"].values * scaling,
+                    sorted_data["y"].values * scaling,
+                    pen=pg.mkPen(color, width=line_width),
+                )
+            return True
         except Exception as e:
             print(f"Error in particle locating or plotting: {e}")
-            return None
+            return False

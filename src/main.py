@@ -534,8 +534,7 @@ class ParticleTrackingAppController(QMainWindow):
         -------
         None
         """
-        # Note: State is saved BEFORE analysis in find_particles()
-        # This just updates the button state after analysis completes
+        # Note: Undo state is saved only after a successful Find Particles run completes.
         if self.dw_detection_window and hasattr(
             self.dw_detection_window, "update_undo_button_state"
         ):

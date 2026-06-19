@@ -168,7 +168,6 @@ class LWLinkingWindow(QMainWindow):
         self.right_panel.trajectoriesLinked.connect(
             lambda: self.refresh_linking_ui(update_plots=True, update_info=True)
         )
-
         # Connect filtered data updates to automatically re-run find_trajectories when filters change
         # This ensures trajectories are re-linked with the filtered particle data
         self.left_panel.filteredTrajectoriesUpdated.connect(self._on_filters_changed)
@@ -199,34 +198,37 @@ class LWLinkingWindow(QMainWindow):
 
         data_sources = {
             "all_particles": "all_particles.csv",
+            "filtered_particles": "filtered_particles.csv",
             "trajectories": "trajectories.csv",
+            "drift": self.file_controller.DRIFT_CSV,
+            "trajectories_drift_subtracted": self.file_controller.TRAJECTORIES_DRIFT_SUBTRACTED_CSV,
         }
 
         for name, filename in data_sources.items():
-            # Use FileController to load data
             try:
-                if filename == "all_particles.csv":
+                source_path = self.file_controller.get_data_file_path(filename)
+                if not os.path.exists(source_path):
+                    print(f"Source file not found, skipping: {filename}")
+                    continue
+
+                if filename == "all_particles.csv" or filename == "filtered_particles.csv":
                     df = self.file_controller.load_particles_data(filename)
-                elif filename == "trajectories.csv":
+                elif filename in (
+                    "trajectories.csv",
+                    self.file_controller.TRAJECTORIES_DRIFT_SUBTRACTED_CSV,
+                ):
                     df = self.file_controller.load_trajectories_data(filename)
                 else:
-                    # Fallback for other files
-                    source_path = self.file_controller.get_data_file_path(filename)
-                    if not os.path.exists(source_path):
-                        print(f"Source file not found, skipping: {filename}")
-                        continue
                     df = pd.read_csv(source_path)
 
                 if df.empty:
                     print(f"Source file is empty, skipping: {filename}")
                     continue
 
-                # Export to CSV
                 csv_path = os.path.join(directory, f"{name}.csv")
                 df.to_csv(csv_path, index=False)
                 print(f"Successfully exported to: {csv_path}")
 
-                # Export to PKL
                 pkl_path = os.path.join(directory, f"{name}.pkl")
                 df.to_pickle(pkl_path)
                 print(f"Successfully exported to: {pkl_path}")
@@ -372,7 +374,13 @@ class LWLinkingWindow(QMainWindow):
         # Load trajectories from file if still not available using FileController
         if trajectories_df is None and self.file_controller:
             try:
-                trajectories_df = self.file_controller.load_trajectories_data("trajectories.csv")
+                trajectories_df = self.file_controller.load_trajectories_data(
+                    self.file_controller.TRAJECTORIES_DRIFT_SUBTRACTED_CSV
+                )
+                if trajectories_df.empty:
+                    trajectories_df = self.file_controller.load_trajectories_data(
+                        "trajectories.csv"
+                    )
             except Exception as e:
                 print(f"Error loading trajectories: {e}")
                 trajectories_df = pd.DataFrame()
@@ -436,7 +444,6 @@ class LWLinkingWindow(QMainWindow):
         search_range = linking_params.get("search_range", "-")
         memory = linking_params.get("memory", "-")
         min_trajectory_length = linking_params.get("min_trajectory_length", "-")
-        drift = "Yes" if linking_params.get("drift", False) else "No"
 
         # Detection parameters
         feature_size = detection_params.get("feature_size", "-")
@@ -450,7 +457,6 @@ class LWLinkingWindow(QMainWindow):
             f"Search range: {search_range}<br>"
             f"Memory: {memory}<br>"
             f"Min trajectory length: {min_trajectory_length}<br>"
-            f"Subtract drift: {drift}<br>"
             f"<hr>"
             f"<b>Detection:</b><br>"
             f"Feature size: {feature_size}<br>"

@@ -19,7 +19,6 @@ from PySide6.QtWidgets import (
     QSpinBox,
     QDoubleSpinBox,
     QPushButton,
-    QCheckBox,
     QHBoxLayout,
     QProgressBar,
     QApplication,
@@ -38,6 +37,8 @@ from ..utils.UIUtils import create_label_with_info
 
 
 class LWParametersWidget(QWidget):
+    DRIFT_SMOOTHING = 15
+
     trajectoriesLinked = Signal()
     trajectoryVisualizationCreated = Signal(str)  # Emits image path
     errantDistanceLinksGalleryCreated = (
@@ -61,9 +62,10 @@ class LWParametersWidget(QWidget):
         self.form = QFormLayout()
 
         # Inputs for trajectory linking parameters
-        self.search_range_input = QSpinBox()
-        self.search_range_input.setRange(1, 1000)
-        self.search_range_input.setSingleStep(1)
+        self.search_range_input = QDoubleSpinBox()
+        self.search_range_input.setDecimals(2)
+        self.search_range_input.setRange(0.01, 1000.0)
+        self.search_range_input.setSingleStep(0.5)
         self.search_range_input.setToolTip(
             "Maximum distance a particle can move between frames (pixels)."
         )
@@ -82,9 +84,6 @@ class LWParametersWidget(QWidget):
             "Minimum number of frames for a valid trajectory."
         )
 
-        self.sub_drift = QCheckBox()
-        self.sub_drift.setToolTip("Subtract drift from trajectories to correct for overall motion.")
-
         self.form.addRow(
             create_label_with_info(
                 "Search range", "Maximum distance a particle can move between frames (pixels)."
@@ -102,12 +101,6 @@ class LWParametersWidget(QWidget):
                 "Min trajectory length", "Minimum number of frames for a valid trajectory."
             ),
             self.min_trajectory_length_input,
-        )
-        self.form.addRow(
-            create_label_with_info(
-                "Subtract Drift", "Subtract drift from trajectories to correct for overall motion."
-            ),
-            self.sub_drift,
         )
 
         self.layout.addLayout(self.form)
@@ -143,7 +136,6 @@ class LWParametersWidget(QWidget):
         self.search_range_input.editingFinished.connect(self.save_params)
         self.memory_input.editingFinished.connect(self.save_params)
         self.min_trajectory_length_input.editingFinished.connect(self.save_params)
-        self.sub_drift.stateChanged.connect(self.save_params)
         # Also catch Return in the embedded line edits
         self.search_range_input.lineEdit().returnPressed.connect(self.save_params)
         self.memory_input.lineEdit().returnPressed.connect(self.save_params)
@@ -163,34 +155,57 @@ class LWParametersWidget(QWidget):
         if not self.config_manager:
             return
         params = self.config_manager.get_linking_params()
-        self.search_range_input.setValue(int(params.get("search_range", 10)))
+        self.search_range_input.setValue(float(params.get("search_range", 10)))
         self.memory_input.setValue(int(params.get("memory", 10)))
         self.min_trajectory_length_input.setValue(int(params.get("min_trajectory_length", 10)))
-        self.sub_drift.setChecked(bool(params.get("drift", False)))
 
     def save_params(self):
         if not self.config_manager:
             return
         params = {
-            "search_range": int(self.search_range_input.value()),
+            "search_range": float(self.search_range_input.value()),
             "memory": int(self.memory_input.value()),
             "min_trajectory_length": int(self.min_trajectory_length_input.value()),
-            "drift": bool(self.sub_drift.isChecked()),
         }
         self.config_manager.save_linking_params(params)
 
-    def calc_drift(self, particle_data):
-        try:
-            scaling = self.config_manager.get_detection_params().get("scaling", 1.0)
-            particle_data = particle_data.copy()
-            drift = tp.compute_drift(particle_data, smoothing=15) * scaling
+    def _get_scaling(self):
+        return self.config_manager.get_detection_params().get("scaling", 1.0)
 
-            particle_data = tp.subtract_drift(particle_data, drift)
-            particle_data = particle_data.reset_index(drop=True)
-            return particle_data
-        except Exception as e:
-            print(f"Error linking trajectories: {e}")
-            self.linked_trajectories = None
+    def compute_drift_table(self, trajectories_df, label="trajectories"):
+        """Compute per-frame drift from linked trajectories (trackpy format)."""
+        scaling = self._get_scaling()
+        drift = tp.compute_drift(trajectories_df.copy(), smoothing=self.DRIFT_SMOOTHING) * scaling
+        print(f"\n=== Drift to subtract ({label}) ===")
+        print(f"smoothing={self.DRIFT_SMOOTHING}, scaling={scaling}")
+        print(drift.to_string())
+        print("=== end drift ===\n")
+        return drift
+
+    def apply_drift_to_trajectories(self, trajectories_df, drift):
+        """Return a copy of trajectories with drift subtracted."""
+        corrected = tp.subtract_drift(trajectories_df.copy(), drift)
+        return corrected.reset_index(drop=True)
+
+    def save_drift_subtracted_trajectories(self, raw_trajectories_df, drift):
+        """Persist trajectories_drift_subtracted.csv."""
+        corrected = self.apply_drift_to_trajectories(raw_trajectories_df, drift)
+        self.file_controller.save_trajectories_data(
+            corrected, self.file_controller.TRAJECTORIES_DRIFT_SUBTRACTED_CSV
+        )
+        return corrected
+
+    def _finalize_after_linking(self, raw_trajectories, trajectories_all, drift):
+        """Save drift.csv, drift-subtracted trajectories, and set display data."""
+        self.file_controller.save_drift_data(drift)
+        self.linked_trajectories = self.save_drift_subtracted_trajectories(
+            raw_trajectories, drift
+        )
+        print("Saved drift.csv, trajectories.csv (raw), and trajectories_drift_subtracted.csv")
+
+        if trajectories_all is not None:
+            return self.apply_drift_to_trajectories(trajectories_all, drift)
+        return None
 
     def find_trajectories(self):
         """Load detected particles and link them into trajectories."""
@@ -220,7 +235,7 @@ class LWParametersWidget(QWidget):
         QApplication.processEvents()  # Update UI immediately
 
         try:
-            search_range = int(linking_params.get("search_range", 10))
+            search_range = float(linking_params.get("search_range", 10))
             memory = int(linking_params.get("memory", 10))
             min_trajectory_length = int(linking_params.get("min_trajectory_length", 10))
 
@@ -239,8 +254,6 @@ class LWParametersWidget(QWidget):
                 self.progress_label.setText("Working... Filtering trajectories...")
                 QApplication.processEvents()
                 trajectories_all = tp.filter_stubs(trajectories_all, min_trajectory_length)
-                if self.sub_drift.isChecked():
-                    trajectories_all = self.calc_drift(trajectories_all)
                 print(
                     f"Created {trajectories_all['particle'].nunique()} unfiltered trajectories for visualization"
                 )
@@ -273,23 +286,26 @@ class LWParametersWidget(QWidget):
                 f"After filtering: {trajectories_filtered['particle'].nunique()} filtered trajectories"
             )
 
-            if self.sub_drift.isChecked():
-                trajectories_filtered = self.calc_drift(trajectories_filtered)
-
-            # Store the filtered linked trajectories
-            self.linked_trajectories = trajectories_filtered
-
-            # Save filtered trajectories.csv
+            # Save raw linked trajectories (no drift applied in this file)
             trajectories_file = self.file_controller.get_data_file_path("trajectories.csv")
             self.file_controller.save_trajectories_data(trajectories_filtered)
-            print(f"Saved FILTERED trajectories to: {trajectories_file}")
+            print(f"Saved raw linked trajectories to: {trajectories_file}")
+
+            self.progress_label.setText("Working... Computing drift...")
+            QApplication.processEvents()
+            drift = self.compute_drift_table(
+                trajectories_filtered, label="filtered trajectories (drift.csv)"
+            )
+            viz_trajectories = self._finalize_after_linking(
+                trajectories_filtered, trajectories_all, drift
+            )
 
             # Create trajectory visualization using unfiltered trajectories
-            if trajectories_all is not None:
+            if viz_trajectories is not None:
                 self.progress_label.setText("Working... Creating trajectory visualization...")
                 QApplication.processEvents()
                 self.create_trajectory_visualization(
-                    trajectories_all, data_folder, "trajectory_visualization.png"
+                    viz_trajectories, data_folder, "trajectory_visualization.png"
                 )
 
             self.progress_label.setText("Working... Creating RB gallery...")

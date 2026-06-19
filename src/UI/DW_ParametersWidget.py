@@ -32,13 +32,18 @@ class FindParticlesThread(QThread):
     """Thread for finding particles in selected frames."""
 
     processing_frame = Signal(str)
-    finished = Signal(object)  # Emits found particles DataFrame
+    finished = Signal(object, bool)  # particles DataFrame (or None), was_cancelled
 
     def __init__(self, frame_paths, params):
         """Initialize particle finding thread."""
         super().__init__()
         self.frame_paths = frame_paths
         self.params = params
+        self._cancel_requested = False
+
+    def request_cancel(self):
+        """Request cancellation after the current frame finishes."""
+        self._cancel_requested = True
 
     def run(self):
         """Run particle detection on frames and return particles, but do not save."""
@@ -47,15 +52,15 @@ class FindParticlesThread(QThread):
                 self.frame_paths,
                 self.params,
                 progress_callback=self.processing_frame,
+                cancel_check=lambda: self._cancel_requested,
             )
-            # Always emit finished signal, even if particles is None or empty
-            if particles is None:
-                particles = pd.DataFrame()
-            self.finished.emit(particles)
+            if self._cancel_requested or particles is None:
+                self.finished.emit(None, True)
+                return
+            self.finished.emit(particles, False)
         except Exception as e:
             print(f"Error in particle detection: {e}")
-            # Emit empty DataFrame on error to ensure progress bar stops
-            self.finished.emit(pd.DataFrame())
+            self.finished.emit(None, True)
 
 
 class DWParametersWidget(QWidget):
@@ -167,9 +172,13 @@ class DWParametersWidget(QWidget):
         self.all_frames_button.clicked.connect(self.set_all_frames)
         self.save_button = QPushButton("Find Particles")
         self.save_button.clicked.connect(self.find_particles)
+        self.stop_button = QPushButton("Stop")
+        self.stop_button.setEnabled(False)
+        self.stop_button.clicked.connect(self.stop_find_particles)
 
         buttons_row_layout.addWidget(self.all_frames_button)
         buttons_row_layout.addStretch()
+        buttons_row_layout.addWidget(self.stop_button)
         buttons_row_layout.addWidget(self.save_button)
         # Undo button will be added here by detection window
         # Store reference to layout for detection window to use
@@ -290,26 +299,27 @@ class DWParametersWidget(QWidget):
             # Update previous params even if no change (to track current state)
             self.previous_params = params.copy()
 
+    def _get_current_detection_params(self):
+        """Read detection parameters from widgets without writing config."""
+        current_scaling = self.config_manager.get_detection_params().get("scaling", 1.0)
+        return {
+            "feature_size": self.feature_size_input.value(),
+            "min_mass": self.min_mass_input.value(),
+            "invert": self.invert_input.isChecked(),
+            "threshold": self.threshold_input.value(),
+            "scaling": current_scaling,
+        }
+
     def find_particles(self):
         if not self.file_controller:
             self.progress_display.setText("Project not loaded.")
             return
 
-        # CRITICAL: Save current state for undo BEFORE doing anything else
-        # This saves the CURRENT config file (with old parameters) before we update it
-        # Get the main window to call save function
-        main_window = self.window()
-        if main_window and hasattr(main_window, "save_current_state"):
-            main_window.save_current_state()
+        if self.find_particles_thread and self.find_particles_thread.isRunning():
+            return
 
-        # NOW save the new parameters to the config file
-        # This updates the config with the values from the input widgets
-        self.save_params()
-
-        # Emit signal to clear gallery when Find Particles is clicked
+        # Emit signal to clear gallery when Find Particles starts (does not touch data files)
         self.particles_found.emit()
-
-        self._backup_and_clear_particles_data()
 
         # Convert 1-based UI input to 0-based frame indexing
         start_frame_0based = self.start_frame_input.value() - 1
@@ -325,35 +335,69 @@ class DWParametersWidget(QWidget):
             self.progress_display.setText("No frames found in range.")
             return
 
-        # Show progress indicator and disable buttons
-        self.save_button.setEnabled(False)
-        self.next_button.setEnabled(False)
+        self._set_find_ui_running(True)
         self.progress_display.setText("Working... Detecting particles. This may take a moment.")
-        self.progress_bar.setVisible(True)
         QApplication.processEvents()  # Update UI immediately
 
-        params = self.config_manager.get_detection_params()
+        params = self._get_current_detection_params()
         self.find_particles_thread = FindParticlesThread(frame_paths, params)
         self.find_particles_thread.processing_frame.connect(self.progress_display.setText)
         self.find_particles_thread.finished.connect(self.on_find_finished)
         self.find_particles_thread.start()
 
-    def on_find_finished(self, particles_df):
-        # Always re-enable buttons and hide progress bar first
-        self.save_button.setEnabled(True)
-        self.next_button.setEnabled(True)
-        self.progress_bar.setVisible(False)
+    def stop_find_particles(self):
+        """Stop an in-progress particle detection run and keep existing particle data."""
+        if self.find_particles_thread and self.find_particles_thread.isRunning():
+            self.progress_display.setText("Stopping... finishing current frame.")
+            self.stop_button.setEnabled(False)
+            self.find_particles_thread.request_cancel()
+
+    def _set_find_ui_running(self, running):
+        self.save_button.setEnabled(not running)
+        self.all_frames_button.setEnabled(not running)
+        self.stop_button.setEnabled(running)
+        self.next_button.setEnabled(not running)
+        self.progress_bar.setVisible(running)
+        detection_window = self.window()
+        if detection_window and hasattr(detection_window, "undo_button"):
+            if running:
+                detection_window.undo_button.setEnabled(False)
+            elif hasattr(detection_window, "update_undo_button_state"):
+                detection_window.update_undo_button_state()
+
+    def on_find_finished(self, particles_df, was_cancelled=False):
+        self._set_find_ui_running(False)
+
+        if was_cancelled:
+            self.load_params()
+            self.progress_display.setText("Particle detection stopped. Previous particles kept.")
+            existing_particles = self.file_controller.load_particles_data("all_particles.csv")
+            detection_window = self.window()
+            if detection_window and hasattr(detection_window, "refresh_detection_ui"):
+                detection_window.refresh_detection_ui(existing_particles, block_signals=False)
+            else:
+                self.allParticlesUpdated.emit()
+                if not existing_particles.empty:
+                    self.graphing_panel.set_particles(existing_particles)
+                self.graphing_panel.filtering_widget.apply_filters_and_notify()
+                self._update_frame_info()
+            QTimer.singleShot(2000, lambda: self.progress_display.setText(""))
+            return
 
         # Handle None case - convert to empty DataFrame
         if particles_df is None:
             particles_df = pd.DataFrame()
 
-        # Save particles to file
+        main_window = self.window()
+        if main_window and hasattr(main_window, "save_current_state"):
+            main_window.save_current_state()
+
+        self.save_params()
+
         if not particles_df.empty:
             self.progress_display.setText("Particle detection completed!")
             self._save_all_particles_df(particles_df)
         else:
-            # Even if no particles are found, save empty DataFrame
             self.progress_display.setText("Particle detection completed (no particles found).")
             self._save_all_particles_df(pd.DataFrame())
 
@@ -370,14 +414,6 @@ class DWParametersWidget(QWidget):
 
         # Clear message after a moment
         QTimer.singleShot(2000, lambda: self.progress_display.setText(""))
-
-    def _backup_and_clear_particles_data(self):
-        """Backs up all_particles.csv and then clears it using FileController."""
-        # Use FileController to backup particles data
-        self.file_controller.backup_particles_data("old_all_particles.csv")
-
-        # Clear all_particles.csv by saving an empty DataFrame using FileController
-        self.file_controller.save_particles_data(pd.DataFrame(), "all_particles.csv")
 
     def _save_all_particles_df(self, df):
         self.file_controller.save_particles_data(df)

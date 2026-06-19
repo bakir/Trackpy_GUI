@@ -175,10 +175,9 @@ class DWDetectionWindow(QMainWindow):
         # Connect signals
         # Only update feature size when parameters change, don't clear gallery
         self.right_panel.parameter_changed.connect(self.frame_player.update_feature_size)
-        # Clear gallery only when Find Particles is clicked
+        # Clear gallery when Find Particles starts (does not touch particle CSV files)
         self.right_panel.particles_found.connect(self.clear_processed_data)
-        # Update parameters info when particles are found
-        self.right_panel.particles_found.connect(self._update_parameters_info)
+        # Parameters info updates when detection completes via refresh_detection_ui
         self.frame_player.frames_saved.connect(self.right_panel.set_total_frames)
         self.errant_particle_gallery.update_required.connect(
             self.frame_player.handle_gallery_update
@@ -191,6 +190,14 @@ class DWDetectionWindow(QMainWindow):
         self.left_panel.filtering_widget.filteredParticlesUpdated.connect(
             self.errant_particle_gallery.regenerate_errant_particles
         )
+        self.left_panel.pointSelected.connect(self.frame_player.highlight_particle)
+        self.left_panel.plotSwitched.connect(self.frame_player.clear_scatter_highlight)
+        self.left_panel.plotSwitched.connect(self.left_panel.clear_linked_particle)
+        self.frame_player.particleClickedOnFrame.connect(
+            self.left_panel.select_particle_from_frame
+        )
+        self.right_panel.particles_found.connect(self.frame_player.clear_scatter_highlight)
+        self.right_panel.particles_found.connect(self.left_panel.clear_linked_particle)
 
         # Update undo button state
         self.update_undo_button_state()

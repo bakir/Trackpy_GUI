@@ -17,6 +17,11 @@ FIG_WIDTH_IN = 0
 FIG_HEIGHT_IN = 0
 STANDARD_DPI = 100
 
+REFERENCE_SCREEN_HEIGHT = 1080
+REFERENCE_LOGICAL_DPI = 96.0
+MIN_UI_SCALE = 0.85
+MAX_UI_SCALE = 2.0
+
 
 def get_screen_dims():
     """
@@ -50,3 +55,58 @@ def get_start_screen_geometry():
     x_left = (screen_width / 2) - (start_screen_width / 2)
     y_up = (screen_height / 2) - (start_screen_height / 2)
     return x_left, y_up, start_screen_width, start_screen_height
+
+
+def get_ui_scale_factor():
+    """
+    Scale factor for plot fonts and markers relative to a 1080p / 96 DPI baseline.
+
+    Uses the primary screen's available height and logical DPI so plots stay
+    readable on high-resolution and high-DPI displays.
+    """
+    qapp = QApplication.instance()
+    if qapp is None:
+        return 1.0
+
+    screen = qapp.primaryScreen()
+    if screen is None:
+        return 1.0
+
+    height = screen.availableGeometry().height()
+    dpi = screen.logicalDotsPerInch()
+    scale = (height / REFERENCE_SCREEN_HEIGHT) * (dpi / REFERENCE_LOGICAL_DPI)
+    return max(MIN_UI_SCALE, min(MAX_UI_SCALE, scale))
+
+
+def scaled_font_points(base_points, scale=None):
+    """Return a font size in points scaled for the current screen."""
+    if scale is None:
+        scale = get_ui_scale_factor()
+    return max(8, round(base_points * scale))
+
+
+def scaled_length(base_length, scale=None, minimum=1.0):
+    """Return a line width, marker size, etc. scaled for the current screen."""
+    if scale is None:
+        scale = get_ui_scale_factor()
+    return max(minimum, base_length * scale)
+
+
+def get_plot_font_sizes():
+    """Font sizes for PyQtGraph titles, axis labels, and tick labels."""
+    scale = get_ui_scale_factor()
+    tick = scaled_font_points(10, scale)
+    label = scaled_font_points(11, scale)
+    title = scaled_font_points(13, scale)
+    subtitle = scaled_font_points(12, scale)
+    return {
+        "tick": tick,
+        "label": label,
+        "title": title,
+        "subtitle": subtitle,
+        "tick_pt": f"{tick}pt",
+        "label_pt": f"{label}pt",
+        "title_pt": f"{title}pt",
+        "subtitle_pt": f"{subtitle}pt",
+        "scale": scale,
+    }
